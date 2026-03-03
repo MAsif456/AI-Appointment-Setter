@@ -13,7 +13,7 @@ This guide walks you from a fresh clone to running the project with `npm run dev
 
 ## What you need before starting
 
-Install these on your machine (if you don’t have them yet):
+IMPORTANT! Install these on your machine (if you don’t have them yet):
 
 | Tool       | Purpose              | How to check           |
 |-----------|----------------------|------------------------|
