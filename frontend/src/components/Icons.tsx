@@ -1,7 +1,12 @@
+/**
+ * Shared props for all icon components.
+ * Pass a className to control sizing and colour via CSS Modules.
+ */
 interface IconProps {
   className?: string;
 }
 
+/** Home/dashboard icon — house outline. */
 export function DashboardIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -11,6 +16,7 @@ export function DashboardIcon({ className }: IconProps) {
   );
 }
 
+/** Building icon used for the Clinics nav item. */
 export function ClinicsIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -24,6 +30,7 @@ export function ClinicsIcon({ className }: IconProps) {
   );
 }
 
+/** Chat bubble icon for the Conversations nav item. */
 export function ConversationsIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -32,6 +39,7 @@ export function ConversationsIcon({ className }: IconProps) {
   );
 }
 
+/** Bar chart icon for the Analytics nav item. */
 export function AnalyticsIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,6 +50,7 @@ export function AnalyticsIcon({ className }: IconProps) {
   );
 }
 
+/** Gear/cog icon for the Settings nav item. */
 export function SettingsIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -51,6 +60,7 @@ export function SettingsIcon({ className }: IconProps) {
   );
 }
 
+/** Person silhouette icon — used for the user avatar placeholder. */
 export function UserIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,6 +70,7 @@ export function UserIcon({ className }: IconProps) {
   );
 }
 
+/** Arrow-out-of-door icon for the logout button. */
 export function LogoutIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

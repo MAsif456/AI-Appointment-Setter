@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   description: "AppointHealth AI is a platform for scheduling appointments in an efficient and precise way",
 };
 
+/**
+ * Root layout shared by every page in the app.
+ * Wraps content with a fixed Sidebar on the left and a scrollable main area on the right.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

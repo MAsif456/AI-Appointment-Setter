@@ -13,6 +13,7 @@ import {
   LogoutIcon,
 } from '../Icons';
 
+/** Main nav links rendered in the top section of the sidebar. */
 const navItems = [
   { label: 'Dashboard', href: '/', icon: DashboardIcon },
   { label: 'Clinics', href: '/clinics', icon: ClinicsIcon },
@@ -20,12 +21,21 @@ const navItems = [
   { label: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
 ];
 
+// Settings sits outside the main nav group, pinned just above the user section.
 const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon };
 
-
+/**
+ * Fixed sidebar used as the primary navigation across the dashboard.
+ * Highlights the active route and displays a static user profile at the bottom.
+ * Rendered inside RootLayout so it persists across all pages.
+ */
 export default function Sidebar() {
   const pathname = usePathname();
 
+  /**
+   * Checks whether a nav link should be highlighted.
+   * Exact match for the root path, prefix match for everything else.
+   */
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
