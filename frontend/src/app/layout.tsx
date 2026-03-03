@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import Sidebar from "@/components/Sidebar/Sidebar";
+import styles from "./layout.module.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "AppointHealth AI - Schedule appointments in a efficient and precise way",
-  description: "AppointHealth AI is a platform for scheduling appointments in a efficient and precise way",
+  title: "AppointHealth AI - Schedule appointments in an efficient and precise way",
+  description: "AppointHealth AI is a platform for scheduling appointments in an efficient and precise way",
 };
 
 export default function RootLayout({
@@ -24,10 +20,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={inter.className}>
+        <div className={styles.layoutWrapper}>
+          <Sidebar />
+          <main className={styles.mainContent}>
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );
