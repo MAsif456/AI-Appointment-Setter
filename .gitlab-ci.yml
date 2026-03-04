@@ -1,0 +1,58 @@
+stages:
+  - test
+  - build
+
+default:
+  image: node:20-alpine
+
+variables:
+  COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - backend/node_modules/
+    - frontend/node_modules/
+
+# --- Backend tests ---
+test:backend:
+  stage: test
+  services:
+    - mongo:7
+  variables:
+    MONGODB_URI: "mongodb://mongo:27017/test_db"
+    FRONTEND_URL: "http://localhost:3000"
+  before_script:
+    - cd backend
+    - npm ci
+  script:
+    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --forceExit
+  coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
+
+# --- Frontend tests ---
+test:frontend:
+  stage: test
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD"
+  coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
+
+# --- Build backend ---
+build:backend:
+  stage: build
+  before_script:
+    - cd backend
+    - npm ci
+  script:
+    - npm run build
+
+# --- Build frontend ---
+build:frontend:
+  stage: build
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run build
