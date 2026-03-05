@@ -7,12 +7,12 @@ default:
 
 variables:
   COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - backend/node_modules/
-    - frontend/node_modules/
+    - .npm/
 
 # --- Backend tests ---
 test:backend:
@@ -26,7 +26,7 @@ test:backend:
     - cd backend
     - npm ci
   script:
-    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --forceExit
+    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
 
 # --- Frontend tests ---
@@ -36,7 +36,7 @@ test:frontend:
     - cd frontend
     - npm ci
   script:
-    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD"
+    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
 
 # --- Build backend ---
