@@ -107,7 +107,33 @@ If you see a MongoDB connection error, go back to Step 3 and fix your MongoDB UR
 
 ---
 
-## Step 5: Run the frontend
+## Step 5: Seed the Database (Development Only)
+
+After starting the backend, populate the database with dummy data.
+
+In a new terminal:
+
+```bash
+cd backend
+npm run seed
+```
+
+This will:
+
+- Clear existing collections
+- Create 1 admin user
+- Create 4 clinics
+- Create 7 leads
+- Create 7 conversations
+- Create messages
+- Create 1 appointment
+- Create audit logs
+
+You can re-run this command anytime to reset and repopulate the database during development.
+
+---
+
+## Step 6: Run the frontend
 
 Open a **second** terminal (the first one is still running the backend). Run the frontend from **its own folder**:
 
@@ -172,6 +198,7 @@ Change these if your ports or URLs differ. For frontend calls to the API from th
 |-----------------|------------|----------------------------|
 | `npm run dev`   | `frontend/` | Start Next.js dev server   |
 | `npm run dev`   | `backend/`  | Start NestJS dev server    |
+| `npm run seed`   | `backend/`  | Seed database with dummy data    |
 | `npm run build` | `frontend/` or `backend/` | Build for production |
 
 If something doesn’t work, double-check: Node version, MongoDB running (or correct Atlas URI), and that you’re running commands from the correct folder (`frontend/` or `backend/`).
