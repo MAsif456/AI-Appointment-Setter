@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Clinic, ClinicDocument } from '../schemas/clinic.schema';
+import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
 const VALID_OBJECT_ID = /^[a-f0-9]{24}$/i;
@@ -26,6 +28,24 @@ export class ClinicsService {
   constructor(
     @InjectModel(Clinic.name) private readonly clinicModel: Model<ClinicDocument>,
   ) {}
+
+  /**
+   * Create a new clinic from a CreateClinicDto.
+   * Throws ConflictException if a clinic with the same GHL Location ID already exists.
+   */
+  async create(dto: CreateClinicDto): Promise<ClinicDocument> {
+    const existing = await this.clinicModel
+      .findOne({ ghlLocationId: dto.ghlLocationId })
+      .lean();
+
+    if (existing) {
+      throw new ConflictException(
+        'A clinic with this GHL Location ID already exists',
+      );
+    }
+
+    return this.clinicModel.create(dto);
+  }
 
   /** Returns all clinic documents from the database. */
   findAll() {
@@ -87,4 +107,3 @@ export class ClinicsService {
     return clinic;
   }
 }
-

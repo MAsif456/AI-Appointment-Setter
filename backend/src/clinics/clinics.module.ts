@@ -1,16 +1,14 @@
-/**
- * ClinicsModule: NestJS feature module for the clinics domain.
- *
- * Registers the Clinic Mongoose model, exposes the REST endpoints via
- * ClinicsController, and provides ClinicsService to other modules that
- * import this module.
- */
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Clinic, ClinicSchema } from '../schemas/clinic.schema';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
 
+/**
+ * Defines the configuration for the ClinicsModule module.
+ * This module imports the MongooseModule and configures it to use the ClinicSchema for the Clinic model.
+ * It includes the ClinicsController and ClinicsService, and exports the ClinicsService.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Clinic.name, schema: ClinicSchema }]),
@@ -20,4 +18,3 @@ import { ClinicsService } from './clinics.service';
   exports: [ClinicsService],
 })
 export class ClinicsModule {}
-

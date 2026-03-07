@@ -1,10 +1,21 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
+import { CreateClinicDto } from './dto/create-clinic.dto';
 import type { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
 @Controller('clinics')
 export class ClinicsController {
   constructor(private readonly clinicsService: ClinicsService) {}
+
+  /**
+   * Creates a new clinic based on the provided DTO.
+   * @param dto The CreateClinicDto containing the clinic's information.
+   * @returns The newly created clinic document.
+   */
+  @Post()
+  create(@Body() dto: CreateClinicDto) {
+    return this.clinicsService.create(dto);
+  }
 
   /** Returns every clinic in the database. */
   @Get()
@@ -34,4 +45,3 @@ export class ClinicsController {
     return this.clinicsService.updateBasicSettings(id, body);
   }
 }
-

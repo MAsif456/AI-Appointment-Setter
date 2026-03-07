@@ -70,6 +70,16 @@ export function UserIcon({ className }: IconProps) {
   );
 }
 
+/** Left-pointing arrow used for "back" navigation links. */
+export function BackArrowIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
 /** Arrow-out-of-door icon for the logout button. */
 export function LogoutIcon({ className }: IconProps) {
   return (
