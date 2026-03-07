@@ -1,46 +1,89 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { getClinicById } from '@/data/mockClinics';
+import { fetchAiSettings, saveAiSettings } from '@/lib/ai-settings-api';
 import ToneSelector from '@/components/AIConfiguration/ToneSelector';
 import GreetingMessage from '@/components/AIConfiguration/GreetingMessage';
 import QualificationQuestions from '@/components/AIConfiguration/QualificationQuestions';
 import CustomInstructions from '@/components/AIConfiguration/CustomInstructions';
-import ServicesLocations from '@/components/AIConfiguration/ServicesLocations';
-import { AITone, QualificationQuestion, ServicesAndLocations } from '@/types/clinic';
+import SaveBar from '@/components/AIConfiguration/SaveBar';
+import { AITone, QualificationQuestion } from '@/types/clinic';
 
 /**
  * AI Configuration page for a specific clinic.
- * Manages local state for all config sections and renders
- * them in the order shown in the prototype design.
+ * Fetches settings from the backend API on mount and persists
+ * changes via PUT when the user clicks Save.
  */
 export default function AIConfigurationPage() {
   const params = useParams();
   const clinicId = params.id as string;
-  const clinic = getClinicById(clinicId);
 
-  // Local state for each configuration section
-  const [tone, setTone] = useState<AITone>('professional');
+  // Form state
+  const [tone, setTone] = useState<AITone>('friendly');
   const [greeting, setGreeting] = useState('');
   const [questions, setQuestions] = useState<QualificationQuestion[]>([]);
   const [instructions, setInstructions] = useState('');
-  const [services, setServices] = useState<ServicesAndLocations>({
-    servicesOffered: [],
-    serviceAreaPrefixes: [],
-  });
 
-  // Populate state from mock data when clinic is available
+  // UI state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Fetch AI settings from the backend on mount
   useEffect(() => {
-    if (!clinic) return;
-    setTone(clinic.aiConfiguration.tone);
-    setGreeting(clinic.aiConfiguration.greetingMessage);
-    setQuestions(clinic.aiConfiguration.qualificationQuestions);
-    setInstructions(clinic.aiConfiguration.customInstructions);
-    setServices(clinic.services);
-  }, [clinic]);
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
 
-  if (!clinic) return null;
+    fetchAiSettings(clinicId)
+      .then((data) => {
+        if (cancelled) return;
+        setTone(data.tone);
+        setGreeting(data.greetingTemplate);
+        setQuestions(data.qualificationQuestions);
+        setInstructions(data.customInstructions);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [clinicId]);
+
+  /** Saves all current settings to the backend. */
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    setToast(null);
+    try {
+      await saveAiSettings(clinicId, {
+        tone,
+        greetingTemplate: greeting,
+        qualificationQuestions: questions,
+        customInstructions: instructions,
+      });
+      setToast({ type: 'success', message: 'Settings saved successfully' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save settings';
+      setToast({ type: 'error', message: msg });
+    } finally {
+      setSaving(false);
+      // Auto-dismiss toast after 4 seconds
+      setTimeout(() => setToast(null), 4000);
+    }
+  }, [clinicId, tone, greeting, questions, instructions]);
+
+  if (loading) {
+    return <p style={{ padding: '24px', color: '#6b7280' }}>Loading AI settings...</p>;
+  }
+
+  if (error) {
+    return <p style={{ padding: '24px', color: '#dc2626' }}>Error: {error}</p>;
+  }
 
   return (
     <div>
@@ -48,7 +91,7 @@ export default function AIConfigurationPage() {
       <GreetingMessage value={greeting} onChange={setGreeting} />
       <QualificationQuestions questions={questions} onChange={setQuestions} />
       <CustomInstructions value={instructions} onChange={setInstructions} />
-      <ServicesLocations value={services} onChange={setServices} />
+      <SaveBar onSave={handleSave} saving={saving} toast={toast} />
     </div>
   );
 }

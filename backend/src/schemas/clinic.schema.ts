@@ -19,30 +19,45 @@ export class BusinessHours {
   closeTime?: string; // '17:00'
 }
 
+/** A single qualification question that the AI can ask during conversations. */
+@Schema({ _id: false })
+export class QualificationQuestion {
+  @Prop({ required: true })
+  key: string;
+
+  @Prop({ required: true })
+  label: string;
+
+  @Prop({ default: true })
+  enabled: boolean;
+}
+
+/** AI configuration settings controlling how the AI interacts with patients for a clinic. */
 @Schema({ _id: false })
 export class AIConfiguration {
-  @Prop({ type: String, enum: ['friendly', 'professional', 'balanced'], default: 'professional' })
+  @Prop({ type: String, enum: ['friendly', 'professional', 'balanced'], default: 'friendly' })
   tone: string;
 
-  @Prop({ default: 'Hi {{firstName}}! Thanks for getting in touch with {{clinicName}}. I can help you book an appointment for your {{issue}}. Let me ask a few quick questions.' })
+  @Prop({
+    default: 'Hi {{firstName}}! Thanks for getting in touch with {{clinicName}}. I can help you book an appointment. Let me ask a few quick questions.',
+    maxlength: 500,
+  })
   greetingTemplate: string;
 
-  @Prop({ type: [String], default: [] })
-  customInstructions: string[];
-
-  @Prop({ 
-    type: Map, 
-    of: Boolean,
-    default: {
-      postcode: true,
-      urgency: true,
-      preferredTime: true,
-      serviceType: false
-    }
+  @Prop({
+    type: [QualificationQuestion],
+    default: [
+      { key: 'urgency', label: 'Urgency', enabled: true },
+      { key: 'preferredTime', label: 'Preferred time of day', enabled: true },
+      { key: 'painDescription', label: 'Pain description', enabled: true },
+      { key: 'patientType', label: 'New or returning patient', enabled: true },
+    ],
   })
-  qualificationQuestions: Map<string, boolean>;
+  qualificationQuestions: QualificationQuestion[];
 
-  // FAQ Responses
+  @Prop({ default: '', maxlength: 1000 })
+  customInstructions: string;
+
   @Prop({ type: [{ question: String, answer: String }], default: [] })
   faqResponses: Array<{ question: string; answer: string }>;
 }
@@ -187,7 +202,6 @@ export class Clinic {
 
 export const ClinicSchema = SchemaFactory.createForClass(Clinic);
 
-// Indexes
-ClinicSchema.index({ ghlLocationId: 1 });
+// Indexes (ghlLocationId already indexed via unique: true on the @Prop)
 ClinicSchema.index({ isActive: 1 });
 ClinicSchema.index({ name: 1 });

@@ -8,16 +8,15 @@ export type AITone = 'friendly' | 'professional' | 'balanced';
 
 /** A qualification question the AI can ask during conversations. */
 export interface QualificationQuestion {
-  id: string;
+  key: string;
   label: string;
   enabled: boolean;
-  required: boolean;
 }
 
-/** AI configuration settings for a specific clinic. */
-export interface AIConfiguration {
+/** AI settings response shape matching the backend API. */
+export interface AISettings {
   tone: AITone;
-  greetingMessage: string;
+  greetingTemplate: string;
   qualificationQuestions: QualificationQuestion[];
   customInstructions: string;
 }
@@ -31,11 +30,9 @@ export interface ServicesAndLocations {
 /** Status of a clinic — determines visibility and behaviour. */
 export type ClinicStatus = 'active' | 'inactive' | 'pending';
 
-/** Top-level clinic entity combining identity, AI config, and services. */
+/** Top-level clinic entity used for listing and detail views. */
 export interface Clinic {
-  id: string;
+  _id: string;
   name: string;
-  status: ClinicStatus;
-  aiConfiguration: AIConfiguration;
-  services: ServicesAndLocations;
+  isActive: boolean;
 }

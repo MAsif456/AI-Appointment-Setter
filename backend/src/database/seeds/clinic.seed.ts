@@ -31,14 +31,14 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
         ],
         aiConfig: {
           tone: 'friendly',
-          greetingTemplate: 'Hi {{firstName}}! Thanks for getting in touch with {{clinicName}}. I can help you book an appointment for your {{issue}}. Let me ask a few quick questions.',
-          customInstructions: ['Always mention free parking available on-site.'],
-          qualificationQuestions: {
-            postcode: true,
-            urgency: true,
-            preferredTime: true,
-            serviceType: false
-          },
+          greetingTemplate: 'Hi {{firstName}}! Thanks for getting in touch with {{clinicName}}. I can help you book an appointment. Let me ask a few quick questions.',
+          customInstructions: 'Always mention free parking available on-site.',
+          qualificationQuestions: [
+            { key: 'urgency', label: 'Urgency', enabled: true },
+            { key: 'preferredTime', label: 'Preferred time of day', enabled: true },
+            { key: 'painDescription', label: 'Pain description', enabled: true },
+            { key: 'patientType', label: 'New or returning patient', enabled: true },
+          ],
           faqResponses: [
             { question: 'Do you accept insurance?', answer: 'Yes, we accept all major health insurance providers.' },
             { question: 'What should I bring?', answer: 'Please bring photo ID and any relevant medical documents.' }
@@ -78,11 +78,13 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
         aiConfig: {
           tone: 'professional',
           greetingTemplate: 'Hello {{firstName}}, welcome to {{clinicName}}. How can we assist you today?',
-          customInstructions: [],
-          qualificationQuestions: {
-            postcode: true,
-            urgency: true
-          },
+          customInstructions: 'Emphasize expertise in sports injuries for athletes.',
+          qualificationQuestions: [
+            { key: 'urgency', label: 'Urgency', enabled: true },
+            { key: 'preferredTime', label: 'Preferred time of day', enabled: false },
+            { key: 'painDescription', label: 'Pain description', enabled: true },
+            { key: 'patientType', label: 'New or returning patient', enabled: true },
+          ],
           faqResponses: []
         },
         defaultAppointmentDuration: 45,
@@ -118,11 +120,13 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
         aiConfig: {
           tone: 'balanced',
           greetingTemplate: 'Hi {{firstName}}, thanks for contacting {{clinicName}}. Let\'s get you booked in!',
-          customInstructions: ['Mention our new patient discount of 20%'],
-          qualificationQuestions: {
-            postcode: true,
-            urgency: true
-          },
+          customInstructions: 'Mention our new patient discount of 20%',
+          qualificationQuestions: [
+            { key: 'urgency', label: 'Urgency', enabled: true },
+            { key: 'preferredTime', label: 'Preferred time of day', enabled: true },
+            { key: 'painDescription', label: 'Pain description', enabled: false },
+            { key: 'patientType', label: 'New or returning patient', enabled: true },
+          ],
           faqResponses: []
         },
         defaultAppointmentDuration: 20,
@@ -150,10 +154,13 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
         aiConfig: {
           tone: 'professional',
           greetingTemplate: 'Hello, welcome to {{clinicName}}.',
-          customInstructions: [],
-          qualificationQuestions: {
-            postcode: true
-          },
+          customInstructions: '',
+          qualificationQuestions: [
+            { key: 'urgency', label: 'Urgency', enabled: true },
+            { key: 'preferredTime', label: 'Preferred time of day', enabled: true },
+            { key: 'painDescription', label: 'Pain description', enabled: true },
+            { key: 'patientType', label: 'New or returning patient', enabled: true },
+          ],
           faqResponses: []
         },
         defaultAppointmentDuration: 30,
