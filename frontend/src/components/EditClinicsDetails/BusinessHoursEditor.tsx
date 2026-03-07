@@ -1,3 +1,4 @@
+
 import styles from "./clinics.module.css";
 import type { BusinessHours } from "./types";
 import { DAYS_ORDER, capitalizeDay } from "./utils";
@@ -10,8 +11,10 @@ type Props = {
 export default function BusinessHoursEditor({ value, onChange }: Props) {
   const orderedDays = DAYS_ORDER;
 
+  // keyed lookup for O(1) access when updating a single day's row
   const hoursByDay = new Map((value ?? []).map((b) => [b.day, b]));
 
+  // merges a single field change into the hours array and fires onChange
   const handleChange = (
     day: string,
     field: "isOpen" | "openTime" | "closeTime",

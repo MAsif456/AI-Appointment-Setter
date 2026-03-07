@@ -27,10 +27,16 @@ export class ClinicsService {
     @InjectModel(Clinic.name) private readonly clinicModel: Model<ClinicDocument>,
   ) {}
 
+  /** Returns all clinic documents from the database. */
   findAll() {
     return this.clinicModel.find().exec();
   }
 
+  /**
+   * Returns a single clinic by its MongoDB ObjectId.
+   * @throws {BadRequestException} if the id is not a valid 24-char hex string.
+   * @throws {NotFoundException} if no clinic with that id exists.
+   */
   async findOne(id: string) {
     assertValidObjectId(id);
     const clinic = await this.clinicModel.findById(id).exec();
@@ -40,6 +46,13 @@ export class ClinicsService {
     return clinic;
   }
 
+  /**
+   * Applies a partial update to a clinic's basic settings.
+   * Only fields that are present in the update payload are written;
+   * omitted fields are left unchanged in the database.
+   * @throws {BadRequestException} if the id is not a valid 24-char hex string.
+   * @throws {NotFoundException} if no clinic with that id exists.
+   */
   async updateBasicSettings(
     id: string,
     update: UpdateClinicSettingsDto,

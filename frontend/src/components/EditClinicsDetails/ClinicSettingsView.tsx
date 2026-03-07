@@ -1,3 +1,10 @@
+/**
+ * ClinicSettingsView: read-only view of the Settings tab.
+ *
+ * Displays the clinic's basic information fields, business hours, and
+ * current status as styled read-only boxes. Clicking the Edit button in
+ * the header switches to ClinicSettingsForm for editing.
+ */
 import styles from "./clinics.module.css";
 import type { Clinic } from "./types";
 import { DAYS_ORDER, capitalizeDay } from "./utils";
@@ -7,6 +14,7 @@ type Props = {
 };
 
 export default function ClinicSettingsView({ clinic }: Props) {
+  // keyed lookup so we can render hours in DAYS_ORDER without sorting the array
   const hoursByDay = new Map(
     (clinic.businessHours ?? []).map((h) => [h.day, h])
   );

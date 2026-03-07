@@ -10,9 +10,11 @@ type Props = {
 
 const ClinicSettingsForm = forwardRef<HTMLFormElement, Props>(
   function ClinicSettingsForm({ clinic, onSave }, ref) {
+    // state
     const [draft, setDraft] = useState<Clinic>(clinic);
     const [newArea, setNewArea] = useState("");
 
+    // service area helpers: normalise codes into ServiceArea objects and patch draft
     const updateServiceAreas = (codes: string[]) => {
       setDraft((prev) => ({
         ...prev,
@@ -42,6 +44,7 @@ const ClinicSettingsForm = forwardRef<HTMLFormElement, Props>(
       );
     };
 
+    // submit: delegates to onSave so the PATCH lives in ClinicDetail
     const handleSubmit = async (event: React.FormEvent) => {
       event.preventDefault();
       await onSave(draft);

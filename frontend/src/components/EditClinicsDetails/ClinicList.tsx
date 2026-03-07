@@ -1,3 +1,8 @@
+/**
+ * ClinicList: displays all clinics as a responsive card grid.
+ * Each card shows the clinic name, address, service area tags,
+ * monthly stats, and a link to the clinic's detail/settings page.
+ */
 import Link from "next/link";
 import styles from "./clinics.module.css";
 import type { Clinic } from "./types";

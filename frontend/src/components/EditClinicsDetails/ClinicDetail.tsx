@@ -6,7 +6,6 @@ import type { Clinic } from "./types";
 import ClinicDetailHeader from "./ClinicDetailHeader";
 import ClinicSettingsForm from "./ClinicSettingsForm";
 import ClinicSettingsView from "./ClinicSettingsView";
-import ClinicOverview from "./ClinicOverview";
 
 type TabKey = "overview" | "settings" | "ai" | "conversations" | "analytics";
 
@@ -17,6 +16,7 @@ type Props = {
 };
 
 export default function ClinicDetail({ initialClinic }: Props) {
+  // state
   const [activeTab, setActiveTab] = useState<TabKey>("settings");
   const [clinic, setClinic] = useState<Clinic>(initialClinic);
   const [isSettingsEditing, setIsSettingsEditing] = useState(false);
@@ -25,6 +25,7 @@ export default function ClinicDetail({ initialClinic }: Props) {
   const [error, setError] = useState<string | null>(null);
   const settingsFormRef = useRef<HTMLFormElement>(null);
 
+  // PATCHes /clinics/:id/settings; updates local state and feedback banner on success
   const handleSaveSettings = async (updated: Clinic) => {
     setIsSaving(true);
     setError(null);
@@ -77,6 +78,7 @@ export default function ClinicDetail({ initialClinic }: Props) {
         formRef={settingsFormRef}
       />
 
+      {/* tab navigation */}
       <nav className={styles.tabs} aria-label="Clinic sections">
         {(
           [
@@ -103,12 +105,20 @@ export default function ClinicDetail({ initialClinic }: Props) {
         ))}
       </nav>
 
+      {/* feedback banners */}
       {successMessage && (
         <div className={styles.successBanner}>{successMessage}</div>
       )}
       {error && <p className={styles.errorText}>{error}</p>}
 
-      {activeTab === "overview" && <ClinicOverview clinic={clinic} />}
+      {/* tab panels */}
+      {activeTab === "overview" && (
+        <section className={styles.tabPanel}>
+          <p className={styles.detailMeta}>
+            Clinic overview will be added here.
+          </p>
+        </section>
+      )}
 
       {activeTab === "settings" && !isSettingsEditing && (
         <ClinicSettingsView clinic={clinic} />

@@ -42,6 +42,7 @@ export default function ClinicDetailHeader({
         </div>
       </div>
 
+      {/* action buttons: Edit | Cancel + Save | always-visible menu */}
       <div className={styles.headerActions}>
         {activeTab === "settings" && !isEditing && (
           <button
