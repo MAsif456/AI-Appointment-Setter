@@ -68,6 +68,7 @@ build:backend:
 # --- Build frontend ---
 build:frontend:
   stage: build
+  image: node:20
   before_script:
     - cd frontend
     - npm ci
