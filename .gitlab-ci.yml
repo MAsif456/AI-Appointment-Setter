@@ -7,12 +7,12 @@ default:
 
 variables:
   COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - backend/node_modules/
-    - frontend/node_modules/
+    - .npm/
 
 # --- Backend tests ---
 test:backend:
@@ -22,22 +22,39 @@ test:backend:
   variables:
     MONGODB_URI: "mongodb://mongo:27017/test_db"
     FRONTEND_URL: "http://localhost:3000"
+    JEST_JUNIT_OUTPUT_DIR: "./reports"
   before_script:
     - cd backend
     - npm ci
   script:
-    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --forceExit
+    - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
+  artifacts:
+    when: always
+    reports:
+      junit: backend/reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/coverage/cobertura-coverage.xml
 
 # --- Frontend tests ---
 test:frontend:
   stage: test
+  variables:
+    JEST_JUNIT_OUTPUT_DIR: "./reports"
   before_script:
     - cd frontend
     - npm ci
   script:
-    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD"
+    - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
+  artifacts:
+    when: always
+    reports:
+      junit: frontend/reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
 
 # --- Build backend ---
 build:backend:

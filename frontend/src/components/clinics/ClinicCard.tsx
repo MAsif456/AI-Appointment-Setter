@@ -66,18 +66,15 @@ export default function ClinicCard({ clinic, onToggleStatus }: ClinicCardProps) 
       {/* Address */}
       <p className={styles.address}>{clinic.address}</p>
 
-      {/* Service area tags */}
-      <div className={styles.tags}>
+      {/* Service area tags */}      <div className={styles.tags}>
         {(clinic.serviceAreas ?? []).map((area) => (
-          <span key={area} className={styles.tag}>{area}</span>
+          <span key={area.postcodePrefix} className={styles.tag}>{area.postcodePrefix}</span>
         ))}
-      </div>
-
-      {/* Stats */}
+      </div>      {/* Stats */}
       <p className={styles.stats}>
-        <span className={styles.statNumber}>{clinic.leads}</span> leads
+        <span className={styles.statNumber}>{clinic.todayLeadsCount}</span> leads
         {' · '}
-        <span className={styles.statNumber}>{clinic.bookings}</span> bookings
+        <span className={styles.statNumber}>{clinic.todayBookingsCount}</span> bookings
       </p>
 
       {/* Footer: status badge + view details link */}

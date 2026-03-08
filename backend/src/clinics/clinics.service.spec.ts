@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
-import { Clinic } from './schemas/clinic.schema';
+import { Clinic } from '../schemas/clinic.schema';
+import { CreateClinicDto } from './dto/create-clinic.dto';
 
 /** Helper to build a mock clinic document with a save() method. */
 const mockClinic = (overrides = {}) => ({
@@ -21,10 +22,26 @@ describe('ClinicsService', () => {
   let service: ClinicsService;
   let model: Record<string, jest.Mock>;
 
+  const validDto: CreateClinicDto = {
+    name: 'Test Clinic',
+    ghlLocationId: 'loc_test_001',
+    ghlCalendarId: 'cal_test_001',
+    address: '123 Test Street, Cardiff, CF10 1AA',
+    phone: '029 2034 5678',
+    defaultAppointmentDuration: 30,
+    serviceAreas: [{ postcodePrefix: 'CF' }],
+    services: [{ name: 'Physiotherapy' }],
+    businessHours: [
+      { day: 'monday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+    ],
+  };
+
   beforeEach(async () => {
     model = {
       find: jest.fn(),
       findById: jest.fn(),
+      findOne: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
+      create: jest.fn().mockResolvedValue({ ...validDto, _id: 'generated_id' }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -35,6 +52,56 @@ describe('ClinicsService', () => {
     }).compile();
 
     service = module.get<ClinicsService>(ClinicsService);
+  });
+
+  describe('create', () => {
+    it('should create a clinic with required fields only', async () => {
+      const minimalDto: CreateClinicDto = {
+        name: 'Minimal Clinic',
+        ghlLocationId: 'loc_minimal_001',
+        ghlCalendarId: 'cal_minimal_001',
+      };
+      model.create.mockResolvedValue({ ...minimalDto, _id: 'new_id' });
+
+      const result = await service.create(minimalDto);
+
+      expect(model.findOne).toHaveBeenCalledWith({ ghlLocationId: 'loc_minimal_001' });
+      expect(model.create).toHaveBeenCalledWith(minimalDto);
+      expect(result).toHaveProperty('_id');
+    });
+
+    it('should create a clinic with all fields', async () => {
+      const result = await service.create(validDto);
+
+      expect(model.create).toHaveBeenCalledWith(validDto);
+      expect(result.name).toBe('Test Clinic');
+    });
+
+    it('should throw ConflictException for duplicate ghlLocationId', async () => {
+      model.findOne.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ _id: 'existing_id' }),
+      });
+
+      await expect(service.create(validDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(validDto)).rejects.toThrow(
+        'A clinic with this GHL Location ID already exists',
+      );
+      expect(model.create).not.toHaveBeenCalled();
+    });
+
+    it('should propagate database errors from create', async () => {
+      model.create.mockRejectedValue(new Error('DB connection lost'));
+
+      await expect(service.create(validDto)).rejects.toThrow('DB connection lost');
+    });
+
+    it('should propagate database errors from findOne', async () => {
+      model.findOne.mockReturnValue({
+        lean: jest.fn().mockRejectedValue(new Error('Query timeout')),
+      });
+
+      await expect(service.create(validDto)).rejects.toThrow('Query timeout');
+    });
   });
 
   describe('findAll', () => {

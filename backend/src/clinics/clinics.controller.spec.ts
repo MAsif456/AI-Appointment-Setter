@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
+import { CreateClinicDto } from './dto/create-clinic.dto';
 
 /** Reusable mock clinic object for assertions. */
 const mockClinic = {
@@ -17,8 +19,15 @@ describe('ClinicsController', () => {
   let controller: ClinicsController;
   let service: Record<string, jest.Mock>;
 
+  const validDto: CreateClinicDto = {
+    name: 'Cardiff Physio',
+    ghlLocationId: 'loc_cardiff_001',
+    ghlCalendarId: 'cal_cardiff_001',
+  };
+
   beforeEach(async () => {
     service = {
+      create: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
       findAll: jest.fn(),
       findById: jest.fn(),
       deactivate: jest.fn(),
@@ -31,6 +40,47 @@ describe('ClinicsController', () => {
     }).compile();
 
     controller = module.get<ClinicsController>(ClinicsController);
+  });
+
+  describe('create', () => {
+    it('should call clinicsService.create and return the new clinic', async () => {
+      const result = await controller.create(validDto);
+
+      expect(service.create).toHaveBeenCalledWith(validDto);
+      expect(result).toEqual({ ...validDto, _id: 'abc123' });
+    });
+
+    it('should pass optional fields through to the service', async () => {
+      const fullDto: CreateClinicDto = {
+        ...validDto,
+        address: '1 High St, Cardiff',
+        phone: '029 2034 5678',
+        defaultAppointmentDuration: 45,
+        serviceAreas: [{ postcodePrefix: 'CF' }],
+        services: [{ name: 'Back pain', durationMinutes: 30 }],
+        businessHours: [{ day: 'monday', isOpen: true, openTime: '09:00', closeTime: '17:00' }],
+      };
+      service.create.mockResolvedValue({ ...fullDto, _id: 'full123' });
+
+      const result = await controller.create(fullDto);
+
+      expect(service.create).toHaveBeenCalledWith(fullDto);
+      expect(result.address).toBe('1 High St, Cardiff');
+    });
+
+    it('should propagate ConflictException from the service', async () => {
+      service.create.mockRejectedValue(
+        new ConflictException('A clinic with this GHL Location ID already exists'),
+      );
+
+      await expect(controller.create(validDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('should propagate unexpected errors from the service', async () => {
+      service.create.mockRejectedValue(new Error('Database connection failed'));
+
+      await expect(controller.create(validDto)).rejects.toThrow('Database connection failed');
+    });
   });
 
   describe('findAll', () => {

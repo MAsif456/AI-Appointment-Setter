@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
+import { CreateClinicDto } from './dto/create-clinic.dto';
 
 /**
  * REST controller exposing clinic endpoints.
@@ -8,6 +9,17 @@ import { ClinicsService } from './clinics.service';
 @Controller('clinics')
 export class ClinicsController {
   constructor(private readonly clinicsService: ClinicsService) {}
+
+  /**
+   * POST /clinics
+   * Creates a new clinic based on the provided DTO.
+   * @param dto The CreateClinicDto containing the clinic's information.
+   * @returns The newly created clinic document.
+   */
+  @Post()
+  create(@Body() dto: CreateClinicDto) {
+    return this.clinicsService.create(dto);
+  }
 
   /**
    * GET /clinics
