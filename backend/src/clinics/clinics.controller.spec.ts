@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
 import { CreateClinicDto } from './dto/create-clinic.dto';
+import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
 /** Reusable mock clinic object for assertions. */
 const mockClinic = {
@@ -28,10 +29,11 @@ describe('ClinicsController', () => {
   beforeEach(async () => {
     service = {
       create: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
-      findAll: jest.fn(),
-      findById: jest.fn(),
+      findAll: jest.fn().mockResolvedValue([]),
+      findById: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
       deactivate: jest.fn(),
       activate: jest.fn(),
+      updateBasicSettings: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -100,6 +102,20 @@ describe('ClinicsController', () => {
 
       expect(service.findAll).toHaveBeenCalledWith('Cardiff');
     });
+
+    it('should return an empty array when no clinics exist', async () => {
+      service.findAll.mockResolvedValue([]);
+
+      const result = await controller.findAll();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from findAll', async () => {
+      service.findAll.mockRejectedValue(new Error('DB error'));
+
+      await expect(controller.findAll()).rejects.toThrow('DB error');
+    });
   });
 
   describe('findById', () => {
@@ -110,6 +126,18 @@ describe('ClinicsController', () => {
 
       expect(service.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
       expect(result).toEqual(mockClinic);
+    });
+
+    it('should propagate BadRequestException for invalid ID', async () => {
+      service.findById.mockRejectedValue(new BadRequestException('Invalid clinic ID'));
+
+      await expect(controller.findById('bad-id')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should propagate NotFoundException when clinic is not found', async () => {
+      service.findById.mockRejectedValue(new NotFoundException('Clinic not found'));
+
+      await expect(controller.findById('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -133,6 +161,46 @@ describe('ClinicsController', () => {
 
       expect(service.activate).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
       expect(result.isActive).toBe(true);
+    });
+  });
+
+  describe('updateSettings', () => {
+    it('should call clinicsService.updateBasicSettings and return the updated clinic', async () => {
+      const body: UpdateClinicSettingsDto = { name: 'Updated Name' };
+      const updated = { ...validDto, _id: 'abc123', name: 'Updated Name' };
+      service.updateBasicSettings.mockResolvedValue(updated);
+
+      const result = await controller.updateSettings('abc123', body);
+
+      expect(service.updateBasicSettings).toHaveBeenCalledWith('abc123', body);
+      expect(result).toEqual(updated);
+    });
+
+    it('should propagate BadRequestException from updateSettings', async () => {
+      service.updateBasicSettings.mockRejectedValue(new BadRequestException('Invalid clinic ID'));
+
+      await expect(controller.updateSettings('bad-id', {})).rejects.toThrow(BadRequestException);
+    });
+
+    it('should propagate NotFoundException from updateSettings', async () => {
+      service.updateBasicSettings.mockRejectedValue(new NotFoundException('Clinic not found'));
+
+      await expect(controller.updateSettings('507f1f77bcf86cd799439011', {})).rejects.toThrow(NotFoundException);
+    });
+
+    it('should pass all update fields through to the service', async () => {
+      const body: UpdateClinicSettingsDto = {
+        name: 'New Name',
+        address: '2 New St',
+        phone: '020 1234 5678',
+        serviceAreas: [{ postcodePrefix: 'SW' }],
+        businessHours: [{ day: 'friday', isOpen: false }],
+      };
+      service.updateBasicSettings.mockResolvedValue({ _id: 'abc123', ...body });
+
+      await controller.updateSettings('abc123', body);
+
+      expect(service.updateBasicSettings).toHaveBeenCalledWith('abc123', body);
     });
   });
 });

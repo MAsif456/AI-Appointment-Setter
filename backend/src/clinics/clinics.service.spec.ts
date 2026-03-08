@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
 import { Clinic } from '../schemas/clinic.schema';
 import { CreateClinicDto } from './dto/create-clinic.dto';
+import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
 /** Helper to build a mock clinic document with a save() method. */
 const mockClinic = (overrides = {}) => ({
@@ -40,6 +41,7 @@ describe('ClinicsService', () => {
     model = {
       find: jest.fn(),
       findById: jest.fn(),
+      findByIdAndUpdate: jest.fn(),
       findOne: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
       create: jest.fn().mockResolvedValue({ ...validDto, _id: 'generated_id' }),
     };
@@ -126,6 +128,14 @@ describe('ClinicsService', () => {
       });
       expect(result).toEqual(clinics);
     });
+
+    it('should return an empty array when no clinics exist', async () => {
+      model.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }) });
+
+      const result = await service.findAll();
+
+      expect(result).toEqual([]);
+    });
   });
 
   describe('findById', () => {
@@ -138,10 +148,18 @@ describe('ClinicsService', () => {
       expect(result).toEqual(clinic);
     });
 
+    it('should throw BadRequestException for an invalid ID format', async () => {
+      await expect(service.findById('not-an-id')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for an undefined ID string', async () => {
+      await expect(service.findById('undefined')).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw NotFoundException when clinic does not exist', async () => {
       model.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
 
-      await expect(service.findById('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -170,6 +188,73 @@ describe('ClinicsService', () => {
       expect(clinic.isActive).toBe(true);
       expect(clinic.save).toHaveBeenCalled();
       expect(result).toEqual({ ...clinic, isActive: true });
+    });
+  });
+
+  describe('updateBasicSettings', () => {
+    it('should update a clinic and return the saved document', async () => {
+      const update: UpdateClinicSettingsDto = { name: 'New Name' };
+      const updated = { _id: '507f1f77bcf86cd799439011', name: 'New Name' };
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(updated) });
+
+      const result = await service.updateBasicSettings('507f1f77bcf86cd799439011', update);
+
+      expect(model.findByIdAndUpdate).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        expect.objectContaining({ name: 'New Name' }),
+        { new: true },
+      );
+      expect(result).toEqual(updated);
+    });
+
+    it('should only include defined fields in the update payload', async () => {
+      const update: UpdateClinicSettingsDto = { name: 'Only Name' };
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: '507f1f77bcf86cd799439011', name: 'Only Name' }),
+      });
+
+      await service.updateBasicSettings('507f1f77bcf86cd799439011', update);
+
+      const payload = model.findByIdAndUpdate.mock.calls[0][1];
+      expect(payload).not.toHaveProperty('address');
+      expect(payload).not.toHaveProperty('phone');
+    });
+
+    it('should throw BadRequestException for invalid ID in updateBasicSettings', async () => {
+      await expect(service.updateBasicSettings('bad-id', { name: 'X' })).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when the clinic to update does not exist', async () => {
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(
+        service.updateBasicSettings('507f1f77bcf86cd799439011', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update serviceAreas when provided', async () => {
+      const update: UpdateClinicSettingsDto = { serviceAreas: [{ postcodePrefix: 'CF' }] };
+      const updated = { _id: '507f1f77bcf86cd799439011', serviceAreas: [{ postcodePrefix: 'CF' }] };
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(updated) });
+
+      const result = await service.updateBasicSettings('507f1f77bcf86cd799439011', update);
+
+      const payload = model.findByIdAndUpdate.mock.calls[0][1];
+      expect(payload.serviceAreas).toEqual([{ postcodePrefix: 'CF' }]);
+      expect(result).toEqual(updated);
+    });
+
+    it('should update businessHours when provided', async () => {
+      const update: UpdateClinicSettingsDto = {
+        businessHours: [{ day: 'monday', isOpen: true, openTime: '08:00', closeTime: '16:00' }],
+      };
+      const updated = { _id: '507f1f77bcf86cd799439011', businessHours: update.businessHours };
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(updated) });
+
+      await service.updateBasicSettings('507f1f77bcf86cd799439011', update);
+
+      const payload = model.findByIdAndUpdate.mock.calls[0][1];
+      expect(payload.businessHours[0].openTime).toBe('08:00');
     });
   });
 });

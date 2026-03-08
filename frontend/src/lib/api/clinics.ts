@@ -63,3 +63,26 @@ export async function activateClinic(id: string): Promise<Clinic> {
 
   return res.json();
 }
+
+/**
+ * Updates a clinic's basic settings (name, address, phone, etc.).
+ * Only fields present in the body are applied.
+ * @param id - the clinic's MongoDB _id
+ * @param settings - partial settings to update
+ */
+export async function updateClinicSettings(
+  id: string,
+  settings: Partial<Clinic>,
+): Promise<Clinic> {
+  const res = await fetch(`${API_URL}/clinics/${id}/settings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update clinic settings for ${id}`);
+  }
+
+  return res.json();
+}

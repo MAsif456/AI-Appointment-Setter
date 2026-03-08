@@ -4,6 +4,14 @@ export interface ServiceArea {
   description?: string;
 }
 
+/** Shape of a single day's business hours. */
+export interface BusinessHours {
+  day: string;
+  isOpen: boolean;
+  openTime?: string;
+  closeTime?: string;
+}
+
 /** Shape of a clinic object returned by the backend API. */
 export interface Clinic {
   _id: string;
@@ -14,6 +22,7 @@ export interface Clinic {
   phone?: string;
   email?: string;
   serviceAreas: ServiceArea[];
+  businessHours: BusinessHours[];
   todayLeadsCount: number;
   todayBookingsCount: number;
   monthLeadsCount: number;

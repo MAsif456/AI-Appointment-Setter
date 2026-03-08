@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
 import { CreateClinicDto } from './dto/create-clinic.dto';
+import type { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
 /**
  * REST controller exposing clinic endpoints.
@@ -33,7 +34,8 @@ export class ClinicsController {
 
   /**
    * GET /clinics/:id
-   * Returns the clinic matching the given id.
+   * Returns a single clinic by its MongoDB ObjectId.
+   * Throws 400 if the ID format is invalid, 404 if no clinic is found.
    */
   @Get(':id')
   findById(@Param('id') id: string) {
@@ -56,5 +58,19 @@ export class ClinicsController {
   @Patch(':id/activate')
   activate(@Param('id') id: string) {
     return this.clinicsService.activate(id);
+  }
+
+  /**
+   * PATCH /clinics/:id/settings
+   * Partially updates a clinic's basic settings.
+   * Only fields present in the request body are applied.
+   * Throws 400 for an invalid ID, 404 if the clinic does not exist.
+   */
+  @Patch(':id/settings')
+  updateSettings(
+    @Param('id') id: string,
+    @Body() body: UpdateClinicSettingsDto,
+  ) {
+    return this.clinicsService.updateBasicSettings(id, body);
   }
 }
