@@ -7,6 +7,7 @@ async function bootstrap() {
   // Enable global validation so DTOs are automatically validated
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:3000' });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();

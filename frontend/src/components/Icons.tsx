@@ -111,6 +111,7 @@ export function CloseIcon({ className }: IconProps) {
   );
 }
 
+
 /** Arrow-out-of-door icon for the logout button. */
 export function LogoutIcon({ className }: IconProps) {
   return (

@@ -1,10 +1,8 @@
-
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
-
-
+import { CreateClinicDto } from './dto/create-clinic.dto';
 
 /**
  * Unit tests for ClinicsController.
@@ -16,14 +14,18 @@ import { ClinicsService } from './clinics.service';
 describe('ClinicsController', () => {
   let controller: ClinicsController;
   let service: {
-    /**
-     * Mocked ClinicsService method to return all active clinics.
-     */
-    findAll: jest.Mock,
-    /**
-     * Mocked ClinicsService method to return a single clinic by ID.
-     */
-    findById: jest.Mock,
+    /** Mocked ClinicsService method to return all active clinics. */
+    findAll: jest.Mock;
+    /** Mocked ClinicsService method to return a single clinic by ID. */
+    findById: jest.Mock;
+    /** Mocked ClinicsService method to create a new clinic. */
+    create: jest.Mock;
+  };
+
+  const validDto: CreateClinicDto = {
+    name: 'Cardiff Physio',
+    ghlLocationId: 'loc_cardiff_001',
+    ghlCalendarId: 'cal_cardiff_001',
   };
 
   beforeEach(async () => {
@@ -34,6 +36,7 @@ describe('ClinicsController', () => {
     service = {
       findAll: jest.fn(),
       findById: jest.fn(),
+      create: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -85,5 +88,44 @@ describe('ClinicsController', () => {
       // Call the controller and verify the exception is propagated
       await expect(controller.findById('bad')).rejects.toThrow(NotFoundException);
     });
+  });
+
+  it('should call clinicsService.create and return the new clinic', async () => {
+    const result = await controller.create(validDto);
+
+    expect(service.create).toHaveBeenCalledWith(validDto);
+    expect(result).toEqual({ ...validDto, _id: 'abc123' });
+  });
+
+  it('should pass optional fields through to the service', async () => {
+    const fullDto: CreateClinicDto = {
+      ...validDto,
+      address: '1 High St, Cardiff',
+      phone: '029 2034 5678',
+      defaultAppointmentDuration: 45,
+      serviceAreas: [{ postcodePrefix: 'CF' }],
+      services: [{ name: 'Back pain', durationMinutes: 30 }],
+      businessHours: [{ day: 'monday', isOpen: true, openTime: '09:00', closeTime: '17:00' }],
+    };
+    service.create.mockResolvedValue({ ...fullDto, _id: 'full123' });
+
+    const result = await controller.create(fullDto);
+
+    expect(service.create).toHaveBeenCalledWith(fullDto);
+    expect(result.address).toBe('1 High St, Cardiff');
+  });
+
+  it('should propagate ConflictException from the service', async () => {
+    service.create.mockRejectedValue(
+      new ConflictException('A clinic with this GHL Location ID already exists'),
+    );
+
+    await expect(controller.create(validDto)).rejects.toThrow(ConflictException);
+  });
+
+  it('should propagate unexpected errors from the service', async () => {
+    service.create.mockRejectedValue(new Error('Database connection failed'));
+
+    await expect(controller.create(validDto)).rejects.toThrow('Database connection failed');
   });
 });
