@@ -4,7 +4,7 @@
  */
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Clinic, ClinicSchema } from '../schemas/clinic.schema';
+import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { AiSettingsController } from './ai-settings.controller';
 import { AiSettingsService } from './ai-settings.service';
 

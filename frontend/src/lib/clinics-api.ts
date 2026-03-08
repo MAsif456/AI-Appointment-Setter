@@ -9,7 +9,7 @@ import { Clinic } from '@/types/clinic';
  * @returns Array of clinic summaries
  */
 export async function fetchClinics(): Promise<Clinic[]> {
-  return apiFetch<Clinic[]>('/api/clinics');
+  return apiFetch<Clinic[]>('/clinics');
 }
 
 /**
@@ -18,5 +18,5 @@ export async function fetchClinics(): Promise<Clinic[]> {
  * @returns The clinic document
  */
 export async function fetchClinicById(clinicId: string): Promise<Clinic> {
-  return apiFetch<Clinic>(`/api/clinics/${clinicId}`);
+  return apiFetch<Clinic>(`/clinics/${clinicId}`);
 }

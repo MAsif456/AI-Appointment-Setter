@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { AiSettingsService } from './ai-settings.service';
-import { Clinic } from '../schemas/clinic.schema'; // used for getModelToken
+import { Clinic } from '../database/schemas/clinic.schema'; // used for getModelToken
 import { AIToneEnum } from './ai-settings.dto';
 import {
   DEFAULT_TONE,

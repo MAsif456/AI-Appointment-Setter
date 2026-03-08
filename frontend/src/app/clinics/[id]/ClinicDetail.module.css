@@ -1,0 +1,57 @@
+.loading {
+  text-align: center;
+  padding: 80px 0;
+  color: #9ca3af;
+  font-size: 15px;
+}
+
+.notFound {
+  text-align: center;
+  padding: 80px 0;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.backLink {
+  font-size: 14px;
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.backLink:hover {
+  color: #374151;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.clinicName {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.badgeActive {
+  display: inline-block;
+  padding: 3px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #065f46;
+  background-color: #d1fae5;
+  border-radius: 20px;
+}
+
+.badgeInactive {
+  display: inline-block;
+  padding: 3px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  border-radius: 20px;
+}

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Clinic, ClinicDocument } from '../schemas/clinic.schema';
+import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
@@ -27,34 +27,15 @@ function assertValidObjectId(id: string): void {
   }
 }
 
+/**
+ * Handles all database operations for clinics.
+ * Keeps business logic separate from the controller layer.
+ */
 @Injectable()
 export class ClinicsService {
   constructor(
     @InjectModel(Clinic.name) private readonly clinicModel: Model<ClinicDocument>,
   ) {}
-
-  /** Returns all clinic documents from the database. */
-  async findAll() {
-    return this.clinicModel.find().exec();
-  }
-
-  /**
-   * Returns a single clinic by its ID with basic fields.
-   * @param clinicId - The MongoDB ObjectId of the clinic
-   * @returns The clinic document
-   * @throws NotFoundException if the clinic does not exist
-   */
-  async findById(clinicId: string) {
-    const clinic = await this.clinicModel
-      .findById(clinicId, { name: 1, isActive: 1 })
-      .lean()
-      .exec();
-
-    if (!clinic) {
-      throw new NotFoundException(`Clinic with ID "${clinicId}" not found`);
-    }
-    return clinic;
-  }
 
   /**
    * Create a new clinic from a CreateClinicDto.
@@ -75,17 +56,51 @@ export class ClinicsService {
   }
 
   /**
-   * Returns a single clinic by its MongoDB ObjectId.
-   * @throws {BadRequestException} if the id is not a valid 24-char hex string.
-   * @throws {NotFoundException} if no clinic with that id exists.
+   * Returns all clinics, optionally filtered by a case-insensitive name search.
+   * @param search - partial clinic name to filter by (optional)
    */
-  async findOne(id: string) {
+  async findAll(search?: string): Promise<ClinicDocument[]> {
+    const filter = search
+      ? { name: { $regex: search, $options: 'i' } }
+      : {};
+
+    return this.clinicModel.find(filter).sort({ name: 1 }).exec();
+  }
+
+  /**
+   * Returns a single clinic by its MongoDB _id.
+   * Validates the ObjectId format before querying.
+   * @param id - the document identifier
+   * @throws BadRequestException when the id is not a valid 24-char hex string
+   * @throws NotFoundException when no clinic matches the given id
+   */
+  async findById(id: string): Promise<ClinicDocument> {
     assertValidObjectId(id);
     const clinic = await this.clinicModel.findById(id).exec();
     if (!clinic) {
-      throw new NotFoundException('Clinic not found');
+      throw new NotFoundException(`Clinic with id "${id}" not found`);
     }
     return clinic;
+  }
+
+  /**
+   * Sets a clinic's isActive flag to false.
+   * @param id - the document identifier
+   */
+  async deactivate(id: string): Promise<ClinicDocument> {
+    const clinic = await this.findById(id);
+    clinic.isActive = false;
+    return clinic.save();
+  }
+
+  /**
+   * Sets a clinic's isActive flag to true.
+   * @param id - the document identifier
+   */
+  async activate(id: string): Promise<ClinicDocument> {
+    const clinic = await this.findById(id);
+    clinic.isActive = true;
+    return clinic.save();
   }
 
   /**

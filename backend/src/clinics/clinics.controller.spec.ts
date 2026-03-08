@@ -5,21 +5,24 @@ import { ClinicsService } from './clinics.service';
 import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
+/** Reusable mock clinic object for assertions. */
+const mockClinic = {
+  _id: '507f1f77bcf86cd799439011',
+  name: 'Cardiff Physiotherapy Centre',
+  address: '123 Queen Street, Cardiff, CF10 2BX',
+  serviceAreas: ['CF', 'NP', 'SA'],
+  leads: 12,
+  bookings: 5,
+  isActive: true,
+};
+
 /**
  * Unit tests for ClinicsController.
  * Mocks the service layer and tests HTTP-level behaviour.
- *
- * The ClinicsController is responsible for handling requests related to clinics.
- * It delegates the actual work to the ClinicsService.
  */
 describe('ClinicsController', () => {
   let controller: ClinicsController;
-  let service: {
-    findAll: jest.Mock;
-    findOne: jest.Mock;
-    create: jest.Mock;
-    updateBasicSettings: jest.Mock;
-  };
+  let service: Record<string, jest.Mock>;
 
   const validDto: CreateClinicDto = {
     name: 'Cardiff Physio',
@@ -28,14 +31,12 @@ describe('ClinicsController', () => {
   };
 
   beforeEach(async () => {
-    /**
-     * Reset the mocked service layer before running each test.
-     * This ensures that the test results are not affected by previous tests.
-     */
     service = {
       create: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
       findAll: jest.fn().mockResolvedValue([]),
-      findOne: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
+      findById: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
+      deactivate: jest.fn(),
+      activate: jest.fn(),
       updateBasicSettings: jest.fn().mockResolvedValue({ ...validDto, _id: 'abc123' }),
     };
 
@@ -47,67 +48,7 @@ describe('ClinicsController', () => {
     controller = module.get<ClinicsController>(ClinicsController);
   });
 
-  /**
-   * GET /api/clinics
-   * Returns a list of all clinics.
-   */
-  describe('GET /api/clinics', () => {
-    it('should return all clinics', async () => {
-      const clinics = [{ _id: '1', name: 'Clinic A', isActive: true }];
-      service.findAll.mockResolvedValue(clinics);
-
-      const result = await controller.findAll();
-      expect(result).toEqual(clinics);
-    });
-
-    it('should return an empty array when no clinics exist', async () => {
-      service.findAll.mockResolvedValue([]);
-
-      const result = await controller.findAll();
-
-      expect(result).toEqual([]);
-    });
-
-    it('should propagate errors from findAll', async () => {
-      service.findAll.mockRejectedValue(new Error('DB error'));
-
-      await expect(controller.findAll()).rejects.toThrow('DB error');
-    });
-  });
-
-  /**
-   * GET /api/clinics/:id
-   * Returns a single clinic by its ID.
-   */
-  describe('GET /api/clinics/:id', () => {
-    it('should return a clinic by ID', async () => {
-      const clinic = { _id: '507f1f77bcf86cd799439011', name: 'Cardiff Physio' };
-      service.findOne.mockResolvedValue(clinic);
-
-      const result = await controller.findOne('507f1f77bcf86cd799439011');
-
-      expect(service.findOne).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
-      expect(result).toEqual(clinic);
-    });
-
-    it('should propagate BadRequestException from findOne', async () => {
-      service.findOne.mockRejectedValue(new BadRequestException('Invalid clinic ID'));
-
-      await expect(controller.findOne('bad-id')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should propagate NotFoundException from findOne', async () => {
-      service.findOne.mockRejectedValue(new NotFoundException('Clinic not found'));
-
-      await expect(controller.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  /**
-   * POST /api/clinics
-   * Creates a new clinic.
-   */
-  describe('POST /api/clinics', () => {
+  describe('create', () => {
     it('should call clinicsService.create and return the new clinic', async () => {
       const result = await controller.create(validDto);
 
@@ -148,11 +89,86 @@ describe('ClinicsController', () => {
     });
   });
 
-  /**
-   * PATCH /api/clinics/:id/settings
-   * Partially updates a clinic's basic settings.
-   */
-  describe('PATCH /api/clinics/:id/settings', () => {
+  describe('findAll', () => {
+    it('should return all clinics without a search query', async () => {
+      service.findAll.mockResolvedValue([mockClinic]);
+
+      const result = await controller.findAll();
+
+      expect(service.findAll).toHaveBeenCalledWith(undefined);
+      expect(result).toEqual([mockClinic]);
+    });
+
+    it('should pass the search query to the service', async () => {
+      service.findAll.mockResolvedValue([mockClinic]);
+
+      await controller.findAll('Cardiff');
+
+      expect(service.findAll).toHaveBeenCalledWith('Cardiff');
+    });
+
+    it('should return an empty array when no clinics exist', async () => {
+      service.findAll.mockResolvedValue([]);
+
+      const result = await controller.findAll();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from findAll', async () => {
+      service.findAll.mockRejectedValue(new Error('DB error'));
+
+      await expect(controller.findAll()).rejects.toThrow('DB error');
+    });
+  });
+
+  describe('findById', () => {
+    it('should return a single clinic', async () => {
+      service.findById.mockResolvedValue(mockClinic);
+
+      const result = await controller.findById('507f1f77bcf86cd799439011');
+
+      expect(service.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(result).toEqual(mockClinic);
+    });
+
+    it('should propagate BadRequestException for invalid ID', async () => {
+      service.findById.mockRejectedValue(new BadRequestException('Invalid clinic ID'));
+
+      await expect(controller.findById('bad-id')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should propagate NotFoundException when clinic is not found', async () => {
+      service.findById.mockRejectedValue(new NotFoundException('Clinic not found'));
+
+      await expect(controller.findById('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deactivate', () => {
+    it('should deactivate the clinic', async () => {
+      const deactivated = { ...mockClinic, isActive: false };
+      service.deactivate.mockResolvedValue(deactivated);
+
+      const result = await controller.deactivate('507f1f77bcf86cd799439011');
+
+      expect(service.deactivate).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(result.isActive).toBe(false);
+    });
+  });
+
+  describe('activate', () => {
+    it('should activate the clinic', async () => {
+      service.activate.mockResolvedValue(mockClinic);
+
+      const result = await controller.activate('507f1f77bcf86cd799439011');
+
+      expect(service.activate).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(result.isActive).toBe(true);
+    });
+  });
+
+  describe('updateSettings', () => {
     it('should call clinicsService.updateBasicSettings and return the updated clinic', async () => {
       const body: UpdateClinicSettingsDto = { name: 'Updated Name' };
       const updated = { ...validDto, _id: 'abc123', name: 'Updated Name' };

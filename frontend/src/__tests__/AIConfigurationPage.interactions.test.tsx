@@ -1,9 +1,9 @@
 /**
- * Tests for AI Configuration page user interactions and save behaviour.
+ * Tests for AIConfigurationPage interactions and save flow.
  *
- * Covers: selecting tone, editing greeting, toggling questions,
- * typing custom instructions, save success/error toasts,
- * disabled button while saving, correct payload, and toast auto-dismiss.
+ * Covers: tone selection, greeting template editing, qualification question toggling,
+ * custom instructions typing, save success and failure, generic error message,
+ * save button disabling, and form state sending.
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -26,6 +26,9 @@ import AIConfigurationPage from '@/app/clinics/[id]/ai-configuration/page';
 describe('AIConfigurationPage – interactions & save', () => {
   useAiConfigSetup(mockFetchAiSettings, mockSaveAiSettings);
 
+  /**
+   * Test that the tone selection form element is rendered and allows selecting a different tone.
+   */
   it('should allow selecting a different tone', async () => {
     render(<AIConfigurationPage />);
     await waitForPageLoad();
@@ -35,6 +38,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     expect(professionalRadio.checked).toBe(true);
   });
 
+  /**
+   * Test that the greeting template form element is rendered and allows editing the greeting template.
+   */
   it('should allow editing the greeting template', async () => {
     render(<AIConfigurationPage />);
     await waitForPageLoad();
@@ -50,6 +56,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     expect(greetingTextarea.value).toBe('Hi {{firstName}}, welcome!');
   });
 
+  /**
+   * Test that the qualification question form elements are rendered and allow toggling.
+   */
   it('should allow toggling qualification questions', async () => {
     render(<AIConfigurationPage />);
     await waitForPageLoad();
@@ -62,6 +71,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     expect(urgencyCheckbox.checked).toBe(false);
   });
 
+  /**
+   * Test that the custom instructions form element is rendered and allows typing.
+   */
   it('should allow typing custom instructions', async () => {
     render(<AIConfigurationPage />);
     await waitForPageLoad();
@@ -77,6 +89,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     expect(instructionsTextarea.value).toBe('Always mention free parking');
   });
 
+  /**
+   * Test that saving settings shows a success toast when the request resolves successfully.
+   */
   it('should show success toast after saving settings', async () => {
     mockSaveAiSettings.mockResolvedValue({ ...defaultSettings });
     render(<AIConfigurationPage />);
@@ -90,6 +105,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     expect(mockSaveAiSettings).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Test that saving settings shows an error toast when the request rejects with an Error.
+   */
   it('should show error toast when save fails', async () => {
     mockSaveAiSettings.mockRejectedValue(new Error('Validation failed'));
     render(<AIConfigurationPage />);
@@ -102,6 +120,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     });
   });
 
+  /**
+   * Test that saving settings shows a generic error message when the request rejects with a non-Error exception.
+   */
   it('should show generic error message for non-Error exceptions', async () => {
     mockSaveAiSettings.mockRejectedValue('unknown error');
     render(<AIConfigurationPage />);
@@ -114,6 +135,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     });
   });
 
+  /**
+   * Test that saving settings disables the save button while the request is pending.
+   */
   it('should disable save button while saving', async () => {
     mockSaveAiSettings.mockReturnValue(new Promise(() => {}));
     render(<AIConfigurationPage />);
@@ -127,6 +151,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     });
   });
 
+  /**
+   * Test that saving settings sends the current form state when saving.
+   */
   it('should send current form state when saving', async () => {
     mockSaveAiSettings.mockResolvedValue({ ...defaultSettings });
     render(<AIConfigurationPage />);
@@ -163,6 +190,9 @@ describe('AIConfigurationPage – interactions & save', () => {
     });
   });
 
+  /**
+   * Test that saving settings auto-dismisses the toast after 4 seconds.
+   */
   it('should auto-dismiss toast after 4 seconds', async () => {
     mockSaveAiSettings.mockResolvedValue({ ...defaultSettings });
     render(<AIConfigurationPage />);
@@ -174,10 +204,9 @@ describe('AIConfigurationPage – interactions & save', () => {
       expect(screen.getByText('Settings saved successfully')).toBeTruthy();
     });
 
-    jest.advanceTimersByTime(4000);
-
-    await waitFor(() => {
+    jest.advanceTimersByTime(4000);    await waitFor(() => {
       expect(screen.queryByText('Settings saved successfully')).toBeNull();
     });
   });
 });
+

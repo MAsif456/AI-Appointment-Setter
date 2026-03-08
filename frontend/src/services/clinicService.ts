@@ -57,7 +57,7 @@ function toCreateClinicPayload(data: ClinicFormData) {
 
 /** POST a new clinic to the backend. Throws an ApiError on failure. */
 export async function createClinic(data: ClinicFormData) {
-  const response = await fetch(`${API_BASE}/api/clinics`, {
+  const response = await fetch(`${API_BASE}/clinics`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(toCreateClinicPayload(data)),

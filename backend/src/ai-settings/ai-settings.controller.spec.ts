@@ -7,6 +7,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AiSettingsController } from './ai-settings.controller';
 import { AiSettingsService, AiSettingsResponse } from './ai-settings.service';
+import { AIToneEnum } from './ai-settings.dto';
 
 const sampleSettings: AiSettingsResponse = {
   /**
@@ -65,18 +66,17 @@ describe('AiSettingsController', () => {
    * Test the PUT /api/clinics/:clinicId/ai-settings endpoint.
    * Should update and return AI settings.
    */
-  describe('PUT /api/clinics/:clinicId/ai-settings', () => {
-    it('should update and return AI settings', async () => {
+  describe('PUT /api/clinics/:clinicId/ai-settings', () => {    it('should update and return AI settings', async () => {
       const updated = { ...sampleSettings, tone: 'professional' };
       service.updateAiSettings.mockResolvedValue(updated);
 
       const result = await controller.updateAiSettings('abc123', {
-        tone: 'professional',
+        tone: AIToneEnum.Professional,
       });
 
       expect(result.tone).toBe('professional');
       expect(service.updateAiSettings).toHaveBeenCalledWith('abc123', {
-        tone: 'professional',
+        tone: AIToneEnum.Professional,
       });
     });
 
@@ -86,7 +86,7 @@ describe('AiSettingsController', () => {
       );
 
       await expect(
-        controller.updateAiSettings('bad-id', { tone: 'friendly' }),
+        controller.updateAiSettings('bad-id', { tone: AIToneEnum.Friendly }),
       ).rejects.toThrow(NotFoundException);
     });
   });
