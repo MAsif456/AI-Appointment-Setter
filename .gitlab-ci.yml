@@ -70,7 +70,7 @@ build:frontend:
   stage: build
   before_script:
     - cd frontend
-    - npm ci
-    - npm install --no-save lightningcss-linux-x64-gnu
+    - rm -rf node_modules
+    - npm install
   script:
     - npm run build
