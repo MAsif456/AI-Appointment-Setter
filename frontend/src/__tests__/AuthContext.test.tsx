@@ -3,8 +3,12 @@ import { renderHook, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/apiAxios';
 
-jest.mock('@/lib/api', () => ({
-  post: jest.fn(),
+// Mock the axios instance properly
+jest.mock('@/lib/apiAxios', () => ({
+  __esModule: true,
+  default: {
+    post: jest.fn(),
+  },
 }));
 
 // Mock Next.js navigation
@@ -25,7 +29,10 @@ describe('AuthContext', () => {
     const fakeUser = { _id: '1', name: 'Admin', email: 'admin@lunaxdigital.com', role: 'admin' };
     const fakeToken = 'fake-token';
 
-    (api.post as jest.Mock).mockResolvedValue({ data: { user: fakeUser, accessToken: fakeToken } });
+    // Use (api as jest.Mocked<typeof api>).post to satisfy TypeScript
+    (api as jest.Mocked<typeof api>).post.mockResolvedValue({
+      data: { user: fakeUser, accessToken: fakeToken },
+    });
 
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
 
