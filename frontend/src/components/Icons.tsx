@@ -6,7 +6,7 @@ interface IconProps {
   className?: string;
 }
 
-/** Home/dashboard icon — house outline. */
+/** Home/dashboard icon, house outline. */
 export function DashboardIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,7 +60,7 @@ export function SettingsIcon({ className }: IconProps) {
   );
 }
 
-/** Person silhouette icon — used for the user avatar placeholder. */
+/** Person silhouette icon, used for the user avatar placeholder. */
 export function UserIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
