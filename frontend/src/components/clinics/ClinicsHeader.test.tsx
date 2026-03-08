@@ -1,6 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import ClinicsHeader from './ClinicsHeader';
 
+// Mock next/link as a simple anchor
+jest.mock('next/link', () => {
+  return ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  );
+});
+
 describe('ClinicsHeader', () => {
   const onSearchChange = jest.fn();
 
@@ -15,11 +22,10 @@ describe('ClinicsHeader', () => {
     render(<ClinicsHeader searchTerm="" onSearchChange={onSearchChange} />);
     expect(screen.getByPlaceholderText('Search clinics...')).toBeInTheDocument();
   });
-
-  it('renders the Add Clinic button (non-navigating)', () => {
+  it('renders the Add Clinic link pointing to /clinics/new', () => {
     render(<ClinicsHeader searchTerm="" onSearchChange={onSearchChange} />);
-    const btn = screen.getByText('+ Add Clinic');
-    expect(btn.tagName).toBe('BUTTON');
+    const link = screen.getByText('+ Add Clinic').closest('a');
+    expect(link).toHaveAttribute('href', '/clinics/new');
   });
 
   it('calls onSearchChange when the user types in the search input', () => {

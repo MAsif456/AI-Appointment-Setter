@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import styles from './ClinicsHeader.module.css';
 
 /** Props accepted by ClinicsHeader. */
@@ -40,12 +41,10 @@ export default function ClinicsHeader({ searchTerm, onSearchChange }: ClinicsHea
             onChange={(e) => onSearchChange(e.target.value)}
             className={styles.searchInput}
           />
-        </div>
-
-        {/* Add Clinic button – does nothing for now */}
-        <button type="button" className={styles.addButton}>
+        </div>        {/* Add Clinic button – navigates to the new clinic form */}
+        <Link href="/clinics/new" className={styles.addButton}>
           + Add Clinic
-        </button>
+        </Link>
       </div>
     </div>
   );
