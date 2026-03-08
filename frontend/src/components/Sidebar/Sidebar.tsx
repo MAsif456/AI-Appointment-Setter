@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import styles from './Sidebar.module.css';
 import {
   DashboardIcon,
@@ -31,6 +32,7 @@ const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon 
  */
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   /**
    * Checks whether a nav link should be highlighted.
@@ -76,7 +78,8 @@ export default function Sidebar() {
           <div className={styles.userName}>Admin User</div>
           <div className={styles.userEmail}>admin@lunaxdigital.com</div>
         </div>
-        <button className={styles.logoutButton} aria-label="Logout">
+        <button className={styles.logoutButton} aria-label="Logout" 
+          onClick={logout}>
           <LogoutIcon className={styles.logoutIcon} />
         </button>
       </div>
