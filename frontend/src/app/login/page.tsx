@@ -17,7 +17,7 @@ export default function LoginPage() {
   // Check for session expiration message
   useEffect(() => {
     if (searchParams.get('expired') === 'true') {
-      setError('Your session has expired. Please log in again.');
+      setError('Please log in again with your email and password.');
     }
   }, [searchParams]);
 
