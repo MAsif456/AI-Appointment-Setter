@@ -1,0 +1,108 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getModelToken } from '@nestjs/mongoose';
+import { NotFoundException } from '@nestjs/common';
+import { ClinicsService } from './clinics.service';
+import { Clinic } from './schemas/clinic.schema';
+
+/** Helper to build a mock clinic document with a save() method. */
+const mockClinic = (overrides = {}) => ({
+  _id: '507f1f77bcf86cd799439011',
+  name: 'Cardiff Physiotherapy Centre',
+  address: '123 Queen Street, Cardiff, CF10 2BX',
+  serviceAreas: ['CF', 'NP', 'SA'],
+  leads: 12,
+  bookings: 5,
+  isActive: true,
+  save: jest.fn().mockResolvedValue(undefined),
+  ...overrides,
+});
+
+describe('ClinicsService', () => {
+  let service: ClinicsService;
+  let model: Record<string, jest.Mock>;
+
+  beforeEach(async () => {
+    model = {
+      find: jest.fn(),
+      findById: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ClinicsService,
+        { provide: getModelToken(Clinic.name), useValue: model },
+      ],
+    }).compile();
+
+    service = module.get<ClinicsService>(ClinicsService);
+  });
+
+  describe('findAll', () => {
+    it('should return all clinics when no search term is provided', async () => {
+      const clinics = [mockClinic()];
+      model.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(clinics) }) });
+
+      const result = await service.findAll();
+
+      expect(model.find).toHaveBeenCalledWith({});
+      expect(result).toEqual(clinics);
+    });
+
+    it('should filter clinics by name when a search term is provided', async () => {
+      const clinics = [mockClinic()];
+      model.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(clinics) }) });
+
+      const result = await service.findAll('Cardiff');
+
+      expect(model.find).toHaveBeenCalledWith({
+        name: { $regex: 'Cardiff', $options: 'i' },
+      });
+      expect(result).toEqual(clinics);
+    });
+  });
+
+  describe('findById', () => {
+    it('should return the clinic when it exists', async () => {
+      const clinic = mockClinic();
+      model.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(clinic) });
+
+      const result = await service.findById('507f1f77bcf86cd799439011');
+
+      expect(result).toEqual(clinic);
+    });
+
+    it('should throw NotFoundException when clinic does not exist', async () => {
+      model.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(service.findById('nonexistent')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deactivate', () => {
+    it('should set isActive to false and save', async () => {
+      const clinic = mockClinic({ isActive: true });
+      clinic.save.mockResolvedValue({ ...clinic, isActive: false });
+      model.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(clinic) });
+
+      const result = await service.deactivate('507f1f77bcf86cd799439011');
+
+      expect(clinic.isActive).toBe(false);
+      expect(clinic.save).toHaveBeenCalled();
+      expect(result).toEqual({ ...clinic, isActive: false });
+    });
+  });
+
+  describe('activate', () => {
+    it('should set isActive to true and save', async () => {
+      const clinic = mockClinic({ isActive: false });
+      clinic.save.mockResolvedValue({ ...clinic, isActive: true });
+      model.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(clinic) });
+
+      const result = await service.activate('507f1f77bcf86cd799439011');
+
+      expect(clinic.isActive).toBe(true);
+      expect(clinic.save).toHaveBeenCalled();
+      expect(result).toEqual({ ...clinic, isActive: true });
+    });
+  });
+});
