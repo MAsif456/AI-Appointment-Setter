@@ -45,7 +45,7 @@ test:frontend:
   before_script:
     - cd frontend
     - npm ci
-    - npm rebuild lightningcss
+    - npm install --no-save lightningcss-linux-x64-gnu
   script:
     - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
@@ -72,6 +72,6 @@ build:frontend:
   before_script:
     - cd frontend
     - npm ci
-    - npm rebuild lightningcss
+    - npm install --no-save lightningcss-linux-x64-gnu
   script:
     - npm run build
