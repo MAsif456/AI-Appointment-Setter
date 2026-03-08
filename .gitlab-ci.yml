@@ -3,7 +3,7 @@ stages:
   - build
 
 default:
-  image: node:20-alpine
+  image: node:20
 
 variables:
   COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'
@@ -22,22 +22,39 @@ test:backend:
   variables:
     MONGODB_URI: "mongodb://mongo:27017/test_db"
     FRONTEND_URL: "http://localhost:3000"
+    JEST_JUNIT_OUTPUT_DIR: "./reports"
   before_script:
     - cd backend
     - npm ci
   script:
-    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit
+    - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
+  artifacts:
+    when: always
+    reports:
+      junit: backend/reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/coverage/cobertura-coverage.xml
 
 # --- Frontend tests ---
 test:frontend:
   stage: test
+  variables:
+    JEST_JUNIT_OUTPUT_DIR: "./reports"
   before_script:
     - cd frontend
     - npm ci
   script:
-    - npx jest --coverage --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit
+    - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
   coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
+  artifacts:
+    when: always
+    reports:
+      junit: frontend/reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
 
 # --- Build backend ---
 build:backend:
@@ -53,6 +70,7 @@ build:frontend:
   stage: build
   before_script:
     - cd frontend
-    - npm ci
+    - rm -rf node_modules
+    - npm install
   script:
     - npm run build

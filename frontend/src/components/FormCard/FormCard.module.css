@@ -1,0 +1,87 @@
+.card {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 28px 32px;
+  background-color: #ffffff;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 24px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+.required {
+  color: #e53e3e;
+  margin-left: 2px;
+}
+
+.input,
+.select {
+  padding: 10px 14px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a1a2e;
+  background-color: #f8f9fa;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus,
+.select:focus {
+  border-color: #4361ee;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.helperText {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.errorText {
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.inputError {
+  border-color: #dc2626;
+}
+
+.inputError:focus {
+  border-color: #dc2626;
+}
