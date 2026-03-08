@@ -3,7 +3,7 @@ stages:
   - build
 
 default:
-  image: node:20-alpine
+  image: node:20
 
 variables:
   COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'
@@ -68,7 +68,6 @@ build:backend:
 # --- Build frontend ---
 build:frontend:
   stage: build
-  image: node:20
   before_script:
     - cd frontend
     - npm ci
