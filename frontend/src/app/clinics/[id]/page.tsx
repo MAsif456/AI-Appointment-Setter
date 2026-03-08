@@ -54,7 +54,9 @@ export default function ClinicDetailPage() {
         <span className={clinic.isActive ? styles.badgeActive : styles.badgeInactive}>
           {clinic.isActive ? 'Active' : 'Inactive'}
         </span>
-      </div>      <ClinicDetailTabs
+      </div>
+
+      <ClinicDetailTabs
         clinic={clinic}
         onClinicUpdated={(updated) => setClinic(updated)}
       />

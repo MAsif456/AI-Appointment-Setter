@@ -1,10 +1,16 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import styles from './ClinicDetailTabs.module.css';
-import type { Clinic } from '@/types/clinic';
+import type { Clinic, AITone, QualificationQuestion } from '@/types/clinic';
 import ClinicSettingsForm from '@/components/EditClinicsDetails/ClinicSettingsForm';
 import { updateClinicSettings } from '@/lib/api/clinics';
+import { fetchAiSettings, saveAiSettings } from '@/lib/ai-settings-api';
+import ToneSelector from '@/components/AIConfiguration/ToneSelector';
+import GreetingMessage from '@/components/AIConfiguration/GreetingMessage';
+import QualificationQuestions from '@/components/AIConfiguration/QualificationQuestions';
+import CustomInstructions from '@/components/AIConfiguration/CustomInstructions';
+import SaveBar from '@/components/AIConfiguration/SaveBar';
 
 /** Available tabs on the clinic detail page. */
 const TABS = ['Overview', 'Settings', 'AI Configuration', 'Conversations', 'Analytics'] as const;
@@ -27,6 +33,63 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
   const [saveError, setSaveError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
+  // AI Configuration state
+  const [tone, setTone] = useState<AITone>('friendly');
+  const [greeting, setGreeting] = useState('');
+  const [questions, setQuestions] = useState<QualificationQuestion[]>([]);
+  const [instructions, setInstructions] = useState('');
+  const [aiLoading, setAiLoading] = useState(true);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiToast, setAiToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Fetch AI settings when the AI Configuration tab is first activated
+  useEffect(() => {
+    if (activeTab !== 'AI Configuration') return;
+
+    let cancelled = false;
+    setAiLoading(true);
+    setAiError(null);
+
+    fetchAiSettings(clinic._id)
+      .then((data) => {
+        if (cancelled) return;
+        setTone(data.tone);
+        setGreeting(data.greetingTemplate);
+        setQuestions(data.qualificationQuestions);
+        setInstructions(data.customInstructions);
+      })
+      .catch((err) => {
+        if (!cancelled) setAiError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setAiLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [activeTab, clinic._id]);
+
+  /** Saves AI settings to the backend. */
+  const handleAiSave = useCallback(async () => {
+    setAiSaving(true);
+    setAiToast(null);
+    try {
+      await saveAiSettings(clinic._id, {
+        tone,
+        greetingTemplate: greeting,
+        qualificationQuestions: questions,
+        customInstructions: instructions,
+      });
+      setAiToast({ type: 'success', message: 'Settings saved successfully' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save settings';
+      setAiToast({ type: 'error', message: msg });
+    } finally {
+      setAiSaving(false);
+      setTimeout(() => setAiToast(null), 4000);
+    }
+  }, [clinic._id, tone, greeting, questions, instructions]);
+
   /** Called by ClinicSettingsForm when the user submits. */
   const handleSaveSettings = async (updated: Clinic) => {
     setSaveSuccess(false);
@@ -46,7 +109,6 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
       setSaveError(err instanceof Error ? err.message : 'Failed to save settings');
     }
   };
-
   const renderTabContent = () => {
     if (activeTab === 'Settings') {
       return (
@@ -71,6 +133,24 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
               Save Settings
             </button>
           </div>
+        </div>
+      );
+    }
+
+    if (activeTab === 'AI Configuration') {
+      if (aiLoading) {
+        return <p style={{ padding: '24px', color: '#6b7280' }}>Loading AI settings...</p>;
+      }
+      if (aiError) {
+        return <p style={{ padding: '24px', color: '#dc2626' }}>Error: {aiError}</p>;
+      }
+      return (
+        <div>
+          <ToneSelector value={tone} onChange={setTone} />
+          <GreetingMessage value={greeting} onChange={setGreeting} />
+          <QualificationQuestions questions={questions} onChange={setQuestions} />
+          <CustomInstructions value={instructions} onChange={setInstructions} />
+          <SaveBar onSave={handleAiSave} saving={aiSaving} toast={aiToast} />
         </div>
       );
     }

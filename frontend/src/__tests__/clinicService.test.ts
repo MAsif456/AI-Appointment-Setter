@@ -108,9 +108,7 @@ describe('clinicService', () => {
 
   it('should POST to /clinics with JSON content type', async () => {
     mockSuccess();
-    await createClinic(buildFormData());
-
-    expect(mockFetch).toHaveBeenCalledWith(
+    await createClinic(buildFormData());    expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3001/clinics',
       expect.objectContaining({ method: 'POST', headers: { 'Content-Type': 'application/json' } }),
     );

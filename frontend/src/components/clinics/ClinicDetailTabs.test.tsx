@@ -32,6 +32,39 @@ jest.mock('@/lib/api/clinics', () => ({
   updateClinicSettings: jest.fn(),
 }));
 
+// Mock all AI Configuration sub-components
+jest.mock('@/components/AIConfiguration/ToneSelector', () => ({
+  __esModule: true,
+  default: () => <div data-testid="tone-selector">ToneSelector</div>,
+}));
+jest.mock('@/components/AIConfiguration/GreetingMessage', () => ({
+  __esModule: true,
+  default: () => <div data-testid="greeting-message">GreetingMessage</div>,
+}));
+jest.mock('@/components/AIConfiguration/QualificationQuestions', () => ({
+  __esModule: true,
+  default: () => <div data-testid="qualification-questions">QualificationQuestions</div>,
+}));
+jest.mock('@/components/AIConfiguration/CustomInstructions', () => ({
+  __esModule: true,
+  default: () => <div data-testid="custom-instructions">CustomInstructions</div>,
+}));
+jest.mock('@/components/AIConfiguration/SaveBar', () => ({
+  __esModule: true,
+  default: () => <div data-testid="save-bar">SaveBar</div>,
+}));
+
+// Mock the AI settings API
+jest.mock('@/lib/ai-settings-api', () => ({
+  fetchAiSettings: jest.fn().mockResolvedValue({
+    tone: 'friendly',
+    greetingTemplate: 'Hello!',
+    qualificationQuestions: [],
+    customInstructions: '',
+  }),
+  saveAiSettings: jest.fn().mockResolvedValue({}),
+}));
+
 const mockedUpdateSettings = updateClinicSettings as jest.MockedFunction<typeof updateClinicSettings>;
 
 const mockClinicData = {
@@ -84,12 +117,11 @@ describe('ClinicDetailTabs', () => {
     expect(screen.getByTestId('settings-form')).toBeInTheDocument();
     expect(screen.getByText('Save Settings')).toBeInTheDocument();
   });
-
   /** Verifies non-settings tabs still render placeholder content. */
   it('renders correct placeholder for non-settings tabs', () => {
     render(<ClinicDetailTabs clinic={mockClinicData} />);
 
-    const placeholderTabs = ['Overview', 'AI Configuration', 'Conversations', 'Analytics'];
+    const placeholderTabs = ['Overview', 'Conversations', 'Analytics'];
 
     for (const tab of placeholderTabs) {
       fireEvent.click(screen.getByText(tab));
@@ -97,6 +129,25 @@ describe('ClinicDetailTabs', () => {
         screen.getByText(`Clinic ${tab.toLowerCase()} would go here...`),
       ).toBeInTheDocument();
     }
+  });
+
+  /** Verifies the AI Configuration tab renders the AI components after loading. */
+  it('renders AI configuration components when AI Configuration tab is clicked', async () => {
+    render(<ClinicDetailTabs clinic={mockClinicData} />);
+
+    fireEvent.click(screen.getByText('AI Configuration'));
+
+    // First shows loading
+    expect(screen.getByText('Loading AI settings...')).toBeInTheDocument();
+
+    // Then renders the AI components after fetch resolves
+    await waitFor(() => {
+      expect(screen.getByTestId('tone-selector')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('greeting-message')).toBeInTheDocument();
+    expect(screen.getByTestId('qualification-questions')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-instructions')).toBeInTheDocument();
+    expect(screen.getByTestId('save-bar')).toBeInTheDocument();
   });
 
   /** Verifies the save flow shows a success banner. */

@@ -19,7 +19,7 @@ describe('ClinicsModule', () => {
       imports: [ClinicsModule],
     })
       .overrideProvider(getModelToken(Clinic.name))
-      .useValue({ findOne: jest.fn().mockReturnValue({ lean: jest.fn() }), create: jest.fn() })
+      .useValue({ find: jest.fn(), findById: jest.fn(), findOne: jest.fn().mockReturnValue({ lean: jest.fn() }), create: jest.fn() })
       .compile();
   });
 

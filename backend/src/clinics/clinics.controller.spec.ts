@@ -16,6 +16,10 @@ const mockClinic = {
   isActive: true,
 };
 
+/**
+ * Unit tests for ClinicsController.
+ * Mocks the service layer and tests HTTP-level behaviour.
+ */
 describe('ClinicsController', () => {
   let controller: ClinicsController;
   let service: Record<string, jest.Mock>;

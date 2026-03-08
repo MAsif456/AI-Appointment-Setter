@@ -1,0 +1,123 @@
+/* Header section for the clinic detail page */
+
+.header {
+  margin-bottom: 8px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 12px;
+  transition: color 150ms;
+}
+
+.backLink:hover {
+  color: #4361ee;
+}
+
+.backIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Clinic name and actions row */
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clinicName {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+/* Status badge styling */
+
+.statusBadge {
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.active {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.pending {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+
+/* Action buttons */
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a2e;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.editButton:hover {
+  background: #f9fafb;
+}
+
+.editIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.moreButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.moreButton:hover {
+  background: #f9fafb;
+}
+
+.moreIcon {
+  width: 18px;
+  height: 18px;
+  color: #6b7280;
+}
