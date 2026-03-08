@@ -1,5 +1,5 @@
 /**
- * Unit tests for the API client.
+ * Unit tests for the Axios API client.
  * Tests axios configuration, token injection, and 401 error handling.
  */
 import axios from 'axios';
@@ -42,7 +42,8 @@ describe('API Client', () => {
   });
 
   it('should create axios instance with correct baseURL', () => {
-    jest.isolateModules(() => require('./api'));
+    // Update require to point to the renamed file
+    jest.isolateModules(() => require('./apiAxios'));
 
     expect(mockedAxios.create).toHaveBeenCalledWith({
       baseURL: 'http://localhost:3001',
@@ -51,7 +52,7 @@ describe('API Client', () => {
   });
 
   it('should add Authorization header when token exists', () => {
-    jest.isolateModules(() => require('./api'));
+    jest.isolateModules(() => require('./apiAxios'));
     (localStorage.getItem as jest.Mock).mockReturnValue('test-token');
 
     const config = { headers: {} };
@@ -61,7 +62,7 @@ describe('API Client', () => {
   });
 
   it('should not add Authorization header when no token', () => {
-    jest.isolateModules(() => require('./api'));
+    jest.isolateModules(() => require('./apiAxios'));
     (localStorage.getItem as jest.Mock).mockReturnValue(null);
 
     const config = { headers: {} };
@@ -71,7 +72,7 @@ describe('API Client', () => {
   });
 
   it('should clear storage and redirect on 401 error', async () => {
-    jest.isolateModules(() => require('./api'));
+    jest.isolateModules(() => require('./apiAxios'));
     const error = { response: { status: 401 } };
 
     await expect(responseErrorInterceptor(error)).rejects.toEqual(error);
@@ -81,7 +82,7 @@ describe('API Client', () => {
   });
 
   it('should not redirect on non-401 errors', async () => {
-    jest.isolateModules(() => require('./api'));
+    jest.isolateModules(() => require('./apiAxios'));
     window.location.href = 'http://localhost/';
     const error = { response: { status: 500 } };
 

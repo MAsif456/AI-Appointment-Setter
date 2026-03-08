@@ -1,34 +1,28 @@
-import axios from 'axios';
+/**
+ * API client for communicating with the NestJS backend.
+ * Centralises base URL configuration and fetch helpers.
+ */
 
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+/** Base URL for the backend API, configurable via environment variable. */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-// Add token to requests
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+/**
+ * Typed wrapper around fetch that handles JSON parsing and error responses.
+ * @param path - API path relative to the base URL (e.g. "/api/clinics/123/ai-settings")
+ * @param options - Standard RequestInit options
+ * @returns Parsed JSON response
+ * @throws Error with the server's error message on non-OK responses
+ */
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(body.message || `Request failed: ${res.status}`);
   }
-  return config;
-});
 
-// Handle 401 errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-      window.location.href = '/login?expired=true';
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default api;
+  return res.json() as Promise<T>;
+}

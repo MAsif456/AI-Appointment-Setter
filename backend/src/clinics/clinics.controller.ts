@@ -1,3 +1,7 @@
+/**
+ * Controller for clinic endpoints.
+ * Handles listing, individual clinic retrieval, and clinic creation.
+ */
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
 import { CreateClinicDto } from './dto/create-clinic.dto';

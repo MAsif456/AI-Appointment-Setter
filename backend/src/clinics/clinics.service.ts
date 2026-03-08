@@ -1,3 +1,7 @@
+/**
+ * Service for clinic data operations.
+ * Provides read access to clinic documents and clinic creation.
+ */
 import {
   BadRequestException,
   ConflictException,

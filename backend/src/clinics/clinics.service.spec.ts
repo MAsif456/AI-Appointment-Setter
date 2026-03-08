@@ -1,3 +1,8 @@
+/**
+ * Unit tests for ClinicsService.
+ * Covers listing clinics, finding by ID, clinic creation,
+ * duplicate GHL Location ID detection, and database error propagation.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';

@@ -1,7 +1,7 @@
 // src/__tests__/AuthContext.test.tsx
 import { renderHook, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/api';
+import api from '@/lib/apiAxios';
 
 jest.mock('@/lib/api', () => ({
   post: jest.fn(),
