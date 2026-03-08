@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Clinic, ClinicSchema } from '../schemas/clinic.schema';
+import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
 
 /**
- * Defines the configuration for the ClinicsModule module.
+ * Feature module that wires up the Clinic Mongoose model,
+ * the ClinicsController, and the ClinicsService.
  * This module imports the MongooseModule and configures it to use the ClinicSchema for the Clinic model.
  * It includes the ClinicsController and ClinicsService, and exports the ClinicsService.
  */
