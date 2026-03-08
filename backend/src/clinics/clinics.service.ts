@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Clinic, ClinicDocument } from '../schemas/clinic.schema';
+import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 

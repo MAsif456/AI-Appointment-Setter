@@ -1,13 +1,13 @@
 import { connect, connection } from 'mongoose';
 import 'dotenv/config';
 
-import { UserSchema } from '../schemas/user.schema';
-import { ClinicSchema } from '../schemas/clinic.schema';
-import { LeadSchema } from '../schemas/lead.schema';
-import { ConversationSchema } from '../schemas/conversation.schema';
-import { MessageSchema } from '../schemas/message.schema';
-import { AppointmentSchema } from '../schemas/appointment.schema';
-import { AuditLogSchema } from '../schemas/audit-log.schema';
+import { UserSchema } from './schemas/user.schema';
+import { ClinicSchema } from './schemas/clinic.schema';
+import { LeadSchema } from './schemas/lead.schema';
+import { ConversationSchema } from './schemas/conversation.schema';
+import { MessageSchema } from './schemas/message.schema';
+import { AppointmentSchema } from './schemas/appointment.schema';
+import { AuditLogSchema } from './schemas/audit-log.schema';
 
 import { seedUsers } from './seeds/user.seed';
 import { seedClinics } from './seeds/clinic.seed';

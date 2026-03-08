@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Clinic, ClinicSchema } from '../schemas/clinic.schema';
+import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
 

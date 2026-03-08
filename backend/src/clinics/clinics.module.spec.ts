@@ -3,7 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { ClinicsModule } from './clinics.module';
 import { ClinicsController } from './clinics.controller';
 import { ClinicsService } from './clinics.service';
-import { Clinic } from '../schemas/clinic.schema';
+import { Clinic } from '../database/schemas/clinic.schema';
 
 /**
  * Integration test for ClinicsModule.

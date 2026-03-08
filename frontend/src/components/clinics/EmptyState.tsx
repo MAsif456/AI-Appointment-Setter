@@ -1,3 +1,5 @@
+'use client';
+
 import styles from './EmptyState.module.css';
 
 /** Props accepted by EmptyState. */

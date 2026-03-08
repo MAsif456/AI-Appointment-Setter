@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
-import { Clinic } from '../schemas/clinic.schema';
+import { Clinic } from '../database/schemas/clinic.schema';
 import { CreateClinicDto } from './dto/create-clinic.dto';
 import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 
