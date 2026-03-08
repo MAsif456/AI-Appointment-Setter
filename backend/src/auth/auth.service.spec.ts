@@ -1,3 +1,7 @@
+jest.mock('bcrypt', () => ({
+  compare: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
@@ -41,7 +45,7 @@ describe('AuthService', () => {
 
   it('should login successfully', async () => {
     mockUserModel.findOne.mockResolvedValue(mockUser);
-    jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
     const result = await service.login({
       email: 'test@example.com',
@@ -62,7 +66,7 @@ describe('AuthService', () => {
 
   it('should throw if password incorrect', async () => {
     mockUserModel.findOne.mockResolvedValue(mockUser);
-    jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
     await expect(
       service.login({ email: 'test@example.com', password: 'password' }),
