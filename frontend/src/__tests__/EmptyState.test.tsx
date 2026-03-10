@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import EmptyState from './EmptyState';
+import EmptyState from '@/components/clinics/EmptyState';
 
 describe('EmptyState', () => {
   it('shows "No clinics found" when search is active', () => {

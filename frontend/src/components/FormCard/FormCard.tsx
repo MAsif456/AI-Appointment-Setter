@@ -1,8 +1,11 @@
+'use client';
+
+import type { ReactNode } from 'react';
 import styles from './FormCard.module.css';
 
 interface FormCardProps {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 /** Bordered card wrapper used for grouping related form fields. */
