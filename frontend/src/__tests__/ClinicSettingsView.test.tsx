@@ -69,6 +69,21 @@ describe('ClinicSettingsView', () => {
     expect(screen.getByText('17:00')).toBeTruthy();
   });
 
+  it('handles capitalised day keys from the API', () => {
+    render(
+      <ClinicSettingsView
+        clinic={{
+          ...baseClinic,
+          businessHours: [
+            { day: 'Monday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByText('09:00')).toBeTruthy();
+    expect(screen.getByText('17:00')).toBeTruthy();
+  });
+
   it('shows Closed for a closed day', () => {
     render(<ClinicSettingsView clinic={baseClinic} />);
     expect(screen.getAllByText('Closed').length).toBeGreaterThan(0);
