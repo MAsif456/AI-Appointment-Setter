@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ConditionalLayout from '@/components/ConditionalLayout';
-import styles from "./layout.module.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 
 const inter = Inter({

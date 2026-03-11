@@ -27,6 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Public routes that don't require authentication
+  const publicRoutes = [
+    '/login',
+    '/signup',
+    '/verify-email',
+    '/forgot-password',
+    '/reset-password'
+  ];
+
   // Load user from localStorage on mount
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -47,16 +56,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Protect routes (redirect to login if not authenticated)
   useEffect(() => {
     if (!loading) {
-      const isLoginPage = pathname === '/login';
+      const isPublicRoute = publicRoutes.includes(pathname);
       const isAuthenticated = !!user;
 
       // Redirect to login if trying to access protected route without auth
-      if (!isLoginPage && !isAuthenticated) {
+      if (!isPublicRoute && !isAuthenticated) {
         router.push('/login');
       }
 
       // Redirect to dashboard if trying to access login while authenticated
-      if (isLoginPage && isAuthenticated) {
+      if (isPublicRoute && isAuthenticated) {
         router.push('/');
       }
     }

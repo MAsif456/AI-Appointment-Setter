@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import styles from './login.module.css';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,11 +14,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const searchParams = useSearchParams();
+  const [success, setSuccess] = useState('');
 
   // Check for session expiration message
   useEffect(() => {
     if (searchParams.get('expired') === 'true') {
       setError('Please log in again with your email and password.');
+    }
+  }, [searchParams]);
+
+  // Check for email verification and password reset messages
+  useEffect(() => {
+    if (searchParams.get('verified') === 'true') {
+      setSuccess('Email verified successfully. You can now log in.');
+    }
+
+    if (searchParams.get('reset') === 'true') {
+      setSuccess('Password reset successfully. Please log in.');
     }
   }, [searchParams]);
 
@@ -54,6 +67,13 @@ export default function LoginPage() {
         {error && (
           <div className={styles.error}>
             {error}
+          </div>
+        )}
+        
+        {/* Success Message */}
+        {success && (
+          <div className={styles.success}>
+            {success}
           </div>
         )}
 
@@ -112,9 +132,16 @@ export default function LoginPage() {
 
         {/* Forgot Password Link */}
         <div className={styles.forgotPassword}>
-          <a href="#" className={styles.forgotPasswordLink}>
-            Forgot password?
-          </a>
+          <Link href="/forgot-password" className={styles.forgotPasswordLink}>
+            Forgot Password?
+          </Link>
+        </div>
+
+        {/* Sign Up Link */}
+        <div className={styles.signUp}>
+          <Link href="/signup" className={styles.signUpLink}>
+            Sign Up
+          </Link>
         </div>
 
         {/* Demo Credentials */}
