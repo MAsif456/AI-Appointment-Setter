@@ -42,6 +42,21 @@ notificationPreferences: {
   stalled: boolean;
 };
 
+@Prop({ default: false })
+isVerified: boolean;
+
+@Prop()
+verificationCode?: string;
+
+@Prop()
+verificationCodeExpires?: Date;
+
+@Prop()
+passwordResetCode?: string;
+
+@Prop()
+passwordResetExpires?: Date;
+
   // Timestamps: createdAt, updatedAt (auto-generated)
 }
 
