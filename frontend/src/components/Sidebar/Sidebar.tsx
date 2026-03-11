@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import styles from './Sidebar.module.css';
 import {
@@ -34,6 +35,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  const [showLogout, setShowLogout] = useState(false);
+  
   /**
    * Checks whether a nav link should be highlighted.
    * Exact match for the root path, prefix match for everything else.
@@ -44,6 +47,7 @@ export default function Sidebar() {
   };
 
   return (
+    <>
     <aside className={styles.sidebar}>
       <div className={styles.brand}>
         AppointHealth <span className={styles.brandAi}>AI</span>
@@ -75,14 +79,41 @@ export default function Sidebar() {
           <UserIcon className={styles.avatarIcon} />
         </div>
         <div className={styles.userInfo}>
-          <div className={styles.userName}>Admin User</div>
-          <div className={styles.userEmail}>admin@lunaxdigital.com</div>
+          <div className={styles.userName}>{user?.name ||'User'}</div>
+          <div className={styles.userEmail}>{user?.email || ''}</div>
         </div>
         <button className={styles.logoutButton} aria-label="Logout" 
-          onClick={logout}>
+          onClick={() => setShowLogout(true)}>
           <LogoutIcon className={styles.logoutIcon} />
         </button>
       </div>
     </aside>
+
+    {/* Logout confirmation modal */}
+      {showLogout && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3>Logout</h3>
+            <p>Are you sure you want to log out?</p>
+
+            <div className={styles.modalButtons}>
+              <button
+                className={styles.cancelButton}
+                onClick={() => setShowLogout(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className={styles.confirmButton}
+                onClick={logout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

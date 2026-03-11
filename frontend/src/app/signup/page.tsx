@@ -1,44 +1,69 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/apiAxios';
 import styles from './signup.module.css';
+
+type FieldErrors = {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
 
 export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [errors, setErrors] = useState<FieldErrors>({
+    name: "", email: "",
+    password: "", confirmPassword: ""
+  });
 
+  
+  const [isValid, setIsValid] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  const router = useRouter();
+  
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
   const validatePassword = (pwd: string) => {
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    return regex.test(pwd);
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(
+      pwd);
   };
+
+  // Real-time validation
+  useEffect(() => {
+    const newErrors: typeof errors = {
+      name: "", email: "", password: "", confirmPassword: ""
+    };
+    if (name && name.trim().length < 3) newErrors.name = 'Name must be at least 3 characters';
+    if (email && !validateEmail(email)) newErrors.email = 'Invalid email address';
+    if (password && !validatePassword(password)) 
+      newErrors.password =
+    'Password must be at least 8 characters, include uppercase, lowercase, number and special character';
+
+    if (confirmPassword && confirmPassword !== password)
+      newErrors.confirmPassword = 'Passwords do not match';
+
+    setErrors(newErrors);
+    setIsValid(
+      name.trim().length >= 3 &&
+      validateEmail(email) &&
+      validatePassword(password) &&
+      password === confirmPassword
+    );
+  }, [name, email, password, confirmPassword]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    // Validation
-    if (!name.trim()) {
-      setError('Full name is required');
-      return;
-    }
-
-    if (!validatePassword(password)) {
-      setError('Must be at least 8 characters with uppercase, lowercase, number and special character');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    setBackendErrors({ name: "", email: "", password: "", confirmPassword: "" });
+    if (!isValid) return;
 
     setLoading(true);
 
@@ -46,7 +71,7 @@ export default function SignupPage() {
       await api.post('/auth/register', { name, email, password });
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setErrors(err.response?.data?.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -65,10 +90,6 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {error && (
-          <div className={styles.error}>{error}</div>
-        )}
-
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
             <label htmlFor="name" className={styles.label}>
@@ -83,6 +104,7 @@ export default function SignupPage() {
               required
               className={styles.input}
             />
+            {errors.name && <p className={styles.error}>{errors.name}</p>}
           </div>
 
           <div className={styles.formGroup}>
@@ -98,6 +120,7 @@ export default function SignupPage() {
               required
               className={styles.input}
             />
+            {errors.email && <p className={styles.error}>{errors.email}</p>}
           </div>
 
           <div className={styles.formGroup}>
@@ -113,9 +136,15 @@ export default function SignupPage() {
               required
               className={styles.input}
             />
-            <p className={styles.hint}>
-              Must be at least 8 characters with uppercase, lowercase, and number
-            </p>
+            {password && (
+              <p
+                className={`${styles.formGroup} ${
+                  errors.password ? styles.error : styles.success
+                }`}
+              >
+                {errors.password || 'Strong password!'}
+              </p>
+            )}
           </div>
 
           <div className={styles.formGroup}>
@@ -131,6 +160,9 @@ export default function SignupPage() {
               required
               className={styles.input}
             />
+            {errors.confirmPassword && (
+              <p className={styles.error}>{errors.confirmPassword}</p>
+            )}
           </div>
 
           <button

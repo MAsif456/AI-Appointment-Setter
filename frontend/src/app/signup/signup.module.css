@@ -141,3 +141,9 @@
 .link:hover {
   text-decoration: underline;
 }
+
+.success {
+  color: #16a34a; /* green for valid */
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}

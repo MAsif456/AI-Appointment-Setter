@@ -135,24 +135,14 @@ export default function LoginPage() {
           <Link href="/forgot-password" className={styles.forgotPasswordLink}>
             Forgot Password?
           </Link>
-        </div>
+        </div>          
 
         {/* Sign Up Link */}
         <div className={styles.signUp}>
+          Don't have an account?{' '}
           <Link href="/signup" className={styles.signUpLink}>
             Sign Up
           </Link>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className={styles.demoBox}>
-          <p className={styles.demoTitle}>Demo credentials:</p>
-          <p className={styles.demoText}>
-            <strong>Email:</strong> admin@lunaxdigital.com
-          </p>
-          <p className={styles.demoText}>
-            <strong>Password:</strong> admin123
-          </p>
         </div>
       </div>
     </div>

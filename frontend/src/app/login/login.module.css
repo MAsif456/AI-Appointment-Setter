@@ -141,32 +141,6 @@
   text-decoration: underline;
 }
 
-/* Demo Credentials Box */
-.demoBox {
-  margin-top: 2rem;
-  padding: 1rem;
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 0.5rem;
-}
-
-.demoTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e40af;
-  margin-bottom: 0.5rem;
-}
-
-.demoText {
-  font-size: 0.875rem;
-  color: #1e40af;
-  margin: 0.25rem 0;
-}
-
-.demoText strong {
-  font-weight: 600;
-}
-
 /* Responsive Design */
 @media (max-width: 640px) {
   .card {
@@ -200,4 +174,21 @@
 
 .showPasswordButton:hover {
   color: #000;
+}
+
+.signUp {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.signUpLink {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.signUpLink:hover {
+  text-decoration: underline;
 }
