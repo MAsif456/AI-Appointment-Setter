@@ -1,0 +1,190 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getModelToken } from '@nestjs/mongoose';
+import { NotFoundException } from '@nestjs/common';
+import { ConversationsService } from './conversations.service';
+import { ChatService } from '../ai/chat.service';
+
+describe('ConversationsService', () => {
+  let service: ConversationsService;
+
+  // Mock Mongoose models
+  const mockConversationModel = {
+    findById: jest.fn(),
+    find: jest.fn().mockReturnValue({
+      populate: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    }),
+    findByIdAndUpdate: jest.fn(),
+  };
+
+  const mockMessageModel = {
+    find: jest.fn().mockReturnValue({ sort: jest.fn().mockResolvedValue([]) }),
+    create: jest.fn().mockResolvedValue({}),
+    deleteMany: jest.fn().mockResolvedValue({}),
+  };
+
+  const mockClinicModel = { findById: jest.fn() };
+  const mockLeadModel = { findById: jest.fn() };
+
+  const mockChatService = {
+    startConversation: jest.fn(),
+    sendMessage: jest.fn(),
+  };
+
+  // Shared test fixtures
+  const mockConversation = {
+    _id: 'conv1',
+    clinicId: 'clinic1',
+    leadId: 'lead1',
+    channel: 'website',
+    phase: 'greeting',
+  };
+
+  const mockClinic = {
+    _id: 'clinic1',
+    name: 'Cardiff Physiotherapy Centre',
+    ghlLocationId: 'loc1',
+    isActive: true,
+    aiConfig: { tone: 'friendly', greetingTemplate: '', customInstructions: '' },
+    serviceAreas: [{ postcodePrefix: 'CF' }],
+  };
+
+  const mockLead = {
+    _id: 'lead1',
+    firstName: 'Sarah',
+    lastName: 'Williams',
+    phone: '07700 900123',
+    email: 'sarah@email.com',
+    issue: 'Back Pain',
+    leadSource: 'facebook',
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ConversationsService,
+        { provide: getModelToken('Conversation'), useValue: mockConversationModel },
+        { provide: getModelToken('Message'), useValue: mockMessageModel },
+        { provide: getModelToken('Clinic'), useValue: mockClinicModel },
+        { provide: getModelToken('Lead'), useValue: mockLeadModel },
+        { provide: ChatService, useValue: mockChatService },
+      ],
+    }).compile();
+
+    service = module.get<ConversationsService>(ConversationsService);
+    jest.clearAllMocks();
+  });
+
+  describe('getConversation', () => {
+    it('should return conversation with messages, clinic, and lead', async () => {
+      mockConversationModel.findById.mockResolvedValue(mockConversation);
+      mockMessageModel.find.mockReturnValue({
+        sort: jest.fn().mockResolvedValue([]),
+      });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+
+      const result = await service.getConversation('conv1');
+
+      expect(result.conversation).toEqual(mockConversation);
+      expect(result.clinic).toEqual(mockClinic);
+      expect(result.lead).toEqual(mockLead);
+    });
+
+    it('should throw NotFoundException for invalid ID', async () => {
+      mockConversationModel.findById.mockResolvedValue(null);
+      await expect(service.getConversation('bad_id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('startConversation', () => {
+    it('should generate greeting and save as message', async () => {
+      mockConversationModel.findById.mockResolvedValue(mockConversation);
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockChatService.startConversation.mockResolvedValue('Hi Sarah!');
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      const result = await service.startConversation('conv1');
+
+      expect(result).toBe('Hi Sarah!');
+      expect(mockMessageModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ sender: 'ai', content: 'Hi Sarah!' }),
+      );
+    });
+
+    it('should return null when greeting fails', async () => {
+      mockConversationModel.findById.mockResolvedValue(mockConversation);
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockChatService.startConversation.mockResolvedValue(null);
+
+      const result = await service.startConversation('conv1');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('resetConversation', () => {
+    it('should delete messages and reset conversation phase', async () => {
+      mockConversationModel.findById.mockResolvedValue(mockConversation);
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      await service.resetConversation('conv1');
+
+      expect(mockMessageModel.deleteMany).toHaveBeenCalledWith({
+        conversationId: 'conv1',
+      });
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        expect.objectContaining({ phase: 'greeting', messageCount: 0 }),
+      );
+    });
+
+    it('should throw NotFoundException for invalid ID', async () => {
+      mockConversationModel.findById.mockResolvedValue(null);
+      await expect(service.resetConversation('bad_id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('sendMessage', () => {
+    it('should save user message and AI reply', async () => {
+      mockConversationModel.findById.mockResolvedValue(mockConversation);
+      mockMessageModel.find.mockReturnValue({
+        sort: jest.fn().mockResolvedValue([
+          { sender: 'ai', content: 'Hi Sarah!' },
+        ]),
+      });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockChatService.sendMessage.mockResolvedValue('Let me check that.');
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      const result = await service.sendMessage('conv1', 'My postcode is CF10');
+
+      expect(result).toBe('Let me check that.');
+      // Should create two messages: user + AI
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return null when AI fails', async () => {
+      mockConversationModel.findById.mockResolvedValue(mockConversation);
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockChatService.sendMessage.mockResolvedValue(null);
+
+      const result = await service.sendMessage('conv1', 'Hello');
+
+      expect(result).toBeNull();
+      // Only the user message should be saved, not an AI reply
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(1);
+    });
+  });
+});
