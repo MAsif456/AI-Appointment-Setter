@@ -74,6 +74,26 @@ export class ClinicsService {
    * @throws BadRequestException when the id is not a valid 24-char hex string
    * @throws NotFoundException when no clinic matches the given id
    */
+  async findByGhlLocationId(locationId: string): Promise<ClinicDocument> {
+    const clinic = await this.clinicModel
+      .findOne({ ghlLocationId: locationId })
+      .exec();
+    if (!clinic) {
+      throw new NotFoundException(
+        `Clinic with GHL locationId "${locationId}" not found`,
+      );
+    }
+    return clinic;
+  }
+
+  /**
+   * Finds a single clinic by its MongoDB _id.
+   * Validates the ObjectId format before querying.
+   * @param id - the document identifier
+   * @throws BadRequestException when the id is not a valid 24-char hex string
+   * @throws NotFoundException when no clinic matches the given id
+   * @returns The clinic document matching the given id.
+   */
   async findById(id: string): Promise<ClinicDocument> {
     assertValidObjectId(id);
     const clinic = await this.clinicModel.findById(id).exec();

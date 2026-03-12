@@ -32,6 +32,12 @@ export class Conversation {
   @Prop({ type: Types.ObjectId, ref: 'Lead', required: true, index: true })
   leadId: Types.ObjectId;
 
+  @Prop({ trim: true, index: true })
+  ghlContactId?: string;
+
+  @Prop({ trim: true, index: true })
+  ghlConversationId?: string;
+
   @Prop({ 
     type: String, 
     enum: ['greeting', 'qualifying', 'qualified', 'booking', 'booked', 'confirmed', 'rescheduling', 'cancelled', 'declined', 'stalled', 'closed', 'escalated'], 
@@ -127,4 +133,5 @@ ConversationSchema.index({ nextFollowUpAt: 1 }, { sparse: true });
 ConversationSchema.index({ requiresHumanIntervention: 1, clinicId: 1 });
 ConversationSchema.index({ isHighPriority: 1, clinicId: 1 });
 ConversationSchema.index({ flaggedForReview: 1, clinicId: 1 });
-ConversationSchema.index({ createdAt: -1 }); 
+ConversationSchema.index({ createdAt: -1 });
+ConversationSchema.index({ ghlContactId: 1, clinicId: 1 }, { unique: true, sparse: true });

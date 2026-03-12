@@ -92,14 +92,14 @@ export default function AddClinicPage() {
 
     if (!ghlLocationId.trim()) {
       newErrors.ghlLocationId = 'GHL Location ID is required';
-    } else if (!/^loc_[a-z0-9_]+$/.test(ghlLocationId.trim())) {
-      newErrors.ghlLocationId = "Must start with 'loc_' (e.g. loc_cardiff_001)";
+    } else if (!/^[a-zA-Z0-9_]+$/.test(ghlLocationId.trim())) {
+      newErrors.ghlLocationId = 'GHL Location ID must be alphanumeric';
     }
 
     if (!ghlCalendarId.trim()) {
       newErrors.ghlCalendarId = 'GHL Calendar ID is required';
-    } else if (!/^cal_[a-z0-9_]+$/.test(ghlCalendarId.trim())) {
-      newErrors.ghlCalendarId = "Must start with 'cal_' (e.g. cal_cardiff_001)";
+    } else if (!/^[a-zA-Z0-9_]+$/.test(ghlCalendarId.trim())) {
+      newErrors.ghlCalendarId = 'GHL Calendar ID must be alphanumeric';
     }
 
     // Optional field format checks

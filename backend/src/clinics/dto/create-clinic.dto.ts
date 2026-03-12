@@ -70,12 +70,12 @@ export class CreateClinicDto {
 
   @IsString()
   @IsNotEmpty({ message: 'GHL Location ID is required' })
-  @Matches(/^loc_[a-z0-9_]+$/, { message: "GHL Location ID must start with 'loc_' (e.g. loc_cardiff_001)" })
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'GHL Location ID must be alphanumeric' })
   ghlLocationId: string;
 
   @IsString()
   @IsNotEmpty({ message: 'GHL Calendar ID is required' })
-  @Matches(/^cal_[a-z0-9_]+$/, { message: "GHL Calendar ID must start with 'cal_' (e.g. cal_cardiff_001)" })
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'GHL Calendar ID must be alphanumeric' })
   ghlCalendarId: string;
 
   @IsString()
