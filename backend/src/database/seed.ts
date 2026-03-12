@@ -65,6 +65,12 @@ async function seedDatabase() {
     console.log(`   Leads: ${leads.length}`);
     console.log(`   Conversations: ${conversations.length}\n`);
     console.log(`Login: admin@lunaxdigital.com / admin123\n`);
+    // Print conversation IDs for reference
+    console.log('Conversation IDs:');
+    console.log(`   Sarah Williams (Confirmed): ${conversations[0]._id}`);
+    console.log(`   John Davies (Qualified):    ${conversations[1]._id}`);
+    console.log(`   Rachel Green (Booking/Live): ${conversations[2]._id}`);
+    console.log(`   Lisa Evans (Declined):      ${conversations[3]._id}\n`);
 
   } catch (error) {
 

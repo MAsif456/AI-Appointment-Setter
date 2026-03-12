@@ -5,6 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AiSettingsModule } from './ai-settings/ai-settings.module';
 import { ClinicsModule } from './clinics/clinics.module';
+import { AiModule } from './ai/ai.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { ClinicsModule } from './clinics/clinics.module';
     }),
     AiSettingsModule,
     ClinicsModule,
+    AiModule,
+    ConversationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
