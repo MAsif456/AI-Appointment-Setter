@@ -8,6 +8,7 @@ import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +34,16 @@ export default function LoginPage() {
       setSuccess('Password reset successfully. Please log in.');
     }
   }, [searchParams]);
+
+  const validateEmail = (value: string) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!regex.test(value)) {
+    setEmailError('Please enter a valid email address');
+  } else {
+    setEmailError('');
+  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,12 +99,19 @@ export default function LoginPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEmail(value);
+                validateEmail(value);
+                setError('');
+              }}
               placeholder=" "
               required
               className={styles.input}
             />
+            {emailError && <p className={styles.fieldError}>{emailError}</p>}
           </div>
+
           {/* Password Field */}
           <div className={styles.formGroup}>
             <label htmlFor="password" className={styles.label}>
@@ -123,7 +141,7 @@ export default function LoginPage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !!emailError || !email || !password}
             className={styles.submitButton}
           >
             {loading ? 'Signing in...' : 'Sign In'}

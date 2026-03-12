@@ -10,18 +10,39 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const router = useRouter();
+
+    const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    
+    if (value && !validateEmail(value)) {
+      setEmailError('Invalid email address');
+    } else {
+      setEmailError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!validateEmail(email)) {
+      setEmailError('Invalid email address');
+      return;
+    }
     setLoading(true);
 
     try {
       await api.post('/auth/forgot-password', { email });
       router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
-      setError('Failed to send reset code');
+      setError(err.response?.data?.message || 'Failed to send reset code');
     } finally {
       setLoading(false);
     }
@@ -40,9 +61,7 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        {error && (
-          <div className={styles.error}>{error}</div>
-        )}
+        {error && <div className={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
@@ -58,11 +77,12 @@ export default function ForgotPasswordPage() {
               required
               className={styles.input}
             />
+            {emailError && <p className={styles.fieldError}>{emailError}</p>}
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !email || !!emailError}
             className={styles.submitButton}
           >
             {loading ? 'Sending...' : 'Send Reset Code'}

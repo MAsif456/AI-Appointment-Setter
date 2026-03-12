@@ -54,6 +54,16 @@
   font-size: 0.875rem;
 }
 
+.success {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 0.5rem;
+  color: #16a34a;
+  font-size: 0.875rem;
+}
+
 .form {
   display: flex;
   flex-direction: column;
@@ -73,7 +83,7 @@
   margin-bottom: 0.5rem;
 }
 
-.input {
+.codeInput {
   width: 100%;
   padding: 0.875rem 1rem;
   font-size: 1.5rem;
@@ -87,7 +97,7 @@
   transition: all 0.2s ease;
 }
 
-.input:focus {
+.codeInput:focus {
   background-color: white;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
@@ -124,7 +134,7 @@
   color: #6b7280;
 }
 
-.link {
+.linkButton {
   background: none;
   border: none;
   color: #2563eb;
@@ -134,11 +144,11 @@
   padding: 0;
 }
 
-.link:hover:not(:disabled) {
+.linkButton:hover:not(:disabled) {
   text-decoration: underline;
 }
 
-.link:disabled {
+.linkButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

@@ -147,3 +147,27 @@
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
+
+.passwordWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.eyeButton {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+}
+
+.backendError {
+  background: #ffe5e5;
+  color: #b00020;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  text-align: center;
+}

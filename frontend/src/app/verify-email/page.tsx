@@ -9,6 +9,7 @@ function VerifyEmailContent() {
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const router = useRouter();
@@ -24,6 +25,13 @@ function VerifyEmailContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+
+    if (code.length !== 6) {
+      setError('Verification code must be 6 digits');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -39,10 +47,11 @@ function VerifyEmailContent() {
   const handleResend = async () => {
     setResending(true);
     setError('');
+    setSuccess('');
 
     try {
       await api.post('/auth/resend-code', { email });
-      alert('Verification code resent. Please check your email.');
+      setSuccess('Verification code resent. Please check your email.');
     } catch (err: any) {
       setError('Failed to resend code');
     } finally {
@@ -63,9 +72,9 @@ function VerifyEmailContent() {
           </p>
         </div>
 
-        {error && (
-          <div className={styles.error}>{error}</div>
-        )}
+        {error && <div className={styles.error}>{error}</div>}
+        {success && <div className={styles.success}>{success}</div>}
+
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
@@ -76,17 +85,17 @@ function VerifyEmailContent() {
               id="code"
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} // Only allow digits
               placeholder="123456"
               required
               maxLength={6}
-              className={styles.input}
+              className={styles.codeInput}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || code.length !== 6}
             className={styles.submitButton}
           >
             {loading ? 'Verifying...' : 'Verify'}
@@ -96,9 +105,10 @@ function VerifyEmailContent() {
         <div className={styles.footer}>
           Didn't receive the code?{' '}
           <button
+            type="button"
             onClick={handleResend}
             disabled={resending}
-            className={styles.link}
+            className={styles.linkButton}
           >
             {resending ? 'Sending...' : 'Resend Code'}
           </button>

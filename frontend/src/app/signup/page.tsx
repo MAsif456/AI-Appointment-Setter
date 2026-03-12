@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/apiAxios';
 import styles from './signup.module.css';
+import {Eye, EyeOff} from 'lucide-react';
 
 type FieldErrors = {
   name: string;
@@ -23,25 +24,27 @@ export default function SignupPage() {
     password: "", confirmPassword: ""
   });
 
-  
+  const [backendErrors, setBackendErrors] = useState('')
+  const [showPassword, setShowPassword] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const router = useRouter();
-  
+
   const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
   const validatePassword = (pwd: string) => {
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(
-      pwd);
+     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pwd);
   };
 
   // Real-time validation
   useEffect(() => {
     const newErrors: typeof errors = {
-      name: "", email: "", password: "", confirmPassword: ""
+      name: "", email: "",
+      password: "", confirmPassword: ""
     };
+
     if (name && name.trim().length < 3) newErrors.name = 'Name must be at least 3 characters';
     if (email && !validateEmail(email)) newErrors.email = 'Invalid email address';
     if (password && !validatePassword(password)) 
@@ -52,6 +55,7 @@ export default function SignupPage() {
       newErrors.confirmPassword = 'Passwords do not match';
 
     setErrors(newErrors);
+
     setIsValid(
       name.trim().length >= 3 &&
       validateEmail(email) &&
@@ -62,7 +66,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBackendErrors({ name: "", email: "", password: "", confirmPassword: "" });
+    setBackendErrors('');
     if (!isValid) return;
 
     setLoading(true);
@@ -71,7 +75,7 @@ export default function SignupPage() {
       await api.post('/auth/register', { name, email, password });
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
-      setErrors(err.response?.data?.message || 'Registration failed');
+      setBackendErrors(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -90,7 +94,11 @@ export default function SignupPage() {
           </p>
         </div>
 
+        {backendErrors && <p className={styles.backendError}>{backendErrors}</p>}
+        
         <form onSubmit={handleSubmit} className={styles.form}>
+          
+          {/* Name Field */}
           <div className={styles.formGroup}>
             <label htmlFor="name" className={styles.label}>
               Full Name
@@ -107,6 +115,7 @@ export default function SignupPage() {
             {errors.name && <p className={styles.error}>{errors.name}</p>}
           </div>
 
+          {/* Email Field */}
           <div className={styles.formGroup}>
             <label htmlFor="email" className={styles.label}>
               Email
@@ -122,28 +131,30 @@ export default function SignupPage() {
             />
             {errors.email && <p className={styles.error}>{errors.email}</p>}
           </div>
-
+          
+          {/* Password Field */}
           <div className={styles.formGroup}>
-            <label htmlFor="password" className={styles.label}>
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className={styles.input}
-            />
-            {password && (
-              <p
-                className={`${styles.formGroup} ${
-                  errors.password ? styles.error : styles.success
-                }`}
+            <label htmlFor="password" className={styles.label}> Password </label>
+            <div className={styles.passwordWrapper}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className={styles.input}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className={styles.eyeButton}
               >
-                {errors.password || 'Strong password!'}
-              </p>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            {password && (
+              <p className={styles.error} > {errors.password} </p>
             )}
           </div>
 
