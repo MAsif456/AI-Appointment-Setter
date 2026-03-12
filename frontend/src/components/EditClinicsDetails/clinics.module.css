@@ -109,14 +109,12 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-width: 720px;
 }
 
 .settingsForm {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 720px;
 }
 
 .fieldGroup {
@@ -264,7 +262,7 @@
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
-  background-color: #f9fafb;
+  background-color: #ffffff;
   color: #111827;
   font-size: 14px;
   line-height: 1.5;
@@ -303,7 +301,7 @@
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
-  background-color: #f9fafb;
+  background-color: #ffffff;
   color: #111827;
   font-size: 14px;
   box-sizing: border-box;

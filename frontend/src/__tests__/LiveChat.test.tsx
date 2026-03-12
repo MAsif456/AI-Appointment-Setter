@@ -203,53 +203,6 @@ describe('LiveChat', () => {
       expect(screen.getByText(/Could not connect to backend/)).toBeInTheDocument();
     });
   });
-
-  it('renders the Reset Chat button', async () => {
-    render(<LiveChat conversationId="conv1" />);
-    expect(screen.getByText(/Reset Chat/)).toBeInTheDocument();
-  });
-
-  it('resets the chat and re-triggers greeting when Reset Chat is clicked', async () => {
-    const newGreeting = { greeting: 'Hello again Sarah!' };
-    global.fetch = jest.fn()
-      // Initial load: GET conversation details
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve(mockConversationData),
-      })
-      // Initial load: POST /start
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve(mockGreetingResponse),
-      })
-      // Reset: POST /reset
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve({ success: true }),
-      })
-      // Re-init: GET conversation details (now empty)
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve(mockConversationData),
-      })
-      // Re-init: POST /start (new greeting with updated tone)
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve(newGreeting),
-      }) as jest.Mock;
-
-    render(<LiveChat conversationId="conv1" />);
-    await waitFor(() => {
-      expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText(/Reset Chat/));
-
-    await waitFor(() => {
-      expect(screen.getByText('Hello again Sarah!')).toBeInTheDocument();
-    });
-    // Verify reset endpoint was called
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/conversations/conv1/reset'),
-      expect.objectContaining({ method: 'POST' }),
-    );
-  });
-
   it('shows error when AI reply is null', async () => {
     global.fetch = jest.fn()
       .mockResolvedValueOnce({

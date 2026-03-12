@@ -14,9 +14,18 @@ jest.mock('next/link', () => {
   );
 });
 
-// Mock next/navigation – useParams returns a clinic id
+// Mock next/navigation – useParams returns a clinic id, useSearchParams returns no edit flag
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: '507f1f77bcf86cd799439011' }),
+  useSearchParams: () => ({ get: () => null }),
+}));
+
+// Mock ClinicDetailTabs to keep the page test focused on page-level behaviour
+jest.mock('@/components/clinics/ClinicDetailTabs', () => ({
+  __esModule: true,
+  default: require('react').forwardRef(function MockClinicDetailTabs() {
+    return <div data-testid="clinic-detail-tabs" />;
+  }),
 }));
 
 /** Factory for a sample clinic matching the seed data shape. */

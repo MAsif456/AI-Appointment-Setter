@@ -45,10 +45,9 @@ describe('ChatSidebar', () => {
     expect(screen.getByText('Back Pain')).toBeInTheDocument();
     expect(screen.getByText('CF10 3AB')).toBeInTheDocument();
   });
-
-  it('renders lead source', () => {
+  it('renders lead source capitalised', () => {
     render(<ChatSidebar {...defaultProps} />);
-    expect(screen.getByText('facebook')).toBeInTheDocument();
+    expect(screen.getByText('Facebook')).toBeInTheDocument();
   });
 
   it('renders phase badge with capitalised label', () => {
@@ -60,10 +59,9 @@ describe('ChatSidebar', () => {
     render(<ChatSidebar {...defaultProps} />);
     expect(screen.getByText('Cardiff Physiotherapy Centre')).toBeInTheDocument();
   });
-
-  it('renders clinic tone', () => {
+  it('renders clinic tone capitalised', () => {
     render(<ChatSidebar {...defaultProps} />);
-    expect(screen.getByText('friendly')).toBeInTheDocument();
+    expect(screen.getByText('Friendly')).toBeInTheDocument();
   });
 
   it('renders message count', () => {

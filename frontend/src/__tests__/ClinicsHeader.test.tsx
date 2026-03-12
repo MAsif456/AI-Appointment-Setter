@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import ClinicsHeader from './ClinicsHeader';
+import ClinicsHeader from '@/components/clinics/ClinicsHeader';
 
 // Mock next/link as a simple anchor
 jest.mock('next/link', () => {

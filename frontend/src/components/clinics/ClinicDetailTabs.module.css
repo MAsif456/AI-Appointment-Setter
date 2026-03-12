@@ -32,7 +32,55 @@
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 48px 32px;
+  padding: 32px;
+}
+
+.editFormWrapper {
+  margin-top: 24px;
+}
+
+.formFooterActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.formCancelButton {
+  padding: 10px 20px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.formCancelButton:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.formSaveButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background-color: #4361ee;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.formSaveButton:hover {
+  background-color: #3a56d4;
 }
 
 .placeholder {

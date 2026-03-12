@@ -26,8 +26,75 @@
 .heading {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
   margin-top: 10px;
+}
+
+.headingLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1a1a2e;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.editButton:hover {
+  background-color: #f8f9fa;
+}
+
+.editingActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cancelButton {
+  padding: 10px 20px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.cancelButton:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.saveButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background-color: #4361ee;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.saveButton:hover {
+  background-color: #3a56d4;
 }
 
 .clinicName {
