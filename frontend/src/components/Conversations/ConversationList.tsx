@@ -71,7 +71,7 @@ export default function ConversationList() {
         <div className={styles.priorityBanner}>
           <HighPriorityIcon className={styles.priorityBannerIcon} />
           <span>
-            <strong>{priorityCount} high priority</strong> — urgent cases shown first
+            <strong>{priorityCount} high priority</strong> urgent cases shown first
           </span>
         </div>
       )}

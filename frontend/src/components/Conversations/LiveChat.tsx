@@ -150,14 +150,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
           <BackArrowIcon className={styles.backIcon} />
           Back to Conversations
         </Link>
-        <button
-          className={styles.resetBtn}
-          onClick={resetChat}
-          disabled={loading}
-          title="Clear all messages and re-generate the AI greeting with current clinic tone settings"
-        >
-          &#8635; Reset Chat
-        </button>
+
       </div>
       <h1 className={styles.title}>
         {`Live Chat${lead ? ` with ${[lead.firstName, lead.lastName].filter(Boolean).join(' ')}` : ''}`}

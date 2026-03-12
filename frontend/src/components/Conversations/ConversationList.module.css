@@ -127,6 +127,7 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+  color: #374151;
 }
 
 .lastMessage {

@@ -24,6 +24,11 @@ interface ChatSidebarProps {
   messageCount: number;
 }
 
+/** Capitalises the first letter of each word */
+function capitalise(text: string): string {
+  return text.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** Phase display class mapping */
 const PHASE_CLASSES: Record<string, string> = {
   greeting: styles.phaseGreeting,
@@ -56,7 +61,7 @@ export default function ChatSidebar({
             {lead.email && <InfoRow label="Email" value={lead.email} />}
             {lead.issue && <InfoRow label="Issue" value={lead.issue} />}
             {lead.postcode && <InfoRow label="Postcode" value={lead.postcode} />}
-            {lead.leadSource && <InfoRow label="Lead Source" value={lead.leadSource} />}
+            {lead.leadSource && <InfoRow label="Lead Source" value={capitalise(lead.leadSource)} />}
           </>
         ) : (
           <p style={{ color: '#6b7280', fontSize: 13 }}>Loading...</p>
@@ -73,7 +78,7 @@ export default function ChatSidebar({
           </span>
         </div>
         {clinic && <InfoRow label="Clinic" value={clinic.name} />}
-        {clinic?.tone && <InfoRow label="Tone" value={clinic.tone} />}
+        {clinic?.tone && <InfoRow label="Tone" value={capitalise(clinic.tone)} />}
         <InfoRow label="Messages" value={String(messageCount)} />
       </div>
     </div>
