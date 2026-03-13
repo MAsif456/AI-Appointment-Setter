@@ -1,4 +1,4 @@
-import { getClinics, getClinicById, deactivateClinic, activateClinic, updateClinicSettings } from './clinics';
+import { getClinics, getClinicById, deactivateClinic, activateClinic, updateClinicSettings } from '../lib/api/clinics';
 import { Clinic } from '@/types/clinic';
 
 /** Reusable mock clinic for assertions. */
