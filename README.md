@@ -192,6 +192,39 @@ Change these if your ports or URLs differ. For frontend calls to the API from th
 
 ---
 
+## Deployment
+
+The app is deployed using **Render** (backend) and **Vercel** (frontend), with the GitLab repo mirrored to GitHub to enable OAuth integration.
+
+| Service | Platform | URL |
+|---------|----------|-----|
+| Backend API | Render (free tier) | `https://appointhealth-backend.onrender.com` |
+| Frontend | Vercel (free tier) | `https://appointhealth-frontend.vercel.app` |
+
+### How auto-deploy works
+
+Pushes to the `development` branch on GitLab are automatically mirrored to the connected GitHub repo. Render and Vercel detect the push and redeploy automatically - no manual steps needed.
+
+### Environment variables (set in platform dashboards, not committed to the repo)
+
+**Render (backend):**
+
+| Variable | Value |
+|---|---|
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `FRONTEND_URL` | Vercel frontend URL (for CORS) |
+
+**Vercel (frontend):**
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Render backend URL |
+
+Note: Render’s free tier spins down after 15 minutes of inactivity. The first request after sleep may take 30 seconds.
+
+---
+
+
 ## Useful commands (from each app’s root)
 
 | Command         | Run from    | What it does              |

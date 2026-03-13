@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AiSettingsModule } from './ai-settings/ai-settings.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { AiModule } from './ai/ai.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AiSettingsModule,
     ClinicsModule,
     WebhooksModule,
+    AiModule,
+    ConversationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
