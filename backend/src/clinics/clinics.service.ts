@@ -84,6 +84,16 @@ export class ClinicsService {
   }
 
   /**
+   * Finds a single clinic by its GoHighLevel Location ID.
+   * Returns null rather than throwing when no match is found — an unknown
+   * location ID is a routine webhook routing outcome, not an exceptional error.
+   * @param ghlLocationId - The location ID from the GHL webhook payload.
+   */
+  async findByGhlLocationId(ghlLocationId: string): Promise<ClinicDocument | null> {
+    return this.clinicModel.findOne({ ghlLocationId }).exec();
+  }
+
+  /**
    * Sets a clinic's isActive flag to false.
    * @param id - the document identifier
    */

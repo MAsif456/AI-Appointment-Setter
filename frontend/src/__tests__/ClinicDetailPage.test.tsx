@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import ClinicDetailPage from './page';
+import ClinicDetailPage from '../app/clinics/[id]/page';
 import * as api from '@/lib/api/clinics';
 import { Clinic } from '@/types/clinic';
 
