@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import ClinicCard from './ClinicCard';
+import ClinicCard from '@/components/clinics/ClinicCard';
 import { Clinic } from '@/types/clinic';
 
 // Mock next/link as a simple anchor

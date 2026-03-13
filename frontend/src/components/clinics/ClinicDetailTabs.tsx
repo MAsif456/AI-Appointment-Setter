@@ -1,9 +1,8 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import styles from './ClinicDetailTabs.module.css';
 import type { Clinic, AITone, QualificationQuestion } from '@/types/clinic';
-import ClinicSettingsForm from '@/components/EditClinicsDetails/ClinicSettingsForm';
 import { updateClinicSettings } from '@/lib/api/clinics';
 import { fetchAiSettings, saveAiSettings } from '@/lib/ai-settings-api';
 import ToneSelector from '@/components/AIConfiguration/ToneSelector';
@@ -11,6 +10,8 @@ import GreetingMessage from '@/components/AIConfiguration/GreetingMessage';
 import QualificationQuestions from '@/components/AIConfiguration/QualificationQuestions';
 import CustomInstructions from '@/components/AIConfiguration/CustomInstructions';
 import SaveBar from '@/components/AIConfiguration/SaveBar';
+import ClinicSettingsForm, { type ClinicSettingsFormHandle } from '@/components/EditClinicsDetails/ClinicSettingsForm';
+import ClinicSettingsView from '@/components/EditClinicsDetails/ClinicSettingsView';
 
 /** Available tabs on the clinic detail page. */
 const TABS = ['Overview', 'Settings', 'AI Configuration', 'Conversations', 'Analytics'] as const;
@@ -20,18 +21,26 @@ type Tab = (typeof TABS)[number];
 interface ClinicDetailTabsProps {
   clinic: Clinic;
   onClinicUpdated?: (updated: Clinic) => void;
+  isEditing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
 }
 
-/**
- * Tabbed navigation for the clinic detail page.
- * The Settings tab renders the real ClinicSettingsForm;
- * all other tabs render placeholder content.
- */
-export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDetailTabsProps) {
+export type ClinicDetailTabsHandle = {
+  submitForm: () => void;
+};
+
+const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProps>(
+  function ClinicDetailTabs({ clinic, onClinicUpdated, isEditing = false, onEditingChange }, ref) {
+  const formRef = useRef<ClinicSettingsFormHandle>(null);
+  useImperativeHandle(ref, () => ({ submitForm: () => formRef.current?.submit() }));
+
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+
+  // When edit mode is triggered from the parent, switch to the Settings tab
+  useEffect(() => {
+    if (isEditing) setActiveTab('Settings');
+  }, [isEditing]);
 
   // AI Configuration state
   const [tone, setTone] = useState<AITone>('friendly');
@@ -43,14 +52,11 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
   const [aiSaving, setAiSaving] = useState(false);
   const [aiToast, setAiToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Fetch AI settings when the AI Configuration tab is first activated
   useEffect(() => {
     if (activeTab !== 'AI Configuration') return;
-
     let cancelled = false;
     setAiLoading(true);
     setAiError(null);
-
     fetchAiSettings(clinic._id)
       .then((data) => {
         if (cancelled) return;
@@ -59,17 +65,11 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
         setQuestions(data.qualificationQuestions);
         setInstructions(data.customInstructions);
       })
-      .catch((err) => {
-        if (!cancelled) setAiError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setAiLoading(false);
-      });
-
+      .catch((err) => { if (!cancelled) setAiError(err.message); })
+      .finally(() => { if (!cancelled) setAiLoading(false); });
     return () => { cancelled = true; };
   }, [activeTab, clinic._id]);
 
-  /** Saves AI settings to the backend. */
   const handleAiSave = useCallback(async () => {
     setAiSaving(true);
     setAiToast(null);
@@ -90,59 +90,86 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
     }
   }, [clinic._id, tone, greeting, questions, instructions]);
 
-  /** Called by ClinicSettingsForm when the user submits. */
-  const handleSaveSettings = async (updated: Clinic) => {
-    setSaveSuccess(false);
-    setSaveError(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  const handleSaveSettings = async (updated: Partial<Clinic>) => {
     try {
-      const saved = await updateClinicSettings(clinic._id, {
-        name: updated.name,
-        address: updated.address,
-        phone: updated.phone,
-        ghlLocationId: updated.ghlLocationId,
-        serviceAreas: updated.serviceAreas,
-        businessHours: updated.businessHours,
-      } as Partial<Clinic>);
+      const saved = await updateClinicSettings(clinic._id, updated);
+      setSettingsError(null);
       setSaveSuccess(true);
       onClinicUpdated?.(saved);
+      onEditingChange?.(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save settings');
+      setSettingsError(err instanceof Error ? err.message : 'Failed to save settings');
     }
   };
-  const renderTabContent = () => {
-    if (activeTab === 'Settings') {
-      return (
-        <div>
-          {saveSuccess && (
-            <p className={styles.successBanner} role="status">Settings saved successfully.</p>
-          )}
-          {saveError && (
-            <p className={styles.errorText} role="alert">{saveError}</p>
+
+  const tabBar = (
+    <div className={styles.tabBar}>
+      {TABS.map((tab) => (
+        <button
+          key={tab}
+          onClick={() => { setActiveTab(tab); onEditingChange?.(false); }}
+          className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+        >
+          {tab}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Edit mode: render the form outside the card so it gets full width and no interference
+  if (activeTab === 'Settings' && isEditing) {
+    return (
+      <>
+        {tabBar}
+        <div className={styles.editFormWrapper}>
+          {settingsError && (
+            <p role="alert" className={styles.errorText}>{settingsError}</p>
           )}
           <ClinicSettingsForm
             ref={formRef}
-            clinic={clinic as any}
-            onSave={handleSaveSettings as any}
+            clinic={clinic}
+            onSave={handleSaveSettings}
+            onCancel={() => onEditingChange?.(false)}
           />
-          <div className={styles.saveBar}>
+          <div className={styles.formFooterActions}>
             <button
-              type="button"
-              className={styles.saveButton}
-              onClick={() => formRef.current?.requestSubmit()}
+              className={styles.formCancelButton}
+              onClick={() => onEditingChange?.(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className={styles.formSaveButton}
+              onClick={() => formRef.current?.submit()}
             >
               Save Settings
             </button>
           </div>
         </div>
+      </>
+    );
+  }
+
+  const renderTabContent = () => {
+    if (activeTab === 'Settings') {
+      return (
+        <ClinicSettingsView
+          clinic={clinic}
+          onEdit={() => onEditingChange?.(true)}
+          saveSuccess={saveSuccess}
+        />
       );
     }
 
     if (activeTab === 'AI Configuration') {
       if (aiLoading) {
-        return <p style={{ padding: '24px', color: '#6b7280' }}>Loading AI settings...</p>;
+        return <p style={{ color: '#6b7280' }}>Loading AI settings...</p>;
       }
       if (aiError) {
-        return <p style={{ padding: '24px', color: '#dc2626' }}>Error: {aiError}</p>;
+        return <p style={{ color: '#dc2626' }}>Error: {aiError}</p>;
       }
       return (
         <div>
@@ -164,23 +191,12 @@ export default function ClinicDetailTabs({ clinic, onClinicUpdated }: ClinicDeta
 
   return (
     <>
-      {/* Tab bar */}
-      <div className={styles.tabBar}>
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
+      {tabBar}
       <div className={styles.tabContent}>
         {renderTabContent()}
       </div>
     </>
   );
-}
+});
+
+export default ClinicDetailTabs;

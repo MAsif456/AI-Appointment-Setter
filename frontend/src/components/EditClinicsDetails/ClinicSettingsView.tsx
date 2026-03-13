@@ -1,26 +1,29 @@
-/**
- * ClinicSettingsView: read-only view of the Settings tab.
- *
- * Displays the clinic's basic information fields, business hours, and
- * current status as styled read-only boxes. Clicking the Edit button in
- * the header switches to ClinicSettingsForm for editing.
- */
 import styles from "./clinics.module.css";
-import type { Clinic } from "./types";
+import type { Clinic } from "@/types/clinic";
 import { DAYS_ORDER, capitalizeDay } from "./utils";
 
 type Props = {
   clinic: Clinic;
+  onEdit: () => void;
+  saveSuccess?: boolean;
 };
 
-export default function ClinicSettingsView({ clinic }: Props) {
-  // keyed lookup so we can render hours in DAYS_ORDER without sorting the array
+export default function ClinicSettingsView({ clinic, saveSuccess }: Props) {
   const hoursByDay = new Map(
-    (clinic.businessHours ?? []).map((h) => [h.day, h])
+    (clinic.businessHours ?? []).map((h) => [
+      typeof h.day === "string" ? h.day.toLowerCase() : h.day,
+      h,
+    ])
   );
 
   return (
     <section className={styles.tabPanel}>
+      {saveSuccess && (
+        <p className={styles.successBanner} role="status" style={{ marginBottom: 24 }}>
+          Settings saved successfully.
+        </p>
+      )}
+
       <div className={styles.settingsCard}>
         <h2 className={styles.settingsCardTitle}>Basic Information</h2>
         <div className={styles.readOnlyField}>
@@ -37,9 +40,11 @@ export default function ClinicSettingsView({ clinic }: Props) {
         </div>
         <div className={styles.readOnlyField}>
           <span className={styles.readOnlyLabel}>GHL Location ID</span>
-          <span className={styles.readOnlyValue}>
-            {clinic.ghlLocationId || "—"}
-          </span>
+          <span className={styles.readOnlyValue}>{clinic.ghlLocationId || "—"}</span>
+        </div>
+        <div className={styles.readOnlyField}>
+          <span className={styles.readOnlyLabel}>GHL Calendar ID</span>
+          <span className={styles.readOnlyValue}>{clinic.ghlCalendarId || "—"}</span>
         </div>
       </div>
 

@@ -103,6 +103,7 @@ export class ClinicsService {
     return clinic;
   }
 
+
   /**
    * Sets a clinic's isActive flag to false.
    * @param id - the document identifier

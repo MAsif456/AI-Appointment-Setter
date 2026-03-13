@@ -6,6 +6,9 @@ import { AppService } from './app.service';
 import { AiSettingsModule } from './ai-settings/ai-settings.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { GhlModule } from './ghl/ghl.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { AiModule } from './ai/ai.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { GhlModule } from './ghl/ghl.module';
     AiSettingsModule,
     ClinicsModule,
     GhlModule,
+    WebhooksModule,
+    AiModule,
+    ConversationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

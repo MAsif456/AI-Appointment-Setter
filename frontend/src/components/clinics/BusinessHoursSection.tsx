@@ -23,7 +23,15 @@ export default function BusinessHoursSection({ hours, onChange }: BusinessHoursS
   return (
     <FormCard title="Business Hours">
       {DAYS.map((day) => {
-        const dayHours = hours[day];
+        const dayKey = day in hours ? day : day.toLowerCase();
+        const dayHours =
+          hours[dayKey] ??
+          hours[day] ??
+          hours[day.toLowerCase()] ?? {
+            open: false,
+            start: '09:00',
+            end: '17:00',
+          };
         return (
           <div key={day} className={styles.row}>
             <span className={styles.dayName}>{day}</span>
@@ -32,7 +40,7 @@ export default function BusinessHoursSection({ hours, onChange }: BusinessHoursS
               type="time"
               value={dayHours.start}
               disabled={!dayHours.open}
-              onChange={(e) => onChange(day, 'start', e.target.value)}
+              onChange={(e) => onChange(dayKey, 'start', e.target.value)}
             />
             <span className={styles.toLabel}>to</span>
             <input
@@ -40,13 +48,13 @@ export default function BusinessHoursSection({ hours, onChange }: BusinessHoursS
               type="time"
               value={dayHours.end}
               disabled={!dayHours.open}
-              onChange={(e) => onChange(day, 'end', e.target.value)}
+              onChange={(e) => onChange(dayKey, 'end', e.target.value)}
             />
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={dayHours.open}
-                onChange={(e) => onChange(day, 'open', e.target.checked)}
+                onChange={(e) => onChange(dayKey, 'open', e.target.checked)}
                 className={styles.checkbox}
               />
               Open

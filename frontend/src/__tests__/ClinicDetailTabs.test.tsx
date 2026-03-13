@@ -1,29 +1,23 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ClinicDetailTabs from './ClinicDetailTabs';
+import ClinicDetailTabs from '@/components/clinics/ClinicDetailTabs';
 import type { Clinic } from '@/types/clinic';
 import { updateClinicSettings } from '@/lib/api/clinics';
 
-// Mock the ClinicSettingsForm so the test stays focused on tab behaviour
+// Mock the ClinicSettingsForm so the test stays focused on tab behaviour.
+// Uses useImperativeHandle to expose submit() matching the real component's handle type.
 jest.mock('@/components/EditClinicsDetails/ClinicSettingsForm', () => {
-  const { forwardRef } = require('react');
+  const { forwardRef, useImperativeHandle } = require('react');
   return {
     __esModule: true,
     default: forwardRef(function MockSettingsForm(
       props: { onSave: (clinic: any) => void },
       ref: any,
     ) {
-      return (
-        <form
-          ref={ref}
-          data-testid="settings-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            props.onSave({ ...mockClinicData, name: 'Updated Name' });
-          }}
-        >
-          Mock Settings Form
-        </form>
-      );
+      useImperativeHandle(ref, () => ({
+        submit: () => props.onSave({ ...mockClinicData, name: 'Updated Name' }),
+      }));
+      return <div data-testid="settings-form">Mock Settings Form</div>;
     }),
   };
 });
@@ -108,14 +102,12 @@ describe('ClinicDetailTabs', () => {
     ).toBeInTheDocument();
   });
 
-  /** Verifies clicking the Settings tab renders the settings form. */
-  it('renders the settings form when the Settings tab is clicked', () => {
-    render(<ClinicDetailTabs clinic={mockClinicData} />);
-
-    fireEvent.click(screen.getByText('Settings'));
+  /** Verifies the settings form renders when isEditing is true. */
+  it('renders the settings form when isEditing is true', () => {
+    render(<ClinicDetailTabs clinic={mockClinicData} isEditing={true} />);
 
     expect(screen.getByTestId('settings-form')).toBeInTheDocument();
-    expect(screen.getByText('Save Settings')).toBeInTheDocument();
+    expect(screen.getAllByText('Save Settings').length).toBeGreaterThan(0);
   });
   /** Verifies non-settings tabs still render placeholder content. */
   it('renders correct placeholder for non-settings tabs', () => {
@@ -150,41 +142,67 @@ describe('ClinicDetailTabs', () => {
     expect(screen.getByTestId('save-bar')).toBeInTheDocument();
   });
 
-  /** Verifies the save flow shows a success banner. */
-  it('shows success banner after saving settings', async () => {
+  /** Verifies the save flow calls onClinicUpdated and switches back to view mode. */
+  it('calls onClinicUpdated and exits edit mode after saving settings', async () => {
     const updatedClinic = { ...mockClinicData, name: 'Updated Name' };
     mockedUpdateSettings.mockResolvedValue(updatedClinic);
     const onClinicUpdated = jest.fn();
+    const onEditingChange = jest.fn();
 
-    render(<ClinicDetailTabs clinic={mockClinicData} onClinicUpdated={onClinicUpdated} />);
+    render(
+      <ClinicDetailTabs
+        clinic={mockClinicData}
+        isEditing={true}
+        onClinicUpdated={onClinicUpdated}
+        onEditingChange={onEditingChange}
+      />
+    );
 
-    fireEvent.click(screen.getByText('Settings'));
+    // Trigger save via the bottom footer button
+    fireEvent.click(screen.getAllByText('Save Settings')[0]);
 
-    // Submit the form via requestSubmit
-    const form = screen.getByTestId('settings-form');
-    fireEvent.submit(form);
+    await waitFor(() => {
+      expect(mockedUpdateSettings).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        expect.objectContaining({ name: 'Updated Name' }),
+      );
+    });
+    expect(onClinicUpdated).toHaveBeenCalledWith(updatedClinic);
+    expect(onEditingChange).toHaveBeenCalledWith(false);
+  });
+
+  /** Verifies the save flow shows a success banner when view mode is restored. */
+  it('shows success banner after saving settings', async () => {
+    const updatedClinic = { ...mockClinicData, name: 'Updated Name' };
+    mockedUpdateSettings.mockResolvedValue(updatedClinic);
+
+    function Wrapper() {
+      const [editing, setEditing] = React.useState(true);
+      return (
+        <ClinicDetailTabs
+          clinic={mockClinicData}
+          isEditing={editing}
+          onEditingChange={setEditing}
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    fireEvent.click(screen.getAllByText('Save Settings')[0]);
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('Settings saved successfully.');
     });
-
-    expect(mockedUpdateSettings).toHaveBeenCalledWith(
-      '507f1f77bcf86cd799439011',
-      expect.objectContaining({ name: 'Updated Name' }),
-    );
-    expect(onClinicUpdated).toHaveBeenCalledWith(updatedClinic);
   });
 
   /** Verifies the save flow shows an error message on failure. */
   it('shows error message when saving settings fails', async () => {
     mockedUpdateSettings.mockRejectedValue(new Error('Network error'));
 
-    render(<ClinicDetailTabs clinic={mockClinicData} />);
+    render(<ClinicDetailTabs clinic={mockClinicData} isEditing={true} />);
 
-    fireEvent.click(screen.getByText('Settings'));
-
-    const form = screen.getByTestId('settings-form');
-    fireEvent.submit(form);
+    fireEvent.click(screen.getAllByText('Save Settings')[0]);
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Network error');
