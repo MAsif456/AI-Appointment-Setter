@@ -207,12 +207,12 @@ describe('ClinicsService', () => {
       expect(result).toEqual(clinic);
     });
 
-    it('should return null when no clinic matches the locationId', async () => {
+    it('should throw NotFoundException when no clinic matches the locationId', async () => {
       model.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
 
-      const result = await service.findByGhlLocationId('loc_unknown');
-
-      expect(result).toBeNull();
+      await expect(service.findByGhlLocationId('loc_unknown')).rejects.toThrow(
+        'Clinic with GHL locationId "loc_unknown" not found',
+      );
     });
   });
 
