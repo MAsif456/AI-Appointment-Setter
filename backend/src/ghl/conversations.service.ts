@@ -1,0 +1,164 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import {
+  Conversation,
+  ConversationDocument,
+} from '../database/schemas/conversation.schema';
+import { Lead, LeadDocument } from '../database/schemas/lead.schema';
+import { InboundWebhookDto } from './dto/inbound-webhook.dto';
+
+@Injectable()
+export class ConversationsService {
+  private readonly logger = new Logger(ConversationsService.name);
+
+  /**
+   * Constructor.
+   * @param conversationModel - The Mongoose model for conversations.
+   * @param leadModel - The Mongoose model for leads.
+   */
+  constructor(
+    @InjectModel(Conversation.name)
+    private readonly conversationModel: Model<ConversationDocument>,
+    @InjectModel(Lead.name)
+    private readonly leadModel: Model<LeadDocument>,
+  ) {}
+
+  /**
+   * Find a conversation by ghlContactId and clinicId.
+   * @param {string} ghlContactId - The GHL contact ID.
+   * @param {Types.ObjectId} clinicId - The clinic ID.
+   * @returns {Promise<ConversationDocument | null>} - The found conversation or null if not found.
+   */
+  async findByGhlContactId(
+    ghlContactId: string,
+    clinicId: Types.ObjectId,
+  ): Promise<ConversationDocument | null> {
+    return this.conversationModel
+      .findOne({ ghlContactId, clinicId })
+      .exec();
+  }
+
+  /**
+   * Creates a new conversation context for a new lead.
+   * If a lead with the given ghlContactId does not exist, a new lead is created.
+   * A new conversation is then created with the given ghlConversationId and channel, and associated with the lead.
+   * @param {Types.ObjectId} clinicId - The clinic ID.
+   * @param {string} ghlContactId - The GHL contact ID.
+   * @param {string} ghlConversationId - The GHL conversation ID.
+   * @param {string} channel - The channel (e.g. "sms", "whatsapp").
+   * @param {object} patientInfo - An object containing the lead's first name, phone number, and lead source.
+   * @returns {Promise<ConversationDocument>} - A promise that resolves to the created conversation document.
+   */
+  async createForNewLead(
+    clinicId: Types.ObjectId,
+    ghlContactId: string,
+    ghlConversationId: string,
+    channel: string,
+    patientInfo: { firstName: string; phone: string; leadSource: string },
+  ): Promise<ConversationDocument> {
+    let lead = await this.leadModel.findOne({ ghlContactId }).exec();
+
+    if (!lead) {
+      lead = await this.leadModel.create({
+        clinicId,
+        firstName: patientInfo.firstName,
+        phone: patientInfo.phone,
+        leadSource: patientInfo.leadSource,
+        preferredChannel: channel,
+        ghlContactId,
+      });
+      this.logger.log(`Created new lead for ghlContactId: ${ghlContactId}`);
+    }
+
+    const conversation = await this.conversationModel.create({
+      clinicId,
+      leadId: lead._id,
+      ghlContactId,
+      ghlConversationId,
+      phase: 'greeting',
+      channel,
+      messageCount: 0,
+      startedAt: new Date(),
+    });
+
+    this.logger.log(
+      `Created conversation context for ghlContactId: ${ghlContactId}`,
+    );
+    return conversation;
+  }
+
+  /**
+   * Find a conversation by ghlContactId and clinicId, or create a new one if not found.
+   * @param {InboundWebhookDto} payload - The inbound webhook payload.
+   * @param {Types.ObjectId} clinicId - The clinic ID.
+   * @returns {Promise<ConversationDocument>} - A promise that resolves to the found or created conversation document.
+   */
+  async findOrCreate(
+    payload: InboundWebhookDto,
+    clinicId: Types.ObjectId,
+  ): Promise<ConversationDocument> {
+    const existing = await this.findByGhlContactId(
+      payload.contactId,
+      clinicId,
+    );
+
+    if (existing) {
+      return existing;
+    }
+
+    const channel = this.mapMessageTypeToChannel(payload.messageType);
+
+    return this.createForNewLead(
+      clinicId,
+      payload.contactId,
+      payload.conversationId,
+      channel,
+      {
+        firstName: 'Unknown',
+        phone: payload.from || 'unknown',
+        leadSource: 'other',
+      },
+    );
+  }
+
+  /**
+   * Update the phase of a conversation.
+   * @param {Types.ObjectId} conversationId - The conversation ID.
+   * @param {string} newPhase - The new phase of the conversation.
+   * @returns {Promise<ConversationDocument | null>} - A promise that resolves to the updated conversation document or null if not found.
+   */
+  async updatePhase(
+    conversationId: Types.ObjectId,
+    newPhase: string,
+  ): Promise<ConversationDocument | null> {
+    const conversation = await this.conversationModel
+      .findByIdAndUpdate(conversationId, { phase: newPhase }, { new: true })
+      .exec();
+
+    this.logger.log(
+      `Updated conversation ${conversationId} phase to: ${newPhase}`,
+    );
+    return conversation;
+  }
+
+  /**
+   * Maps a message type to a channel type.
+   * @param {string} messageType - The message type (e.g. SMS, WhatsApp, FB, IG, Live Chat).
+   * @returns {string} - The mapped channel type (e.g. sms, whatsapp, facebook, instagram, website).
+   * @remarks If the message type is not found in the map, it defaults to 'sms'.
+   */
+  private mapMessageTypeToChannel(messageType: string): string {
+    const channelMap: Record<string, string> = {
+      SMS: 'sms',
+      WhatsApp: 'whatsapp',
+      FB: 'facebook',
+      IG: 'instagram',
+      Email: 'email',
+      Live_Chat: 'website',
+      'Live Chat': 'website',
+      Custom: 'custom',
+    };
+    return channelMap[messageType] || 'sms';
+  }
+}
