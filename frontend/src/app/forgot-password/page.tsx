@@ -20,6 +20,7 @@ export default function ForgotPasswordPage() {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
+    setError(''); 
     
     if (value && !validateEmail(value)) {
       setEmailError('Invalid email address');
@@ -72,7 +73,7 @@ export default function ForgotPasswordPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               placeholder="admin@lunaxdigital.com"
               required
               className={styles.input}

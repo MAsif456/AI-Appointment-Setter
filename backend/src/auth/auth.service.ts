@@ -24,7 +24,6 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     const { name, email, password } = registerDto;
-
     // Check if user exists
     const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -61,13 +60,11 @@ export class AuthService {
 
   async verifyEmail(verifyDto: VerifyEmailDto) {
     const { email, code } = verifyDto;
-
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
 
     if (!user || user.verificationCode !== code) {
       throw new BadRequestException('Invalid or expired verification code');
     }
-
     if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
       throw new BadRequestException('Invalid or expired verification code');
     }
@@ -87,9 +84,7 @@ export class AuthService {
     if (!user) {
       // Don't reveal if email exists
       return { message: 'If the email exists, a new code has been sent.' };
-    }
-
-    if (user.isVerified) {
+    }    if (user.isVerified) {
       throw new BadRequestException('Email is already verified');
     }
 
@@ -97,7 +92,6 @@ export class AuthService {
     user.verificationCode = verificationCode;
     user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
-
     await this.emailService.sendVerificationEmail(email, verificationCode);
 
     return { message: 'Verification code resent. Please check your email.' };
@@ -167,7 +161,6 @@ export class AuthService {
   // Password forgot methods
   async forgotPassword(forgotDto: ForgotPasswordDto) {
     const { email } = forgotDto;
-
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
 
     // Always return success to prevent email enumeration
@@ -179,7 +172,6 @@ export class AuthService {
     user.passwordResetCode = resetCode;
     user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
-
     await this.emailService.sendPasswordResetEmail(email, resetCode);
 
     return { message: 'If the email exists, a reset code has been sent.' };
@@ -188,13 +180,11 @@ export class AuthService {
   // Reset password method
   async resetPassword(resetDto: ResetPasswordDto) {
     const { email, code, newPassword } = resetDto;
-
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
 
     if (!user || user.passwordResetCode !== code) {
       throw new BadRequestException('Invalid or expired reset code');
     }
-
     if (!user.passwordResetExpires || user.passwordResetExpires < new Date()) {
       throw new BadRequestException('Invalid or expired reset code');
     }
@@ -203,8 +193,6 @@ export class AuthService {
     user.passwordResetCode = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
-
     return { message: 'Password reset successfully. You can now log in.' };
   }
-
 }
