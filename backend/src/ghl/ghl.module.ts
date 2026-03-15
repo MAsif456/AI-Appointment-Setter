@@ -11,7 +11,6 @@ import { GhlApiService } from './ghl-api.service';
 import { ConversationsService } from './conversations.service';
 import { MessagesService } from './messages.service';
 import { GhlController } from './ghl.controller';
-import { GhlWebhookController } from './ghl-webhook.controller';
 import { ClinicsModule } from '../clinics/clinics.module';
 
 @Module({
@@ -27,8 +26,16 @@ import { ClinicsModule } from '../clinics/clinics.module';
     ]),
     ClinicsModule,
   ],
-  controllers: [GhlController, GhlWebhookController],
-  providers: [GhlApiService, ConversationsService, MessagesService],
-  exports: [GhlApiService, ConversationsService, MessagesService],
+  controllers: [GhlController],
+  providers: [
+    GhlApiService,
+    ConversationsService,
+    MessagesService,
+  ],
+  exports: [
+    GhlApiService,
+    ConversationsService,
+    MessagesService,
+  ],
 })
 export class GhlModule {}
