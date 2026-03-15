@@ -178,7 +178,13 @@
   align-items: center;
 }
 
-.showPasswordButton {
+.passwordWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.eyeButton {
   position: absolute;
   right: 10px;
   background: none;
@@ -186,10 +192,9 @@
   cursor: pointer;
   font-size: 0.9rem;
   color: #666;
-}
-
-.showPasswordButton:hover {
-  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .signUp {

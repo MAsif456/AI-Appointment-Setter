@@ -23,9 +23,9 @@ export default function SignupPage() {
     name: "", email: "",
     password: "", confirmPassword: ""
   });
-
   const [backendErrors, setBackendErrors] = useState('')
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -97,7 +97,6 @@ export default function SignupPage() {
         {backendErrors && <p className={styles.backendError}>{backendErrors}</p>}
         
         <form onSubmit={handleSubmit} className={styles.form}>
-          
           {/* Name Field */}
           <div className={styles.formGroup}>
             <label htmlFor="name" className={styles.label}>
@@ -114,7 +113,6 @@ export default function SignupPage() {
             />
             {errors.name && <p className={styles.error}>{errors.name}</p>}
           </div>
-
           {/* Email Field */}
           <div className={styles.formGroup}>
             <label htmlFor="email" className={styles.label}>
@@ -131,7 +129,6 @@ export default function SignupPage() {
             />
             {errors.email && <p className={styles.error}>{errors.email}</p>}
           </div>
-          
           {/* Password Field */}
           <div className={styles.formGroup}>
             <label htmlFor="password" className={styles.label}> Password </label>
@@ -143,7 +140,6 @@ export default function SignupPage() {
                 placeholder="••••••••"
                 className={styles.input}
               />
-
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -153,29 +149,37 @@ export default function SignupPage() {
               </button>
             </div>
 
-            {password && (
+            {errors.password && (
               <p className={styles.error} > {errors.password} </p>
             )}
           </div>
-
+          {/* Confirm Password Field */}
           <div className={styles.formGroup}>
             <label htmlFor="confirmPassword" className={styles.label}>
               Confirm Password
             </label>
+            <div className={styles.passwordWrapper}>
             <input
               id="confirmPassword"
-              type="password"
+              type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
               required
               className={styles.input}
             />
+            <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className={styles.eyeButton}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {errors.confirmPassword && (
               <p className={styles.error}>{errors.confirmPassword}</p>
             )}
           </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -184,7 +188,6 @@ export default function SignupPage() {
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
-
         <div className={styles.footer}>
           Already have an account?{' '}
           <Link href="/login" className={styles.link}>

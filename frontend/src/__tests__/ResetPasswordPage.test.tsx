@@ -31,7 +31,7 @@ describe('ResetPasswordPage', () => {
   it('renders form with email from URL params', () => {
     render(<ResetPasswordPage />);
     expect(screen.getByRole('heading', { name: /AppointHealth AI/i })).toBeInTheDocument();
-    expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/test@example.com/i)[0]).toBeInTheDocument();
   });
 
   it('handles back button click', () => {
@@ -70,7 +70,7 @@ describe('ResetPasswordPage', () => {
   fireEvent.change(passwordInputs[0], { target: { value: 'ValidPass123!@' } });
   fireEvent.change(passwordInputs[1], { target: { value: 'Different123!@' } });
 
-  expect(screen.queryByText(/Passwords do not match/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/Passwords do not match/i)).toBeInTheDocument();
 });
 
   it('toggles password visibility for both fields', () => {

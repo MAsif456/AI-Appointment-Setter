@@ -107,9 +107,12 @@ function ResetPasswordContent() {
             Enter the code sent to you on {email}
           </p>
         </div>
-
+        <p className={styles.description}>
+          If an account exists for {email}, a reset code has been sent. 
+          Please check your email and enter the code below.
+        </p>
         {error && <div className={styles.error}>{error}</div>}
-
+        <br />
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
             <label htmlFor="code" className={styles.label}>
@@ -161,7 +164,7 @@ function ResetPasswordContent() {
                 id="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={handleConfirmChange}
                 placeholder="••••••••"
                 required
                 className={styles.input}
@@ -173,8 +176,9 @@ function ResetPasswordContent() {
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-              {confirmError && <p className={styles.fieldError}>{confirmError}</p>}
             </div>
+            {confirmError && <p className={styles.fieldError}>{confirmError}</p>}
+
           </div>
 
 

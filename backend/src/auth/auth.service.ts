@@ -24,6 +24,7 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     const { name, email, password } = registerDto;
+
     // Check if user exists
     const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -108,11 +109,13 @@ export class AuthService {
 
     // Check if user exists and is active
     if (!user || !user.isActive) {
+      console.log('❌ Login failed: User not found or inactive');
       throw new UnauthorizedException('Invalid email or password');
     }
 
     // Check if email is verified
     if (!user.isVerified) {
+      console.log('❌ Login failed: Email not verified');
       throw new UnauthorizedException('Please verify your email before logging in. Check your email for the verification code.');
     }
 

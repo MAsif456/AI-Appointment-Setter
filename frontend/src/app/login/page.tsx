@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import styles from './login.module.css';
 import Link from 'next/link';
+import {Eye, EyeOff} from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -48,13 +49,23 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
       await login(email, password);
       // Redirect is handled by AuthContext
     } catch (err: any) {
+      // DEBUG: Log the full error
+    console.log('Full error object:', err);
+    console.log('Error response:', err.response);
+    console.log('Error response data:', err.response?.data);
+    console.log('Error message:', err.response?.data?.message);
       setError(err.response?.data?.message || 'Invalid email or password');
+      setSuccess('');
+      // Clear inputs
+      setEmail('');
+      setPassword('');
     } finally {
       setLoading(false);
     }
@@ -104,6 +115,7 @@ export default function LoginPage() {
                 setEmail(value);
                 validateEmail(value);
                 setError('');
+                setSuccess('');
               }}
               placeholder=" "
               required
@@ -127,14 +139,13 @@ export default function LoginPage() {
                   required
                   className={styles.input}
                 />
-
                 <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className={styles.showPasswordButton}
-                  >
-                {showPassword ? "Hide" : "Show"}
-                </button>
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className={styles.eyeButton}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
