@@ -8,6 +8,7 @@ import { ClinicsModule } from './clinics/clinics.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AiModule } from './ai/ai.module';
 import { ConversationsModule } from './conversations/conversations.module';
+import { OrchestratorModule } from './orchestrator/orchestrator.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ConversationsModule } from './conversations/conversations.module';
     WebhooksModule,
     AiModule,
     ConversationsModule,
+    OrchestratorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

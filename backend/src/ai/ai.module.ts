@@ -14,6 +14,6 @@ import { ChatController } from './chat.controller';
   imports: [ConfigModule],
   controllers: [ChatController],
   providers: [GroqService, GreetingService, ChatService],
-  exports: [GreetingService, ChatService],
+  exports: [GroqService, GreetingService, ChatService],
 })
 export class AiModule {}
