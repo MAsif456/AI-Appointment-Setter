@@ -83,7 +83,6 @@ deploy:vercel:
     - development 
   script:
     - npm install --global vercel
-    - cd frontend
     - vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
     - vercel build --token=$VERCEL_TOKEN
     - vercel deploy --prebuilt --token=$VERCEL_TOKEN
