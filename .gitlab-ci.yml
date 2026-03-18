@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - deploy
 
 default:
   image: node:20
@@ -74,3 +75,15 @@ build:frontend:
     - npm install
   script:
     - npm run build
+
+# --- Deploy to Vercel ---
+deploy:vercel:
+  stage: deploy
+  only:
+    - development 
+  script:
+    - npm install --global vercel
+    - cd frontend
+    - vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+    - vercel build --token=$VERCEL_TOKEN
+    - vercel deploy --prebuilt --token=$VERCEL_TOKEN
