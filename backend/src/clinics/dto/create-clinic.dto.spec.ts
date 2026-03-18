@@ -78,20 +78,20 @@ describe('CreateClinicDto validation', () => {
     expect(errors.find((e) => e.property === 'name')?.constraints).toHaveProperty('minLength');
   });
 
-  it('should reject ghlLocationId without loc_ prefix', async () => {
+  it('should reject ghlLocationId with special characters', async () => {
     const errors = await validateDto({
       name: 'Test Clinic',
-      ghlLocationId: 'invalid_id',
+      ghlLocationId: 'invalid-id!@#',
       ghlCalendarId: 'cal_test_001',
     });
     expect(errors.find((e) => e.property === 'ghlLocationId')?.constraints).toHaveProperty('matches');
   });
 
-  it('should reject ghlCalendarId without cal_ prefix', async () => {
+  it('should reject ghlCalendarId with special characters', async () => {
     const errors = await validateDto({
       name: 'Test Clinic',
       ghlLocationId: 'loc_test_001',
-      ghlCalendarId: 'bad_calendar',
+      ghlCalendarId: 'bad-calendar!',
     });
     expect(errors.find((e) => e.property === 'ghlCalendarId')?.constraints).toHaveProperty('matches');
   });
