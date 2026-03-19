@@ -109,26 +109,6 @@ export class ConversationsService {
     return reply;
   }
 
-  /**
-   * Resets a conversation by deleting all its messages and resetting the phase.
-   * Allows re-testing the AI greeting with different clinic tone settings.
-   * @param conversationId - The conversation to reset
-   */
-  async resetConversation(conversationId: string): Promise<void> {
-    const conversation = await this.conversationModel.findById(conversationId);
-    if (!conversation) throw new NotFoundException('Conversation not found');
-
-    await this.messageModel.deleteMany({ conversationId: conversation._id });
-    await this.conversationModel.findByIdAndUpdate(conversation._id, {
-      phase: 'greeting',
-      messageCount: 0,
-      lastMessageAt: null,
-      lastMessageFrom: null,
-    });
-
-    this.logger.log(`Conversation ${conversationId} reset`);
-  }
-
   /** Creates a message document in MongoDB */
   private async saveMessage(
     conversation: ConversationDocument,
