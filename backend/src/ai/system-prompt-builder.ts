@@ -10,16 +10,27 @@ const TONE_INSTRUCTIONS: Record<string, string> = {
 };
 
 /**
+ * Options for injecting available slot context into the system prompt.
+ * When provided, the AI will use these slots in its OFFER SLOT stage.
+ */
+export interface SlotPromptOptions {
+  /** Pre-built prompt section from buildSlotPromptSection() */
+  slotSection: string;
+}
+
+/**
  * Builds the system prompt that defines the AI's persona for multi-turn chats.
  * Includes explicit conversation flow stages to guide the booking process:
  * greeting → postcode → urgency/timing → offer slot → confirm booking.
  * @param leadInfo - The lead's personal details and issue
  * @param clinicConfig - The clinic's configuration
+ * @param slotOptions - Optional slot context for the OFFER SLOT stage
  * @returns A system prompt string for the Groq chat API
  */
 export function buildSystemPrompt(
   leadInfo: LeadInfo,
   clinicConfig: ClinicConfig,
+  slotOptions?: SlotPromptOptions,
 ): string {
   const tone =
     TONE_INSTRUCTIONS[clinicConfig.tone] || TONE_INSTRUCTIONS['Friendly'];
@@ -52,9 +63,10 @@ export function buildSystemPrompt(
     '- Keep questions natural, not a rigid checklist',
     '',
     'STAGE 4 - OFFER SLOT:',
-    '- Based on urgency, suggest a specific date and time',
-    '- Urgent: same-day or next-day slot. Routine: next few days',
-    '- Give one clear option, then offer alternatives if declined',
+    '- Use the AVAILABLE SLOTS section below to offer real times',
+    '- Present slots in natural British English (e.g. "Tuesday 17th March at 2pm")',
+    '- Offer a maximum of 3 slots, prioritised by urgency',
+    '- If no slots available, ask the lead for an alternative date',
     '',
     'STAGE 5 - CONFIRM BOOKING:',
     '- Confirm: date, time, clinic name, and what to expect',
@@ -65,6 +77,9 @@ export function buildSystemPrompt(
     `Name: ${leadInfo.firstName}${leadInfo.lastName ? ' ' + leadInfo.lastName : ''}`,
     leadInfo.issue ? `Issue: ${leadInfo.issue}` : '',
     leadInfo.phone ? `Phone: ${leadInfo.phone}` : '',
+    '',
+    // Inject available slots when provided
+    slotOptions?.slotSection || '',
     '',
     '=== RULES ===',
     '- Keep each response to 1-3 short sentences',

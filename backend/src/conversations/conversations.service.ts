@@ -8,6 +8,9 @@ import { Lead, LeadDocument } from '../database/schemas/lead.schema';
 import { ChatService, ChatMessage } from '../ai/chat.service';
 import { LeadInfo } from '../ai/interfaces/lead-info.interface';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { SlotProvider } from '../ai/slot-provider';
+import { Slot } from '../ai/interfaces/slot.interface';
+import { selectSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/slot-formatter';
 
 /**
  * Manages live conversations persisted in MongoDB.
@@ -23,6 +26,7 @@ export class ConversationsService {
     @InjectModel(Clinic.name) private clinicModel: Model<ClinicDocument>,
     @InjectModel(Lead.name) private leadModel: Model<LeadDocument>,
     private readonly chatService: ChatService,
+    private readonly slotProvider: SlotProvider,
   ) {}
 
   /**
@@ -99,8 +103,20 @@ export class ConversationsService {
 
     const { leadInfo, clinicConfig } = this.buildContextFromDb(lead, clinic);
 
-    const reply = await this.chatService.sendMessage(leadInfo, clinicConfig, history, userMessage);
+    // Fetch available slots and build prompt context
+    const allSlots = await this.slotProvider.getAvailableSlots(clinicConfig.clinicId);
+    const urgency = (lead.urgency as 'urgent' | 'routine' | 'flexible') || 'flexible';
+    const selected = selectSlots(allSlots, urgency);
+    const slotSection = buildSlotPromptSection(selected, urgency);
+
+    const reply = await this.chatService.sendMessage(
+      leadInfo, clinicConfig, history, userMessage,
+      { slotOptions: { slotSection } },
+    );
     if (!reply) return null;
+
+    // Store offered slots on conversation for later matching
+    await this.storeOfferedSlots(conversation, selected);
 
     // Save the AI reply
     await this.saveMessage(conversation, clinic, lead, 'ai', reply);
@@ -140,6 +156,26 @@ export class ConversationsService {
     };
     if (phase) update.phase = phase;
     await this.conversationModel.findByIdAndUpdate(conversation._id, update);
+  }
+
+  /**
+   * Persists the offered slots on the conversation document.
+   * Stores full datetime and display text for later selection matching.
+   */
+  private async storeOfferedSlots(
+    conversation: ConversationDocument,
+    slots: Slot[],
+  ) {
+    if (slots.length === 0) return;
+
+    const offeredSlots = slots.map((s) => ({
+      dateTime: new Date(`${s.date}T${s.startTime}:00`),
+      displayText: formatSlotDisplay(s),
+    }));
+
+    await this.conversationModel.findByIdAndUpdate(conversation._id, {
+      offeredSlots,
+    });
   }
 
   /** Converts MongoDB Clinic + Lead documents into the AI service interfaces */
