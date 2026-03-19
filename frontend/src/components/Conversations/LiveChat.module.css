@@ -32,28 +32,6 @@
   height: 16px;
 }
 
-.resetBtn {
-  padding: 8px 16px;
-  background-color: #fff;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.resetBtn:hover:not(:disabled) {
-  border-color: #dc2626;
-  color: #dc2626;
-  background-color: #fef2f2;
-}
-
-.resetBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .title {
   font-size: 24px;

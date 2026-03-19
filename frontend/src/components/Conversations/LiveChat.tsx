@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { BackArrowIcon } from '@/components/Icons';
 import styles from './LiveChat.module.css';
 import ChatPanel, { DisplayMessage } from './ChatPanel';
-import ChatSidebar, { LeadDetails, ClinicDetails } from './ChatSidebar';
+import ChatSidebar, { LeadDetails, ClinicDetails, OfferedSlotDetails } from './ChatSidebar';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -26,6 +26,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
   const [lead, setLead] = useState<LeadDetails | null>(null);
   const [clinic, setClinic] = useState<ClinicDetails | null>(null);
   const [phase, setPhase] = useState('greeting');
+  const [offeredSlots, setOfferedSlots] = useState<OfferedSlotDetails[]>([]);
 
   /** Loads conversation data from the API and triggers the greeting */
   const initConversation = useCallback(async () => {
@@ -39,6 +40,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
       if (detail.lead) setLead(detail.lead);
       if (detail.clinic) setClinic(detail.clinic);
       if (detail.conversation?.phase) setPhase(detail.conversation.phase);
+      if (detail.conversation?.offeredSlots) setOfferedSlots(detail.conversation.offeredSlots);
 
       // Load any existing messages
       if (detail.messages?.length > 0) {
@@ -150,6 +152,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
           clinic={clinic}
           phase={phase}
           messageCount={messages.length}
+          offeredSlots={offeredSlots}
         />
       </div>
     </div>
