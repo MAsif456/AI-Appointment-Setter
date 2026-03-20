@@ -5,8 +5,9 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
   const clinics = await ClinicModel.insertMany([
     {
         name: 'Cardiff Physiotherapy Centre',
-        ghlLocationId: 'loc_cardiff_001',
-        ghlCalendarId: 'cal_cardiff_001',
+        // Actual GHL Location and Calendar IDs within app.lunaxleads.com for testing
+        ghlLocationId: 'yjLGsL6sEaKQ2FlZl4RL',
+        ghlCalendarId: 'bBvA8Dviu68zrQ6X64l1',
         address: '123 Queen Street, Cardiff, CF10 2BX',
         phone: '029 2034 5678',
         email: 'info@cardiffphysio.com',
