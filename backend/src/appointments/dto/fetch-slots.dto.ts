@@ -1,23 +1,15 @@
-import { IsNotEmpty, IsOptional, IsString, IsDateString, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsString, IsDateString } from 'class-validator';
 
-export class FetchSlotsDto {
+export class FetchSlotsQueryDto {
   @IsNotEmpty()
   @IsString()
   clinicId: string;
 
   @IsNotEmpty()
-  @IsString()
-  leadId: string;
-
-  @IsOptional()
   @IsDateString()
-  preferredDate?: string; // ISO date string
+  startDate: string; // ISO date string
 
-  @IsOptional()
-  @IsBoolean()
-  isUrgent?: boolean;
-
-  @IsOptional()
-  @IsString()
-  serviceType?: string;
+  @IsNotEmpty()
+  @IsDateString()
+  endDate: string; // ISO date string
 }

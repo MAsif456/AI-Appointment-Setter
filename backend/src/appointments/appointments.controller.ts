@@ -1,16 +1,19 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 //import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SlotsService } from './services/slots.service';
-import { FetchSlotsDto } from './dto/fetch-slots.dto';
-import { OfferSlotsResponseDto } from './dto/offer-slots-response.dto';
+import { FetchSlotsQueryDto } from './dto/fetch-slots.dto';
 
 @Controller('appointments')
 //@UseGuards(JwtAuthGuard)
 export class AppointmentsController {
   constructor(private readonly slotsService: SlotsService) {}
 
-  @Post('fetch-slots')
-  async fetchSlots(@Body() dto: FetchSlotsDto): Promise<OfferSlotsResponseDto> {
-    return this.slotsService.fetchAndOfferSlots(dto);
+  @Get('slots')
+  async getAvailableSlots(@Query() query: FetchSlotsQueryDto) {
+    return this.slotsService.fetchAvailableSlots(
+      query.clinicId,
+      new Date(query.startDate),
+      new Date(query.endDate),
+    );
   }
 }

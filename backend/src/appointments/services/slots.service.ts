@@ -1,11 +1,15 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Clinic, ClinicDocument } from '../../database/schemas/clinic.schema';
-import { Conversation, ConversationDocument } from '../../database/schemas/conversation.schema';
 import { GHLCalendarService, GHLSlot } from './ghl-calendar.service';
-import { FetchSlotsDto } from '../dto/fetch-slots.dto';
-import { OfferSlotsResponseDto, SlotDto } from '../dto/offer-slots-response.dto';
+
+export interface SlotDto {
+  date: string; // "2024-03-25"
+  startTime: string; // "14:00"
+  endTime: string; // "14:30"
+  dateTime: Date;
+}
 
 @Injectable()
 export class SlotsService {
@@ -13,212 +17,123 @@ export class SlotsService {
 
   constructor(
     @InjectModel(Clinic.name) private clinicModel: Model<ClinicDocument>,
-    @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
     private ghlCalendarService: GHLCalendarService,
   ) {}
 
   /**
-   * Fetch and offer available slots to a lead
+   * Fetch and filter available slots for a clinic
+   * Fetch Available Slots from GHL Calendar
    */
-  async fetchAndOfferSlots(dto: FetchSlotsDto): Promise<OfferSlotsResponseDto> {
-    // Get clinic configuration
-    const clinic = await this.clinicModel.findById(dto.clinicId);
-    if (!clinic) {
-      throw new NotFoundException('Clinic not found');
-    }
-
-    if (!clinic.ghlCalendarId || !clinic.ghlApiKey) {
-        throw new Error('Missing GHL calendar configuration for clinic'); 
-    }
-
-    // Determine date range
-    const { startDate, endDate } = this.getDateRange(dto.preferredDate);
-
-    // Fetch slots from GHL
-    const ghlSlots = await this.ghlCalendarService.fetchAvailableSlots(
-      clinic.ghlCalendarId,
-      startDate,
-      endDate,
-      clinic.ghlApiKey,
-    );
-
-    // Filter slots based on business hours and duration
-    const filteredSlots = this.filterSlots(ghlSlots, clinic, dto.serviceType);
-    // Format slots for conversation
-    const formattedSlots = this.formatSlots(filteredSlots, dto.isUrgent);
-
-    // Store offered slots in conversation
-    await this.storeOfferedSlots(dto.leadId, dto.clinicId, formattedSlots);
-
-    // Generate conversational response
-    const message = this.generateResponse(formattedSlots, dto.isUrgent, dto.preferredDate);
-
-    return {
-      message, slots: formattedSlots, isEmpty: formattedSlots.length === 0,
-    };
-  }
-
-  /**
-   * Get date range for slot search
-   */
-  private getDateRange(preferredDate?: string): { startDate: Date; endDate: Date } {
-    const startDate = preferredDate ? new Date(preferredDate) : new Date();
-    
-    // If no preferred date, search next 14 days
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 14);
-
-    return { startDate, endDate };
-  }
-
-  /**
-   * Filter slots based on business hours and appointment duration
-   */
-  private filterSlots(
-    ghlSlots: GHLSlot[],
-    clinic: ClinicDocument,
-    serviceType?: string,
-  ): GHLSlot[] {
-    const appointmentDuration = this.getAppointmentDuration(clinic, serviceType);
-
-    return ghlSlots.filter((slot) => {
-      const slotStart = new Date(slot.startTime);
-      const slotEnd = new Date(slot.endTime);
-      const slotDuration = (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60); // minutes
-
-      // Check if slot has sufficient duration
-      if (slotDuration < appointmentDuration) {
-        return false;
+  async fetchAvailableSlots(
+    clinicId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<SlotDto[]> {
+    try {
+      // Get clinic configuration
+      const clinic = await this.clinicModel.findById(clinicId);
+      if (!clinic) {
+        this.logger.error(`Clinic ${clinicId} not found`);
+        return [];
       }
 
-      // Check if slot is within business hours
+      // Check if API key exists
+      if (!clinic.ghlApiKey) {
+        this.logger.error(`Clinic ${clinicId} has no GHL API key configured`);
+        return [];
+      }
+
+      // Fetch slots from GHL
+      const ghlSlots = await this.ghlCalendarService.fetchAvailableSlots(
+        clinic.ghlCalendarId,
+        startDate,
+        endDate,
+        clinic.ghlApiKey,
+      );
+
+      if (!ghlSlots || ghlSlots.length === 0) {
+        this.logger.log('No slots available from GHL');
+        return [];
+      }
+
+      // Filter by business hours
+      const businessHoursFiltered = this.filterByBusinessHours(ghlSlots, clinic);
+
+      // Filter by appointment duration
+      const durationFiltered = this.filterByDuration(
+        businessHoursFiltered,
+        clinic.defaultAppointmentDuration,
+      );
+
+      // Format for return
+      return this.formatSlots(durationFiltered);
+    } catch (error) {
+      this.logger.error(`Error fetching slots: ${error.message}`);
+      return []; // Return empty array on error
+    }
+  }
+
+  /**
+   * Filter slots by clinic business hours
+   */
+  private filterByBusinessHours(
+    slots: GHLSlot[],
+    clinic: ClinicDocument,
+  ): GHLSlot[] {
+    return slots.filter((slot) => {
+      const slotStart = new Date(slot.startTime);
+      
       const dayName = slotStart
         .toLocaleDateString('en-US', { weekday: 'long' })
         .toLowerCase();
+
+      // Find business hours for this day
       const businessHour = clinic.businessHours.find((bh) => bh.day === dayName);
 
+      // Not open on this day
       if (!businessHour || !businessHour.isOpen) {
         return false;
       }
 
+      // Check if openTime and closeTime exist
       if (!businessHour.openTime || !businessHour.closeTime) {
+        this.logger.warn(`Business hours missing for ${dayName}`);
         return false;
       }
 
+      // Check time is within business hours
       const slotTime = slotStart.toTimeString().substring(0, 5); // "14:30"
-    return slotTime >= businessHour.openTime && slotTime < businessHour.closeTime;
-  });
-}
-
-  /**
-   * Get appointment duration for service type
-   */
-  private getAppointmentDuration(clinic: ClinicDocument, serviceType?: string): number {
-    if (serviceType) {
-      const service = clinic.services.find((s) => s.name === serviceType);
-      if (service) {
-        return service.durationMinutes;
-      }
-    }
-    return clinic.defaultAppointmentDuration;
+      return slotTime >= businessHour.openTime && slotTime < businessHour.closeTime;
+    });
   }
 
   /**
-   * Format slots for conversational display
+   * Filter slots by minimum appointment duration
    */
-  private formatSlots(slots: GHLSlot[], isUrgent?: boolean): SlotDto[] {
-    const formatted = slots.map((slot) => {
+  private filterByDuration(slots: GHLSlot[], minDuration: number): GHLSlot[] {
+    return slots.filter((slot) => {
+      const start = new Date(slot.startTime);
+      const end = new Date(slot.endTime);
+      const duration = (end.getTime() - start.getTime()) / (1000 * 60); // minutes
+
+      return duration >= minDuration;
+    });
+  }
+
+  /**
+   * Format slots for return
+   */
+  private formatSlots(slots: GHLSlot[]): SlotDto[] {
+    return slots.map((slot) => {
       const dateTime = new Date(slot.startTime);
-      const displayText = this.formatSlotDisplay(dateTime);
+      const endTime = new Date(slot.endTime);
 
       return {
+        date: dateTime.toISOString().split('T')[0], // "2024-03-25"
+        startTime: dateTime.toTimeString().substring(0, 5), // "14:00"
+        endTime: endTime.toTimeString().substring(0, 5), // "14:30"
         dateTime,
-        displayText,
-        isEarliest: false,
       };
     });
-
-    // Sort by date (earliest first)
-    formatted.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-
-    // Mark earliest slot if urgent
-    if (isUrgent && formatted.length > 0) {
-      formatted[0].isEarliest = true;
-    }
-
-    // Limit to first 5 slots for conversation
-    return formatted.slice(0, 5);
-  }
-
-  /**
-   * Format a single slot for display: "Tuesday at 2pm"
-   */
-  private formatSlotDisplay(dateTime: Date): string {
-    const day = dateTime.toLocaleDateString('en-US', { weekday: 'long' });
-    const time = dateTime.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    return `${day} at ${time}`;
-  }
-
-  /**
-   * Store offered slots in conversation context
-   */
-  private async storeOfferedSlots(
-    leadId: string,
-    clinicId: string,
-    slots: SlotDto[],
-  ): Promise<void> {
-    const conversation = await this.conversationModel.findOne({
-      leadId: new Types.ObjectId(leadId),
-      clinicId: new Types.ObjectId(clinicId),
-    }).sort({ createdAt: -1 });
-
-    if (conversation) {
-      conversation.offeredSlots = slots.map((slot) => ({
-        dateTime: slot.dateTime,
-        displayText: slot.displayText,
-      }));
-      conversation.lastMessageAt = new Date();
-      await conversation.save();
-
-      this.logger.log(`Stored ${slots.length} offered slots in conversation ${conversation._id}`);
-    }
-  }
-
-  /**
-   * Generate conversational response
-   */
-  private generateResponse(
-    slots: SlotDto[],
-    isUrgent?: boolean,
-    preferredDate?: string,
-  ): string {
-    if (slots.length === 0) {
-      if (preferredDate) {
-        return "We're fully booked on this date. Would you like me to check a different date?";
-      }
-      return "I don't have any available slots at the moment. Would you like me to notify you when a slot opens up?";
-    }
-
-    if (slots.length === 1) {
-      const slot = slots[0];
-      if (isUrgent) {
-        return `I can get you in at our earliest available slot: ${slot.displayText}. Does this work for you?`;
-      }
-      return `I have ${slot.displayText} available. Would this work for you?`;
-    }
-
-    // Multiple slots
-    const slotList = slots.map((s) => s.displayText).join(', or ');
-    
-    if (isUrgent && slots[0].isEarliest) {
-      return `For your urgent case, I have ${slots[0].displayText} as our earliest slot, or ${slots.slice(1).map(s => s.displayText).join(', ')}. Which works best for you?`;
-    }
-
-    return `I have ${slotList}. Which works best for you?`;
   }
 }

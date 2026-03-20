@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 
 export interface GHLSlot {
   id: string;
@@ -36,23 +36,35 @@ export class GHLCalendarService {
       const url = `https://rest.gohighlevel.com/v1/calendars/${calendarId}/slots`;
 
       const response = await firstValueFrom(
-        this.httpService.get(url, {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          params: {
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-          },
-        }),
+        this.httpService
+          .get(url, {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            params: {
+              startDate: startDate.toISOString(),
+              endDate: endDate.toISOString(),
+            },
+          })
+          .pipe(timeout(10000)), // Set timeout for API call
       );
 
-      this.logger.log(`Received ${response.data.slots?.length || 0} slots from GHL`);
-      return response.data.slots || [];
+      const slots = response.data?.slots || [];
+
+      this.logger.log(`Received ${slots.length} slots from GHL`);
+      return slots;
     } catch (error) {
+
+      // Handle timeout separately
+      if (error.name === 'TimeoutError') {
+        this.logger.error('GHL API timeout after 10 seconds');
+        return [];
+      }
+
+      // Handle general API errors
       this.logger.error(`Failed to fetch slots from GHL: ${error.message}`);
-      throw error;
+      return [];
     }
   }
 
