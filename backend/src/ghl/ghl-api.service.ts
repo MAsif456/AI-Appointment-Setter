@@ -117,4 +117,38 @@ export class GhlApiService {
     );
     return data;
   }
+
+  /**
+   * Creates an appointment in the GHL Calendar.
+   *
+   * @param {string} calendarId - The GHL calendar ID.
+   * @param {string} locationId - The GHL location ID.
+   * @param {string} contactId - The GHL contact ID.
+   * @param {string} startTime - ISO 8601 start time.
+   * @param {string} endTime - ISO 8601 end time.
+   * @returns {Promise<any>} - The created appointment data from GHL.
+   */
+  async createAppointment(
+    calendarId: string,
+    locationId: string,
+    contactId: string,
+    startTime: string,
+    endTime: string,
+  ): Promise<any> {
+    const { data } = await lastValueFrom(
+      this.httpService.post(
+        '/calendars/events/appointments',
+        {
+          calendarId,
+          locationId,
+          contactId,
+          startTime,
+          endTime,
+          appointmentStatus: 'confirmed',
+        },
+        { headers: this.getHeaders() },
+      ),
+    );
+    return data;
+  }
 }
