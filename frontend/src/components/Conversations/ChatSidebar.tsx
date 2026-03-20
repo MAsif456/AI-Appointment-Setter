@@ -17,18 +17,11 @@ export interface ClinicDetails {
   tone?: string;
 }
 
-/** A slot that was offered to the lead during conversation */
-export interface OfferedSlotDetails {
-  dateTime: string;
-  displayText: string;
-}
-
 interface ChatSidebarProps {
   lead: LeadDetails | null;
   clinic: ClinicDetails | null;
   phase: string;
   messageCount: number;
-  offeredSlots?: OfferedSlotDetails[];
 }
 
 /** Capitalises the first letter of each word */
@@ -53,7 +46,6 @@ export default function ChatSidebar({
   clinic,
   phase,
   messageCount,
-  offeredSlots,
 }: ChatSidebarProps) {
   const phaseClass = PHASE_CLASSES[phase] || styles.phaseGreeting;
 
@@ -90,19 +82,6 @@ export default function ChatSidebar({
         <InfoRow label="Messages" value={String(messageCount)} />
       </div>
 
-      {/* Offered Slots — shown once the AI has presented availability */}
-      {offeredSlots && offeredSlots.length > 0 && (
-        <div className={styles.infoCard}>
-          <h3 className={styles.cardTitle}>Offered Slots</h3>
-          {offeredSlots.map((slot) => (
-            <InfoRow
-              key={slot.dateTime}
-              label="Option"
-              value={slot.displayText}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
