@@ -5,11 +5,12 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
   const clinics = await ClinicModel.insertMany([
     {
         name: 'Cardiff Physiotherapy Centre',
-        ghlLocationId: 'loc_cardiff_001',
-        ghlCalendarId: 'cal_cardiff_001',
+        ghlLocationId: 'yjLGsL6sEaKQ2FlZl4RL',
+        ghlCalendarId: 'bBvA8Dviu68zrQ6X64l1',
         address: '123 Queen Street, Cardiff, CF10 2BX',
         phone: '029 2034 5678',
         email: 'info@cardiffphysio.com',
+        ghlApiKey: 'pit-a66a930b-5279-4f50-8b7f-aac41c329bca',
         serviceAreas: [
           { postcodePrefix: 'CF', description: 'Cardiff' },
           { postcodePrefix: 'NP', description: 'Newport' },

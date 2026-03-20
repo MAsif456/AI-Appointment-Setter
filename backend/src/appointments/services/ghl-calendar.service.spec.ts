@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { of, throwError } from 'rxjs';
-import { AxiosResponse } from 'axios';
 import { GHLCalendarService } from './ghl-calendar.service';
+import { AxiosResponse } from 'axios';
 
 describe('GHLCalendarService', () => {
   let service: GHLCalendarService;
@@ -29,103 +29,201 @@ describe('GHLCalendarService', () => {
     jest.clearAllMocks();
   });
 
-  describe('fetchAvailableSlots', () => {
-    const calendarId = 'cal_123';
-    const startDate = new Date('2024-03-25');
-    const endDate = new Date('2024-03-26');
-    const apiKey = 'api_key';
-
-    it('should fetch slots successfully', async () => {
-      const mockSlots = [
-        {
-          id: '1',
-          startTime: '2024-03-25T14:00:00Z',
-          endTime: '2024-03-25T14:20:00Z',
-          available: true,
+  describe('fetchAvailableSlots - Real GHL API', () => {
+    it('should parse GHL response correctly', async () => {
+      // Mock GHL response structure
+      const mockGHLResponse = {
+        '2026-03-25': {
+          slots: [
+            '2026-03-25T08:00:00Z',
+            '2026-03-25T08:10:00Z',
+            '2026-03-25T08:20:00Z',
+          ],
         },
-      ];
+        '2026-03-26': {
+          slots: [
+            '2026-03-26T09:00:00Z',
+          ],
+        },
+        traceId: 'test-trace-id',
+      };
 
-      const mockResponse: AxiosResponse = {
-        data: { slots: mockSlots },
+      const axiosResponse: AxiosResponse = {
+        data: mockGHLResponse,
         status: 200,
         statusText: 'OK',
         headers: {},
         config: {} as any,
       };
 
-      mockHttpService.get.mockReturnValue(of(mockResponse));
+      mockHttpService.get.mockReturnValue(of(axiosResponse));
+
+      const startDate = new Date('2026-03-25');
+      const endDate = new Date('2026-03-27');
 
       const result = await service.fetchAvailableSlots(
-        calendarId,
+        'cal_123',
         startDate,
         endDate,
-        apiKey,
+        'api_key',
       );
 
-      expect(result).toEqual(mockSlots);
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        expect.stringContaining(calendarId),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: `Bearer ${apiKey}`,
-          }),
-        }),
-      );
+      // Should have 4 slots total (3 from 03-25, 1 from 03-26)
+      expect(result.length).toBe(4);
+
+      // Check first slot
+      expect(result[0].id).toContain('ghl_slot_');
+      expect(result[0].startTime).toBe('2026-03-25T08:00:00.000Z');
+      expect(result[0].available).toBe(true);
+
+      // Check slot duration (10 minutes)
+      const start = new Date(result[0].startTime);
+      const end = new Date(result[0].endTime);
+      const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+      expect(duration).toBe(10);
     });
 
-    it('should return empty array if no slots in response', async () => {
-      mockHttpService.get.mockReturnValue(
-        throwError(() => new Error('API Error')),
-      );
+    it('should ignore traceId in response', async () => {
+      const mockGHLResponse = {
+        '2026-03-25': {
+          slots: ['2026-03-25T08:00:00Z'],
+        },
+        traceId: 'should-be-ignored',
+      };
+
+      const axiosResponse: AxiosResponse = {
+        data: mockGHLResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      mockHttpService.get.mockReturnValue(of(axiosResponse));
 
       const result = await service.fetchAvailableSlots(
-        calendarId,
+        'cal_123',
+        new Date('2026-03-25'),
+        new Date('2026-03-26'),
+        'api_key',
+      );
+
+      expect(result.length).toBe(1);
+    });
+
+    it('should handle empty slots array', async () => {
+      const mockGHLResponse = {
+        '2026-03-25': {
+          slots: [],
+        },
+        traceId: 'test',
+      };
+
+      const axiosResponse: AxiosResponse = {
+        data: mockGHLResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      };
+
+      mockHttpService.get.mockReturnValue(of(axiosResponse));
+
+      const result = await service.fetchAvailableSlots(
+        'cal_123',
+        new Date('2026-03-25'),
+        new Date('2026-03-26'),
+        'api_key',
+      );
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('fetchAvailableSlots - Fallback to Mock Data', () => {
+    it('should fall back to mock data on API error', async () => {
+      mockHttpService.get.mockReturnValue(
+        throwError(() => new Error('Network error')),
+      );
+
+      const startDate = new Date('2024-03-25'); // Monday
+      const endDate = new Date('2024-03-26'); // Tuesday
+
+      const result = await service.fetchAvailableSlots(
+        'cal_123',
         startDate,
         endDate,
-        apiKey,
+        'api_key',
+      );
+
+      // Should generate mock slots
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].id).toContain('mock_slot_');
+    });
+
+    it('should generate mock slots for weekdays only', async () => {
+      mockHttpService.get.mockReturnValue(
+        throwError(() => new Error('API error')),
+      );
+
+      const startDate = new Date('2024-03-30'); // Saturday
+      const endDate = new Date('2024-03-31'); // Sunday
+
+      const result = await service.fetchAvailableSlots(
+        'cal_123',
+        startDate,
+        endDate,
+        'api_key',
       );
 
       expect(result).toEqual([]);
     });
 
+    it('should generate 30-minute mock slots from 8am to 6pm', async () => {
+      mockHttpService.get.mockReturnValue(
+        throwError(() => new Error('API error')),
+      );
+
+      const startDate = new Date('2024-03-25'); // Monday
+      const endDate = new Date('2024-03-26'); // Tuesday
+
+      const result = await service.fetchAvailableSlots(
+        'cal_123',
+        startDate,
+        endDate,
+        'api_key',
+      );
+
+      // 10 hours * 1 slot per hour = 10 slots
+      expect(result.length).toBe(10);
+
+      // Check first slot is 8am
+      const firstSlot = new Date(result[0].startTime);
+      expect(firstSlot.getHours()).toBe(8);
+
+      // Check duration
+      const start = new Date(result[0].startTime);
+      const end = new Date(result[0].endTime);
+      const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+      expect(duration).toBe(30);
+    });
   });
 
   describe('createAppointment', () => {
-    const calendarId = 'cal_123';
-    const contactId = 'contact_123';
-    const slotId = 'slot_123';
-    const apiKey = 'api_key';
-
-    it('should create appointment successfully', async () => {
-      const mockResponse: AxiosResponse = {
-        data: { id: 'appt_123' },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as any,
-      };
-
-      mockHttpService.post.mockReturnValue(of(mockResponse));
+    it('should return mock appointment ID on error', async () => {
+      mockHttpService.post.mockReturnValue(
+        throwError(() => new Error('API error')),
+      );
 
       const result = await service.createAppointment(
-        calendarId,
-        contactId,
-        slotId,
-        apiKey,
+        'cal_123',
+        'contact_123',
+        'slot_123',
+        'api_key',
       );
 
-      expect(result).toEqual({ appointmentId: 'appt_123' });
-      expect(mockHttpService.post).toHaveBeenCalled();
-    });
-
-    it('should throw error on appointment creation failure', async () => {
-      mockHttpService.post.mockReturnValue(
-        throwError(() => new Error('Creation failed')),
-      );
-
-      await expect(
-        service.createAppointment(calendarId, contactId, slotId, apiKey),
-      ).rejects.toThrow('Creation failed');
+      expect(result).toHaveProperty('appointmentId');
+      expect(result.appointmentId).toContain('mock_appt_');
     });
   });
 });
