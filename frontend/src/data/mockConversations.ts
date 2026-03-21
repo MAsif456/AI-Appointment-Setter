@@ -48,8 +48,8 @@ export const mockConversations: Conversation[] = [
   {
     id: 'conv_001',
     patientName: 'Rachel Green',
-    phone: '07700 900456',
-    clinic: 'Newport Sports Clinic',
+    phone: '07700 900789',
+    clinic: 'Cardiff Physiotherapy Centre',
     leadSource: 'Facebook Ads',
     phase: 'Booking',
     lastMessage: 'No messages yet',

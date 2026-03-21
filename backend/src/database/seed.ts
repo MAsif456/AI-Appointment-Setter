@@ -36,15 +36,12 @@ async function seedDatabase() {
 
     console.log('Clearing database...');
 
-    await Promise.all([
-      UserModel.deleteMany({}),
-      ClinicModel.deleteMany({}),
-      LeadModel.deleteMany({}),
-      ConversationModel.deleteMany({}),
-      MessageModel.deleteMany({}),
-      AppointmentModel.deleteMany({}),
-      AuditLogModel.deleteMany({})
-    ]);
+    // Drop collections entirely to clear stale indexes
+    const db = connection.db!;
+    const collections = await db.listCollections().toArray();
+    for (const col of collections) {
+      await db.dropCollection(col.name);
+    }
 
     console.log('Database cleared\n');
 
