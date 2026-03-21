@@ -37,36 +37,31 @@ export class SlotsService {
         return [];
       }
 
-      // Check if API key exists
-      if (!clinic.ghlApiKey) {
-        this.logger.error(`Clinic ${clinicId} has no GHL API key configured`);
-        return [];
-      }
+      this.logger.log(`Fetching slots with appointment duration: ${clinic.defaultAppointmentDuration} minutes`);
 
       // Fetch slots from GHL
       const ghlSlots = await this.ghlCalendarService.fetchAvailableSlots(
         clinic.ghlCalendarId,
         startDate,
         endDate,
-        clinic.ghlApiKey,
+        clinic.defaultAppointmentDuration,
       );
 
       if (!ghlSlots || ghlSlots.length === 0) {
         this.logger.log('No slots available from GHL');
         return [];
       }
+      this.logger.log(`Received ${ghlSlots.length} slots from GHL before filtering`);
 
       // Filter by business hours
       const businessHoursFiltered = this.filterByBusinessHours(ghlSlots, clinic);
-
-      // Filter by appointment duration
-      const durationFiltered = this.filterByDuration(
-        businessHoursFiltered,
-        clinic.defaultAppointmentDuration,
-      );
+      this.logger.log(`${businessHoursFiltered.length} slots after business hours filter`);
 
       // Format for return
-      return this.formatSlots(durationFiltered);
+      const formattedSlots = this.formatSlots(businessHoursFiltered);
+      this.logger.log(`Returning ${formattedSlots.length} formatted slots`);
+
+      return formattedSlots;
     } catch (error) {
       this.logger.error(`Error fetching slots: ${error.message}`);
       return []; // Return empty array on error
@@ -84,7 +79,7 @@ export class SlotsService {
       const slotStart = new Date(slot.startTime);
       
       const dayName = slotStart
-        .toLocaleDateString('en-US', { weekday: 'long' })
+        .toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
         .toLowerCase();
 
       // Find business hours for this day
@@ -101,22 +96,14 @@ export class SlotsService {
         return false;
       }
 
-      // Check time is within business hours
-      const slotTime = slotStart.toTimeString().substring(0, 5); // "14:30"
+        
+      // Extract time in UTC (fixes timezone bug)
+      const hours = slotStart.getUTCHours();
+      const minutes = slotStart.getUTCMinutes();
+      const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+      // Compare withbusiness hours
       return slotTime >= businessHour.openTime && slotTime < businessHour.closeTime;
-    });
-  }
-
-  /**
-   * Filter slots by minimum appointment duration
-   */
-  private filterByDuration(slots: GHLSlot[], minDuration: number): GHLSlot[] {
-    return slots.filter((slot) => {
-      const start = new Date(slot.startTime);
-      const end = new Date(slot.endTime);
-      const duration = (end.getTime() - start.getTime()) / (1000 * 60); // minutes
-
-      return duration >= minDuration;
     });
   }
 

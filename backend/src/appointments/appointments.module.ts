@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HttpModule } from '@nestjs/axios';
+import { ConfigModule } from '@nestjs/config';
 import { AppointmentsController } from './appointments.controller';
 import { SlotsService } from './services/slots.service';
 import { GHLCalendarService } from './services/ghl-calendar.service';
@@ -16,6 +17,7 @@ import { Appointment, AppointmentSchema } from '../database/schemas/appointment.
       { name: Appointment.name, schema: AppointmentSchema },
     ]),
     HttpModule,
+    ConfigModule, 
   ],
   controllers: [AppointmentsController],
   providers: [SlotsService, GHLCalendarService],

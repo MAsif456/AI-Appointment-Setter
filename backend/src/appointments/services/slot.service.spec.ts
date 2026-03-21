@@ -82,24 +82,7 @@ describe('SlotsService - US-12', () => {
     it('should return empty array if clinic not found', async () => {
       mockClinicModel.findById.mockResolvedValue(null);
 
-      const result = await service.fetchAvailableSlots(
-        'invalid',
-        new Date(),
-        new Date(),
-      );
-
-      expect(result).toEqual([]);
-    });
-
-    it('should return empty array if clinic has no API key', async () => {
-      const clinicWithoutKey = { ...mockClinic, ghlApiKey: undefined };
-      mockClinicModel.findById.mockResolvedValue(clinicWithoutKey);
-
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date(),
-        new Date(),
-      );
+      const result = await service.fetchAvailableSlots('invalid', new Date(), new Date());
 
       expect(result).toEqual([]);
     });
@@ -108,11 +91,7 @@ describe('SlotsService - US-12', () => {
       mockClinicModel.findById.mockResolvedValue(mockClinic);
       mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue([]);
 
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date(),
-        new Date(),
-      );
+      const result = await service.fetchAvailableSlots(mockClinic._id, new Date(), new Date());
 
       expect(result).toEqual([]);
     });
@@ -121,26 +100,16 @@ describe('SlotsService - US-12', () => {
       mockClinicModel.findById.mockResolvedValue(mockClinic);
       mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue(null);
 
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date(),
-        new Date(),
-      );
+      const result = await service.fetchAvailableSlots(mockClinic._id, new Date(), new Date());
 
       expect(result).toEqual([]);
     });
 
     it('should handle GHL API errors gracefully', async () => {
       mockClinicModel.findById.mockResolvedValue(mockClinic);
-      mockGHLCalendarService.fetchAvailableSlots.mockRejectedValue(
-        new Error('API Error'),
-      );
+      mockGHLCalendarService.fetchAvailableSlots.mockRejectedValue(new Error('API Error'));
 
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date(),
-        new Date(),
-      );
+      const result = await service.fetchAvailableSlots(mockClinic._id, new Date(), new Date());
 
       expect(result).toEqual([]);
     });
@@ -240,7 +209,7 @@ describe('SlotsService - US-12', () => {
           {
             day: 'monday',
             isOpen: true,
-            openTime: undefined, // Missing
+            openTime: undefined,
             closeTime: '17:00',
           },
         ],
@@ -249,7 +218,7 @@ describe('SlotsService - US-12', () => {
       const mockGHLSlots = [
         {
           id: '1',
-          startTime: '2024-03-25T10:00:00Z', // Monday
+          startTime: '2024-03-25T10:00:00Z',
           endTime: '2024-03-25T10:30:00Z',
           available: true,
         },
@@ -275,7 +244,7 @@ describe('SlotsService - US-12', () => {
             day: 'monday',
             isOpen: true,
             openTime: '09:00',
-            closeTime: undefined, // Missing
+            closeTime: undefined,
           },
         ],
       };
@@ -283,7 +252,7 @@ describe('SlotsService - US-12', () => {
       const mockGHLSlots = [
         {
           id: '1',
-          startTime: '2024-03-25T10:00:00Z', // Monday
+          startTime: '2024-03-25T10:00:00Z',
           endTime: '2024-03-25T10:30:00Z',
           available: true,
         },
@@ -301,81 +270,39 @@ describe('SlotsService - US-12', () => {
       expect(result).toEqual([]);
     });
 
-    it('should filter slots shorter than appointment duration', async () => {
-      const mockGHLSlots = [
-        {
-          id: '1',
-          startTime: '2024-03-25T14:00:00Z',
-          endTime: '2024-03-25T14:15:00Z', // 15 min (too short)
-          available: true,
-        },
-      ];
+    it('should filter slots using UTC time (fixes timezone bug)', async () => {
+    const mockGHLSlots = [
+      {
+        id: '1',
+        // 16:30 UTC should pass (within 09:00-17:00 UTC business hours)
+        startTime: '2024-03-25T16:30:00.000Z',
+        endTime: '2024-03-25T17:00:00.000Z',
+        available: true,
+      },
+    ];
 
-      mockClinicModel.findById.mockResolvedValue(mockClinic);
-      mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue(mockGHLSlots);
+    mockClinicModel.findById.mockResolvedValue(mockClinic);
+    mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue(mockGHLSlots);
 
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date('2024-03-25'),
-        new Date('2024-03-26'),
-      );
+    const result = await service.fetchAvailableSlots(
+      mockClinic._id,
+      new Date('2024-03-25'),
+      new Date('2024-03-26'),
+    );
 
-      expect(result).toEqual([]);
-    });
+    // Should pass because we're using UTC time
+    expect(result.length).toBe(1);
+  });
 
-    it('should accept slots equal to appointment duration', async () => {
-      const mockGHLSlots = [
-        {
-          id: '1',
-          startTime: '2024-03-25T14:00:00Z',
-          endTime: '2024-03-25T14:30:00Z', // Exactly 30 min
-          available: true,
-        },
-      ];
-
-      mockClinicModel.findById.mockResolvedValue(mockClinic);
-      mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue(mockGHLSlots);
-
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date('2024-03-25'),
-        new Date('2024-03-26'),
-      );
-
-      expect(result.length).toBe(1);
-    });
-
-    it('should accept slots longer than appointment duration', async () => {
-      const mockGHLSlots = [
-        {
-          id: '1',
-          startTime: '2024-03-25T14:00:00Z',
-          endTime: '2024-03-25T15:00:00Z', // 60 min
-          available: true,
-        },
-      ];
-
-      mockClinicModel.findById.mockResolvedValue(mockClinic);
-      mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue(mockGHLSlots);
-
-      const result = await service.fetchAvailableSlots(
-        mockClinic._id,
-        new Date('2024-03-25'),
-        new Date('2024-03-26'),
-      );
-
-      expect(result.length).toBe(1);
-    });
-
-    it('should format slots correctly', async () => {
-      const mockGHLSlots = [
-        {
-          id: '1',
-          startTime: '2024-03-25T14:00:00Z',
-          endTime: '2024-03-25T14:30:00Z',
-          available: true,
-        },
-      ];
+  it('should format slots correctly', async () => {
+    const mockGHLSlots = [
+      {
+        id: '1',
+        startTime: '2024-03-25T14:00:00Z',
+        endTime: '2024-03-25T14:30:00Z',
+        available: true,
+      },
+    ];
 
       mockClinicModel.findById.mockResolvedValue(mockClinic);
       mockGHLCalendarService.fetchAvailableSlots.mockResolvedValue(mockGHLSlots);
@@ -401,13 +328,13 @@ describe('SlotsService - US-12', () => {
       const mockGHLSlots = [
         {
           id: '1',
-          startTime: '2024-03-25T10:00:00Z', // 10:00 - within hours
+          startTime: '2024-03-25T10:00:00Z',
           endTime: '2024-03-25T10:30:00Z',
           available: true,
         },
         {
           id: '2',
-          startTime: '2024-03-25T14:00:00Z', // 14:00 - within hours
+          startTime: '2024-03-25T14:00:00Z',
           endTime: '2024-03-25T14:30:00Z',
           available: true,
         },
@@ -447,8 +374,8 @@ describe('SlotsService - US-12', () => {
         },
         {
           id: '4',
-          startTime: '2024-03-25T14:00:00Z', // Valid
-          endTime: '2024-03-25T14:15:00Z', // But too short - invalid
+          startTime: '2024-03-25T14:00:00Z', // Valid (duration no longer filtered)
+          endTime: '2024-03-25T14:15:00Z',
           available: true,
         },
       ];
@@ -462,8 +389,8 @@ describe('SlotsService - US-12', () => {
         new Date('2024-03-26'),
       );
 
-      // Only slot 2 should pass all filters
-      expect(result.length).toBe(1);
+      // Slots 2 and 4 should pass (duration filter removed)
+      expect(result.length).toBe(2);
     });
   });
 });
