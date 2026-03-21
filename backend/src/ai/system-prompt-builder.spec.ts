@@ -73,4 +73,27 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(lead, clinic);
     expect(prompt).toContain('booking');
   });
+
+  it('should inject slot section when slotOptions provided', () => {
+    const slotSection = '=== AVAILABLE SLOTS ===\nTuesday 17th March at 2pm';
+    const prompt = buildSystemPrompt(lead, clinic, { slotSection });
+    expect(prompt).toContain('=== AVAILABLE SLOTS ===');
+    expect(prompt).toContain('Tuesday 17th March at 2pm');
+  });
+
+  it('should NOT include slot section when slotOptions is undefined', () => {
+    const prompt = buildSystemPrompt(lead, clinic);
+    expect(prompt).not.toContain('=== AVAILABLE SLOTS ===');
+  });
+
+  it('should include Stage 4 OFFER SLOT instructions', () => {
+    const prompt = buildSystemPrompt(lead, clinic);
+    expect(prompt).toContain('OFFER SLOT');
+    expect(prompt).toContain('British English');
+  });
+
+  it('should include maximum 3 slots rule in Stage 4', () => {
+    const prompt = buildSystemPrompt(lead, clinic);
+    expect(prompt).toContain('maximum of 3 slots');
+  });
 });

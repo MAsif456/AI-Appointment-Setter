@@ -119,5 +119,27 @@ describe('ChatService', () => {
       // system + 3 history + 1 new user message = 5
       expect(sentMessages).toHaveLength(5);
     });
+
+    it('should inject slot section into system prompt when options provided', async () => {
+      mockGroqService.generateChatResponse.mockResolvedValue('I have Tuesday at 2pm available.');
+
+      const slotSection = '=== AVAILABLE SLOTS ===\nTuesday 17th March at 2pm';
+      await service.sendMessage(lead, clinic, [], 'When can I come in?', {
+        slotOptions: { slotSection },
+      });
+
+      const systemPrompt = mockGroqService.generateChatResponse.mock.calls[0][0][0].content;
+      expect(systemPrompt).toContain('=== AVAILABLE SLOTS ===');
+      expect(systemPrompt).toContain('Tuesday 17th March at 2pm');
+    });
+
+    it('should NOT include slot section when no options provided', async () => {
+      mockGroqService.generateChatResponse.mockResolvedValue('How can I help?');
+
+      await service.sendMessage(lead, clinic, [], 'Hello');
+
+      const systemPrompt = mockGroqService.generateChatResponse.mock.calls[0][0][0].content;
+      expect(systemPrompt).not.toContain('=== AVAILABLE SLOTS ===');
+    });
   });
 });

@@ -18,14 +18,15 @@ export interface SlotPromptOptions {
   slotSection: string;
 }
 
+
 /**
- * Builds the system prompt that defines the AI's persona for multi-turn chats.
- * Includes explicit conversation flow stages to guide the booking process:
- * greeting → postcode → urgency/timing → offer slot → confirm booking.
+ * Builds a system prompt string for the Groq AI based on lead and clinic data.
+ * The prompt instructs the AI to act as a clinic receptionist without revealing
+ * that it is an AI or disclosing any model information.
  * @param leadInfo - The lead's personal details and issue
- * @param clinicConfig - The clinic's configuration
- * @param slotOptions - Optional slot context for the OFFER SLOT stage
- * @returns A system prompt string for the Groq chat API
+ * @param clinicConfig - The clinic's tone, name, and custom instructions
+ * @param slotOptions - Optional context passed alongside a message for slot offering
+ * @returns A formatted prompt string ready to send to the AI
  */
 export function buildSystemPrompt(
   leadInfo: LeadInfo,
