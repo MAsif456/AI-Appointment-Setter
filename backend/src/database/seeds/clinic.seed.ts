@@ -10,7 +10,6 @@ export async function seedClinics(ClinicModel: any, adminUser: any) {
         address: '123 Queen Street, Cardiff, CF10 2BX',
         phone: '029 2034 5678',
         email: 'info@cardiffphysio.com',
-        ghlApiKey: 'pit-a66a930b-5279-4f50-8b7f-aac41c329bca',
         serviceAreas: [
           { postcodePrefix: 'CF', description: 'Cardiff' },
           { postcodePrefix: 'NP', description: 'Newport' },

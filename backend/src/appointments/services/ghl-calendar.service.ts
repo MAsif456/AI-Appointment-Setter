@@ -73,8 +73,7 @@ export class GHLCalendarService {
       return slots;
     } catch (error) {
       this.logger.error(`Failed to fetch slots from GHL: ${error.message}`);
-      this.logger.warn('Falling back to mock data');
-
+      this.logger.warn('GHL API failed, returning empty array');
       // Return empty array on error (don't return mock data)
       return [];
     }
