@@ -1,16 +1,22 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Query,
   Logger,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
 } from '@nestjs/common';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import {
   AppointmentsService,
   BookingResult,
 } from './appointments.service';
+import { SlotsService } from './services/slots.service';
+import { FetchSlotsQueryDto } from './dto/fetch-slots.dto';
+import { IdempotencyInterceptor } from './idempotency.interceptor';
 
 @Controller('appointments')
 export class AppointmentsController {
@@ -19,34 +25,39 @@ export class AppointmentsController {
 /**
  * Constructor for AppointmentsController.
  * @param {AppointmentsService} appointmentsService - The appointments service.
+ * @param {SlotsService} slotsService - The slots service.
  */
   constructor(
     private readonly appointmentsService: AppointmentsService,
+    private readonly slotsService: SlotsService,
   ) {}
 
+  @Get('slots')
   /**
-   * Books an appointment via GHL Calendar and stores it locally.
-   * @param {CreateAppointmentDto} dto - The booking request details.
-   * @returns {Promise<BookingResult>} - The booking result.
+   * Retrieves available appointment slots for a clinic.
+   * Fetches real slots from GHL via SlotsService and maps them
+   * to the Slot interface used by the formatter and prompt builder.
+   * @param {FetchSlotsQueryDto} query - The query parameters for fetching slots.
+   * @returns {Promise<Slot[]>} - The available slots.
    */
+  async getAvailableSlots(@Query() query: FetchSlotsQueryDto) {
+    return this.slotsService.fetchAvailableSlots(
+      query.clinicId,
+      new Date(query.startDate),
+      new Date(query.endDate),
+    );
+  }
+
   @Post('book')
   @HttpCode(HttpStatus.OK)
-  /**
-   * Books an appointment via GHL Calendar and stores it locally.
-   * @param {CreateAppointmentDto} dto - The booking request details.
-   * @returns {Promise<BookingResult>} - The booking result.
-   * @example
-   * const dto = {
-   *   clinicId: '507f1f77bcf86cd799439011',
-   *   contactId: 'ghl_contact_123',
-   *   conversationId: '507f1f77bcf86cd799439012',
-   *   leadId: '507f1f77bcf86cd799439013',
-   *   startTime: '2026-03-17T14:00:00Z',
-   *   serviceType: 'Physiotherapy',
-   * };
-   * const result = await bookAppointment(dto);
-   * // result is a Booking result object
-   */
+  @UseInterceptors(IdempotencyInterceptor)
+/**
+ * Books an appointment via GHL Calendar and stores it locally.
+ * Protected by the IdempotencyInterceptor to prevent duplicate bookings
+ * from network retries or double-submissions (IETF Idempotency-Key pattern).
+ * @param {CreateAppointmentDto} dto - The booking request details.
+ * @returns {Promise<BookingResult>} - The booking result.
+ */
   async bookAppointment(
     @Body() dto: CreateAppointmentDto,
   ): Promise<BookingResult> {

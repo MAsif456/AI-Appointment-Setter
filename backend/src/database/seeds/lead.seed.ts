@@ -37,7 +37,7 @@ export async function seedLeads(LeadModel: any, clinics: any[]) {
       ghlTags: ['qualified'],
     },
     {
-      clinicId: clinics[1]._id,
+      clinicId: clinics[0]._id,
       firstName: 'Rachel',
       lastName: 'Green',
       phone: '07700 900789',

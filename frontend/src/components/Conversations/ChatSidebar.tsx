@@ -81,6 +81,7 @@ export default function ChatSidebar({
         {clinic?.tone && <InfoRow label="Tone" value={capitalise(clinic.tone)} />}
         <InfoRow label="Messages" value={String(messageCount)} />
       </div>
+
     </div>
   );
 }
