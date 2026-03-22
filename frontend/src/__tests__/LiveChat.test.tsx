@@ -228,4 +228,120 @@ describe('LiveChat', () => {
       expect(screen.getByText(/AI failed to respond/)).toBeInTheDocument();
     });
   });
+
+  it('displays AI slot offering response in British English format', async () => {
+    const slotReply = {
+      reply: 'I have Tuesday 17th March at 2pm, Wednesday 18th March at 10am, or Thursday 19th March at 3pm. Which works best for you?',
+      offeredSlots: [
+        { dateTime: '2026-03-17T14:00:00.000Z', displayText: 'Tuesday 17th March at 2pm' },
+        { dateTime: '2026-03-18T10:00:00.000Z', displayText: 'Wednesday 18th March at 10am' },
+        { dateTime: '2026-03-19T15:00:00.000Z', displayText: 'Thursday 19th March at 3pm' },
+      ],
+    };
+
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(slotReply) }) as jest.Mock;
+
+    render(<LiveChat conversationId="conv1" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: 'When can I come in?' } });
+    fireEvent.click(screen.getByText('Send'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Tuesday 17th March at 2pm/)).toBeInTheDocument();
+      expect(screen.getByText(/Which works best for you/)).toBeInTheDocument();
+    });
+  });
+
+  it('does not use American date format in slot responses', async () => {
+    const slotReply = {
+      reply: 'I have Tuesday 17th March at 2pm available. Does that work for you?',
+      offeredSlots: [
+        { dateTime: '2026-03-17T14:00:00.000Z', displayText: 'Tuesday 17th March at 2pm' },
+      ],
+    };
+
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(slotReply) }) as jest.Mock;
+
+    render(<LiveChat conversationId="conv1" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: 'Book me in' } });
+    fireEvent.click(screen.getByText('Send'));
+
+    await waitFor(() => {
+      const aiMessages = screen.getAllByText(/Tuesday 17th March/);
+      aiMessages.forEach((msg) => {
+        // Should not contain MM/DD format
+        expect(msg.textContent).not.toMatch(/03\/17/);
+        expect(msg.textContent).not.toMatch(/3\/17/);
+      });
+    });
+  });
+
+  it('handles urgent slot response with earliest slot emphasis', async () => {
+    const urgentReply = {
+      reply: 'The earliest I can get you in is Monday 23rd March at 9am. Would that work?',
+      offeredSlots: [
+        { dateTime: '2026-03-23T09:00:00.000Z', displayText: 'Monday 23rd March at 9am' },
+      ],
+    };
+
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(urgentReply) }) as jest.Mock;
+
+    render(<LiveChat conversationId="conv1" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: 'I need an urgent appointment' } });
+    fireEvent.click(screen.getByText('Send'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/earliest I can get you in/)).toBeInTheDocument();
+      expect(screen.getByText(/Monday 23rd March at 9am/)).toBeInTheDocument();
+    });
+  });
+
+  it('handles no-slots-available response gracefully', async () => {
+    const noSlotsReply = {
+      reply: "We're fully booked on that date. Would you like me to check a different day?",
+      offeredSlots: [],
+    };
+
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(noSlotsReply) }) as jest.Mock;
+
+    render(<LiveChat conversationId="conv1" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: 'Can I come in tomorrow?' } });
+    fireEvent.click(screen.getByText('Send'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/fully booked/)).toBeInTheDocument();
+      expect(screen.getByText(/different day/)).toBeInTheDocument();
+    });
+  });
 });

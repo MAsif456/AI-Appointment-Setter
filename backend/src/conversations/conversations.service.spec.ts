@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { ChatService } from '../ai/chat.service';
+import { SlotProvider } from '../ai/slot-provider';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -32,6 +33,12 @@ describe('ConversationsService', () => {
   const mockChatService = {
     startConversation: jest.fn(),
     sendMessage: jest.fn(),
+  };
+
+  const mockSlotProvider = {
+    getAvailableSlots: jest.fn().mockResolvedValue([
+      { date: '2026-03-17', startTime: '14:00', endTime: '14:30' },
+    ]),
   };
 
   // Shared test fixtures
@@ -71,6 +78,7 @@ describe('ConversationsService', () => {
         { provide: getModelToken('Clinic'), useValue: mockClinicModel },
         { provide: getModelToken('Lead'), useValue: mockLeadModel },
         { provide: ChatService, useValue: mockChatService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
       ],
     }).compile();
 
@@ -154,7 +162,7 @@ describe('ConversationsService', () => {
   });
 
   describe('sendMessage', () => {
-    it('should save user message and AI reply', async () => {
+    it('should save user message and AI reply with offered slots', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockMessageModel.find.mockReturnValue({
         sort: jest.fn().mockResolvedValue([
@@ -168,7 +176,9 @@ describe('ConversationsService', () => {
 
       const result = await service.sendMessage('conv1', 'My postcode is CF10');
 
-      expect(result).toBe('Let me check that.');
+      expect(result).not.toBeNull();
+      expect(result!.reply).toBe('Let me check that.');
+      expect(result!.offeredSlots).toBeDefined();
       // Should create two messages: user + AI
       expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
     });

@@ -106,8 +106,9 @@ export class ConversationsController {
     @Body() body: SendMessageDto,
   ) {
     this.logger.log(`Message in conversation ${id}: "${body.message}"`);
-    const reply = await this.conversationsService.sendMessage(id, body.message);
-    return { reply };
+    const result = await this.conversationsService.sendMessage(id, body.message);
+    if (!result) return { reply: null, offeredSlots: [] };
+    return { reply: result.reply, offeredSlots: result.offeredSlots };
   }
 }
 

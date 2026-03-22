@@ -91,27 +91,33 @@ describe('ConversationsController', () => {
   });
 
   describe('POST /conversations/:id/messages', () => {
-    it('should return an AI reply', async () => {
-      mockService.sendMessage.mockResolvedValue('Let me check.');
+    it('should return an AI reply with offered slots', async () => {
+      const mockOfferedSlots = [
+        { dateTime: '2026-03-17T14:00:00.000Z', displayText: 'Tuesday 17th March at 2pm' },
+      ];
+      mockService.sendMessage.mockResolvedValue({
+        reply: 'Let me check.',
+        offeredSlots: mockOfferedSlots,
+      });
 
       const result = await controller.sendMessage('conv1', {
         message: 'My postcode is CF10 3AB',
       });
 
-      expect(result).toEqual({ reply: 'Let me check.' });
+      expect(result).toEqual({ reply: 'Let me check.', offeredSlots: mockOfferedSlots });
       expect(mockService.sendMessage).toHaveBeenCalledWith(
         'conv1',
         'My postcode is CF10 3AB',
       );
     });
 
-    it('should return null reply on failure', async () => {
+    it('should return null reply with empty slots on failure', async () => {
       mockService.sendMessage.mockResolvedValue(null);
 
       const result = await controller.sendMessage('conv1', {
         message: 'Hello',
       });
-      expect(result).toEqual({ reply: null });
+      expect(result).toEqual({ reply: null, offeredSlots: [] });
     });
   });
 });
