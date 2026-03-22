@@ -117,7 +117,7 @@ describe('ConversationsController', () => {
       const result = await controller.sendMessage('conv1', {
         message: 'Hello',
       });
-      expect(result).toEqual({ reply: null, offeredSlots: [] });
+      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null });
     });
   });
 });

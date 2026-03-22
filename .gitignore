@@ -1,0 +1,27 @@
+# Dependency directories
+# The **/ prefix ensures it catches node_modules in root, frontend, and backend
+**/node_modules/
+node_modules/
+
+# Build outputs
+**/dist/
+**/build/
+**/.next/
+**/out/
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.log
+
+# Environment variables
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
