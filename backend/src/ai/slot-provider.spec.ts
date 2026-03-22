@@ -50,33 +50,30 @@ describe('SlotProvider', () => {
     expect(diffDays).toBeCloseTo(7, 0);
   });
 
-  it('should return fallback slots when GHL returns empty array', async () => {
+  it('should return empty array when GHL returns empty array', async () => {
     mockSlotsService.fetchAvailableSlots.mockResolvedValue([]);
 
     const result = await provider.getAvailableSlots('clinic_001');
 
-    expect(result).toHaveLength(3);
-    expect(result[0].date).toBe('2026-03-17');
+    expect(result).toHaveLength(0);
   });
 
-  it('should return fallback slots when GHL returns null', async () => {
+  it('should return empty array when GHL returns null', async () => {
     mockSlotsService.fetchAvailableSlots.mockResolvedValue(null);
 
     const result = await provider.getAvailableSlots('clinic_001');
 
-    expect(result).toHaveLength(3);
-    expect(result[0].date).toBe('2026-03-17');
+    expect(result).toHaveLength(0);
   });
 
-  it('should return fallback slots when SlotsService throws an error', async () => {
+  it('should return empty array when SlotsService throws an error', async () => {
     mockSlotsService.fetchAvailableSlots.mockRejectedValue(
       new Error('GHL API timeout'),
     );
 
     const result = await provider.getAvailableSlots('clinic_001');
 
-    expect(result).toHaveLength(3);
-    expect(result[0].date).toBe('2026-03-17');
+    expect(result).toHaveLength(0);
   });
 
   it('should strip the dateTime field from GHL response', async () => {
