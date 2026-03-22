@@ -117,10 +117,14 @@ export class ConversationsService {
     const urgency = (lead.urgency as 'urgent' | 'routine' | 'flexible') || 'flexible';
 
     // Detect what the lead meant if we have previously offered slots
-    const selectionResult: SlotSelectionResult | null =
-      conversation.offeredSlots?.length > 0
-        ? detectSlotSelection(userMessage, conversation.offeredSlots)
-        : null;
+    let selectionResult: SlotSelectionResult | null = null;
+    if (conversation.offeredSlots?.length > 0) {
+      try {
+        selectionResult = detectSlotSelection(userMessage, conversation.offeredSlots);
+      } catch (error) {
+        this.logger.error('Slot detection failed, continuing without selection', error);
+      }
+    }
 
     const { selected, slotSection } = await buildSlotContext(
       this.slotProvider, clinicConfig.clinicId, urgency, selectionResult,

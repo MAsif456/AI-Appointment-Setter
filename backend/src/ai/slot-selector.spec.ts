@@ -194,3 +194,64 @@ describe('edge cases', () => {
     expect(result.selectedSlot?.displayText).toBe('Thursday 26th March at 3pm');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Time-only fallback (lines 172-180) — when day filtering yields no
+// candidates but the message contains a recognisable time
+// ---------------------------------------------------------------------------
+describe('time-only fallback when day filter produces no matches', () => {
+  it('selects a slot by time alone when a non-matching day is mentioned', () => {
+    // User says "Monday at 2pm" but no Monday slots exist — only Tuesday has 2pm
+    const result = detectSlotSelection('Monday at 2pm', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+
+  it('returns AMBIGUOUS via time fallback when multiple slots share the same time', () => {
+    const sameTimeSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T10:00:00', displayText: 'Tuesday 24th March at 10am' },
+      { dateTime: '2026-03-25T10:00:00', displayText: 'Wednesday 25th March at 10am' },
+      { dateTime: '2026-03-26T15:00:00', displayText: 'Thursday 26th March at 3pm' },
+    ];
+    // "Monday at 10am" — Monday matches nothing, time fallback finds two 10am slots
+    const result = detectSlotSelection('Monday at 10am', sameTimeSlots);
+    expect(result.intent).toBe('AMBIGUOUS');
+    expect(result.ambiguousSlots).toHaveLength(2);
+    expect(result.ambiguousSlots!.every(s => s.displayText.includes('10am'))).toBe(true);
+  });
+
+  it('falls back to AMBIGUOUS with all slots when nothing matches at all', () => {
+    // "Monday at 8am" — neither day nor time matches any offered slot
+    const result = detectSlotSelection('Monday at 8am', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('AMBIGUOUS');
+    expect(result.ambiguousSlots).toHaveLength(THREE_DISTINCT_DAYS.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractTimeFromDisplay integration — verifies the regex works with real
+// formatSlotDisplay() output formats
+// ---------------------------------------------------------------------------
+describe('extractTimeFromDisplay works with formatSlotDisplay output', () => {
+  it('parses time from a standard "Day Nth Month at Xpm" display text', () => {
+    // These are the exact format produced by formatSlotDisplay()
+    const slots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T14:00:00', displayText: 'Tuesday 24th March at 2pm' },
+      { dateTime: '2026-03-25T10:00:00', displayText: 'Wednesday 25th March at 10am' },
+    ];
+    // "the 2pm one" should match via time extraction from display text
+    const result = detectSlotSelection('the 2pm one', slots);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+
+  it('parses time with minutes from display text like "at 2:30pm"', () => {
+    const slots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T14:30:00', displayText: 'Tuesday 24th March at 2:30pm' },
+      { dateTime: '2026-03-25T10:00:00', displayText: 'Wednesday 25th March at 10am' },
+    ];
+    const result = detectSlotSelection('2:30pm', slots);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2:30pm');
+  });
+});
