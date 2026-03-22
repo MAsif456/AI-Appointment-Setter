@@ -1,5 +1,6 @@
 import { LeadInfo } from './interfaces/lead-info.interface';
 import { ClinicConfig } from './interfaces/clinic-config.interface';
+import { SlotSelectionIntent } from './slot-selector.types';
 
 // Tone instruction mappings for conversation style
 const TONE_INSTRUCTIONS: Record<string, string> = {
@@ -10,12 +11,31 @@ const TONE_INSTRUCTIONS: Record<string, string> = {
 };
 
 /**
+ * Structured context describing what the system detected about the lead's
+ * slot-selection reply.  Passed alongside the slot section so the AI can
+ * generate an appropriate follow-up response.
+ */
+export interface SlotSelectionContext {
+  intent: SlotSelectionIntent;
+  /** The slot the lead confirmed (SLOT_SELECTED only) */
+  selectedSlot?: { displayText: string };
+  /** All matching slots when the reply was ambiguous (AMBIGUOUS only) */
+  ambiguousSlots?: { displayText: string }[];
+  /** Day name the lead asked for instead (DIFFERENT_DATE only) */
+  requestedDate?: string;
+  /** Time-of-day preference expressed by the lead (DIFFERENT_TIME only) */
+  timePreference?: string;
+}
+
+/**
  * Options for injecting available slot context into the system prompt.
  * When provided, the AI will use these slots in its OFFER SLOT stage.
  */
 export interface SlotPromptOptions {
   /** Pre-built prompt section from buildSlotPromptSection() */
   slotSection: string;
+  /** Optional detection result from the slot-selector — guides AI response */
+  selectionContext?: SlotSelectionContext;
 }
 
 
@@ -95,5 +115,53 @@ export function buildSystemPrompt(
     parts.push(`- ${clinicConfig.customInstructions}`);
   }
 
+  // Inject slot-selection status so the AI knows what to say next
+  const ctx = slotOptions?.selectionContext;
+  if (ctx) {
+    parts.push('', '=== SLOT SELECTION STATUS ===');
+    parts.push(...buildSelectionStatusLines(ctx));
+  }
+
   return parts.filter(Boolean).join('\n');
+}
+
+/**
+ * Generates the instructional lines for the SLOT SELECTION STATUS section
+ * based on what the system detected about the lead's reply.
+ * @param ctx - The selection context produced by detectSlotSelection()
+ * @returns Array of prompt lines describing how the AI should respond
+ */
+function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
+  switch (ctx.intent) {
+    case 'SLOT_SELECTED':
+      return [
+        `The lead has confirmed: "${ctx.selectedSlot?.displayText}".`,
+        'Proceed to confirm the booking details (date, time, clinic name).',
+        'Let them know a confirmation will follow.',
+      ];
+    case 'AMBIGUOUS': {
+      const options = ctx.ambiguousSlots?.map(s => s.displayText).join(' or ') ?? '';
+      return [
+        `The lead's reply matched multiple slots: ${options}.`,
+        `Ask them to clarify, e.g. "I have ${options} — which works best for you?"`,
+      ];
+    }
+    case 'DIFFERENT_DATE':
+      return [
+        `The lead is asking for availability on ${ctx.requestedDate} instead.`,
+        `Apologise the offered slots don't suit and offer to check ${ctx.requestedDate}.`,
+        'The updated slots (if any) are shown in the AVAILABLE SLOTS section above.',
+      ];
+    case 'DIFFERENT_TIME':
+      return [
+        `The lead prefers ${ctx.timePreference} slots.`,
+        'The updated slots reflecting this preference are shown in the AVAILABLE SLOTS section above.',
+        'Offer them naturally.',
+      ];
+    case 'NONE_SUITABLE':
+      return [
+        "None of the offered slots work for the lead.",
+        'Respond: "No problem! When would work better for you?"',
+      ];
+  }
 }

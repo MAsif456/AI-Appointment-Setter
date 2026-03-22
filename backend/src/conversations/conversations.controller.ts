@@ -107,8 +107,8 @@ export class ConversationsController {
   ) {
     this.logger.log(`Message in conversation ${id}: "${body.message}"`);
     const result = await this.conversationsService.sendMessage(id, body.message);
-    if (!result) return { reply: null, offeredSlots: [] };
-    return { reply: result.reply, offeredSlots: result.offeredSlots };
+    if (!result) return { reply: null, offeredSlots: [], slotSelection: null };
+    return { reply: result.reply, offeredSlots: result.offeredSlots, slotSelection: result.slotSelection };
   }
 }
 
