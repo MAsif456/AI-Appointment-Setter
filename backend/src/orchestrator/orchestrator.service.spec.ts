@@ -1,15 +1,16 @@
 /**
  * Unit tests for OrchestratorService.
  *
- * Tests cover the parts that can be fully verified without Suli's conversation
- * context or GHL messaging services (US-08):
+ * Tests cover pure-logic methods that can be verified without any database or
+ * network calls:
  *   - detectIntent: postcode patterns, booking keywords, phase-gating, UNKNOWN fallback
  *   - createMessage: correct structure (content, role, timestamp)
  *   - generateResponse: British English instructions, 160-char limit, null on AI failure,
  *                       in-area vs out-of-area postcode prompting, history passthrough
  *   - FALLBACK_MESSAGE: correct string value
  *
- * GroqService and GreetingService are mocked so no network calls are made.
+ * All external services (GroqService, GreetingService, ConversationsService,
+ * MessagesService, GhlApiService) are mocked so no network or DB calls are made.
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
@@ -21,6 +22,9 @@ import {
 } from './orchestrator.service';
 import { GreetingService } from '../ai/greeting.service';
 import { GroqService } from '../ai/groq.service';
+import { ConversationsService } from '../ghl/conversations.service';
+import { MessagesService } from '../ghl/messages.service';
+import { GhlApiService } from '../ghl/ghl-api.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 
 const mockGreetingService = {
@@ -30,6 +34,24 @@ const mockGreetingService = {
 const mockGroqService = {
   generateResponse: jest.fn(),
   generateChatResponse: jest.fn(),
+};
+
+const mockConversationsService = {
+  findByGhlContactId: jest.fn(),
+  createForNewLead: jest.fn(),
+  findOrCreate: jest.fn(),
+  updatePhase: jest.fn(),
+};
+
+const mockMessagesService = {
+  addMessage: jest.fn(),
+  getByConversation: jest.fn(),
+};
+
+const mockGhlApiService = {
+  sendMessageWithRetry: jest.fn(),
+  getConversation: jest.fn(),
+  createConversation: jest.fn(),
 };
 
 /** Reusable active clinic config covering CF and NP postcode areas. */
@@ -59,6 +81,9 @@ describe('OrchestratorService', () => {
         OrchestratorService,
         { provide: GreetingService, useValue: mockGreetingService },
         { provide: GroqService, useValue: mockGroqService },
+        { provide: ConversationsService, useValue: mockConversationsService },
+        { provide: MessagesService, useValue: mockMessagesService },
+        { provide: GhlApiService, useValue: mockGhlApiService },
       ],
     }).compile();
 
