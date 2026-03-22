@@ -5,7 +5,7 @@
  */
 import { SlotSelectionResult, SlotSelectionIntent, OfferedSlotRef } from './slot-selector.types';
 
-export { SlotSelectionResult, SlotSelectionIntent, OfferedSlotRef };
+export type { SlotSelectionResult, SlotSelectionIntent, OfferedSlotRef };
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
