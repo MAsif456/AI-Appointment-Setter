@@ -40,7 +40,7 @@ export async function seedConversations(
     },
     // Rachel Green — Booking (no messages, AI greeting triggers on open)
     {
-      clinicId: clinics[1]._id,
+      clinicId: clinics[0]._id,
       leadId: leads[2]._id,
       phase: 'greeting',
       channel: 'website',

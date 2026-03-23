@@ -3,12 +3,17 @@ import { GroqService } from './groq.service';
 import { GreetingService } from './greeting.service';
 import { LeadInfo } from './interfaces/lead-info.interface';
 import { ClinicConfig } from './interfaces/clinic-config.interface';
-import { buildSystemPrompt } from './system-prompt-builder';
+import { buildSystemPrompt, SlotPromptOptions } from './system-prompt-builder';
 
 /** Represents a single message in the chat history */
 export interface ChatMessage {
   role: 'assistant' | 'user';
   content: string;
+}
+
+/** Optional context passed alongside a message for slot offering */
+export interface SendMessageOptions {
+  slotOptions?: SlotPromptOptions;
 }
 
 /**
@@ -43,6 +48,7 @@ export class ChatService {
    * @param clinicConfig - The clinic's configuration
    * @param history - Previous messages in the conversation
    * @param userMessage - The new message from the lead
+   * @param options - Optional slot context for slot offering stage
    * @returns The AI response, or null on failure
    */
   async sendMessage(
@@ -50,8 +56,13 @@ export class ChatService {
     clinicConfig: ClinicConfig,
     history: ChatMessage[],
     userMessage: string,
+    options?: SendMessageOptions,
   ): Promise<string | null> {
-    const systemPrompt = buildSystemPrompt(leadInfo, clinicConfig);
+    const systemPrompt = buildSystemPrompt(
+      leadInfo,
+      clinicConfig,
+      options?.slotOptions,
+    );
 
     // Build the full message array for Groq
     const messages: Array<{

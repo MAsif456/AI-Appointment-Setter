@@ -17,7 +17,6 @@ interface LiveChatProps {
  * Interactive live chat that loads a conversation from MongoDB,
  * auto-triggers the AI greeting on mount, and lets the user
  * chat with the booking assistant in real time.
- * Includes a reset button to re-test with different AI tone settings.
  */
 export default function LiveChat({ conversationId }: LiveChatProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -27,6 +26,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
   const [lead, setLead] = useState<LeadDetails | null>(null);
   const [clinic, setClinic] = useState<ClinicDetails | null>(null);
   const [phase, setPhase] = useState('greeting');
+
 
   /** Loads conversation data from the API and triggers the greeting */
   const initConversation = useCallback(async () => {
@@ -40,6 +40,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
       if (detail.lead) setLead(detail.lead);
       if (detail.clinic) setClinic(detail.clinic);
       if (detail.conversation?.phase) setPhase(detail.conversation.phase);
+
 
       // Load any existing messages
       if (detail.messages?.length > 0) {
@@ -122,28 +123,8 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
       setLoading(false);
     }
   };
-
-  /** Resets the conversation to re-test with different tone settings */
-  const resetChat = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      await fetch(`${API_BASE}/conversations/${conversationId}/reset`, {
-        method: 'POST',
-      });
-      setMessages([]);
-      setInput('');
-      setPhase('greeting');
-      // Re-initialise to trigger a fresh AI greeting
-      await initConversation();
-    } catch {
-      setError('Failed to reset conversation.');
-      setLoading(false);
-    }
-  };
-
-  return (
+    
+    return (
     <div className={styles.container}>
       <div className={styles.topBar}>
         <Link href="/conversations" className={styles.backLink}>

@@ -10,6 +10,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { AiModule } from './ai/ai.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { OrchestratorModule } from './orchestrator/orchestrator.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { OrchestratorModule } from './orchestrator/orchestrator.module';
     AiModule,
     ConversationsModule,
     OrchestratorModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
