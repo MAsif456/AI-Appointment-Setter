@@ -49,7 +49,8 @@ function extractTimeFromDisplay(displayText: string): string | null {
  * Converts 24-hour strings (e.g. "14:00") to 12-hour format (e.g. "2pm").
  */
 function normaliseTime(raw: string): string {
-  const lower = raw.toLowerCase().trim();
+  // Normalise dot separators to colons (e.g. "9.20" → "9:20")
+  const lower = raw.toLowerCase().trim().replace('.', ':');
   if (/^\d{1,2}(?::\d{2})?(?:am|pm)$/.test(lower)) return lower.replace(/^0/, '');
   const match24 = lower.match(/^(\d{1,2}):(\d{2})$/);
   if (match24) {
@@ -59,7 +60,24 @@ function normaliseTime(raw: string): string {
     const h12 = h % 12 || 12;
     return m === 0 ? `${h12}${period}` : `${h12}:${String(m).padStart(2, '0')}${period}`;
   }
+  // Bare number like "9" → try as hour (assume am for single digits ≤ 12)
+  const bareHour = lower.match(/^(\d{1,2})$/);
+  if (bareHour) {
+    const h = parseInt(bareHour[1], 10);
+    if (h >= 1 && h <= 12) return `${h}am`;
+    if (h > 12 && h <= 23) {
+      const h12 = h % 12 || 12;
+      return `${h12}pm`;
+    }
+  }
   return lower;
+}
+
+/** Flips am↔pm suffix for ambiguous time matching */
+function flipPeriod(time: string): string {
+  if (time.endsWith('am')) return time.slice(0, -2) + 'pm';
+  if (time.endsWith('pm')) return time.slice(0, -2) + 'am';
+  return time;
 }
 
 /** Returns true if the message indicates none of the offered slots are suitable */
@@ -259,8 +277,9 @@ export function detectSlotSelection(
   // Day and/or time keyword matching against offered slots
   const lower = message.toLowerCase();
   const mentionedDay = DAY_NAMES.find(d => lower.includes(d.toLowerCase())) ?? null;
-  const timeMatch = message.match(/\b(\d{1,2}(?::\d{2})?(?:am|pm)|\d{2}:\d{2})\b/i);
+  const timeMatch = message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm)?)\b/i);
   const mentionedTime = timeMatch ? normaliseTime(timeMatch[1]) : null;
+  const hasExplicitPeriod = timeMatch ? /(?:am|pm)/i.test(timeMatch[1]) : false;
 
   let candidates = [...offeredSlots];
   if (mentionedDay) {
@@ -270,7 +289,12 @@ export function detectSlotSelection(
   }
   if (mentionedTime && candidates.length > 0) {
     const byTime = candidates.filter(s => extractTimeFromDisplay(s.displayText) === mentionedTime);
-    if (byTime.length > 0) candidates = byTime;
+    if (byTime.length > 0) {
+      candidates = byTime;
+    } else if (!hasExplicitPeriod) {
+      const byFlipped = candidates.filter(s => extractTimeFromDisplay(s.displayText) === flipPeriod(mentionedTime));
+      if (byFlipped.length > 0) candidates = byFlipped;
+    }
   }
   if (candidates.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: candidates[0] };
   if (candidates.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: candidates };
@@ -282,6 +306,14 @@ export function detectSlotSelection(
     );
     if (byTimeOnly.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byTimeOnly[0] };
     if (byTimeOnly.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: byTimeOnly };
+
+    if (!hasExplicitPeriod) {
+      const byFlipped = offeredSlots.filter(
+        s => extractTimeFromDisplay(s.displayText) === flipPeriod(mentionedTime),
+      );
+      if (byFlipped.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byFlipped[0] };
+      if (byFlipped.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: byFlipped };
+    }
   }
 
   return { intent: 'AMBIGUOUS', ambiguousSlots: offeredSlots };

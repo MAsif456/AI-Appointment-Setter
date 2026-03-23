@@ -10,6 +10,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { ConversationsService } from './conversations.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
 
 describe('ConversationsService – slot selection detection', () => {
   let service: ConversationsService;
@@ -75,6 +76,9 @@ describe('ConversationsService – slot selection detection', () => {
   const mockLeadModel = { findById: jest.fn().mockResolvedValue(mockLead) };
   const mockChatService = { sendMessage: jest.fn().mockResolvedValue('AI reply') };
   const mockSlotProvider = { getAvailableSlots: jest.fn().mockResolvedValue(mockAvailableSlots) };
+  const mockAppointmentsService = {
+    bookAppointment: jest.fn().mockResolvedValue({ success: true, confirmationMessage: 'Booked!' }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -86,6 +90,7 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: getModelToken('Lead'), useValue: mockLeadModel },
         { provide: ChatService, useValue: mockChatService },
         { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
       ],
     }).compile();
 
@@ -99,6 +104,7 @@ describe('ConversationsService – slot selection detection', () => {
     mockClinicModel.findById.mockResolvedValue(mockClinic);
     mockLeadModel.findById.mockResolvedValue(mockLead);
     mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+    mockAppointmentsService.bookAppointment.mockResolvedValue({ success: true, confirmationMessage: 'Booked!' });
   });
 
   /** Registers a conversation document to be returned by findById */
@@ -113,11 +119,19 @@ describe('ConversationsService – slot selection detection', () => {
     expect(result!.slotSelection).toBeNull();
   });
 
-  it('returns SLOT_SELECTED when the lead picks a specific day', async () => {
+  it('returns SLOT_SELECTED and auto-books when the lead picks a specific day', async () => {
     useConversation(mockConversationWithSlots);
     const result = await service.sendMessage('conv1', 'Tuesday please');
     expect(result!.slotSelection?.intent).toBe('SLOT_SELECTED');
     expect(result!.slotSelection?.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+    expect(mockAppointmentsService.bookAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clinicId: 'clinic1',
+        leadId: 'lead1',
+        conversationId: 'conv1',
+      }),
+    );
+    expect(result!.bookingResult?.success).toBe(true);
   });
 
   it('returns AMBIGUOUS when two slots share the same day and only day is given', async () => {
