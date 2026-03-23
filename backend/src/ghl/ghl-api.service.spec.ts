@@ -124,4 +124,46 @@ describe('GhlApiService', () => {
       );
     });
   });
+
+  describe('createAppointment', () => {
+    it('should create an appointment via GHL Calendar API', async () => {
+      const responseData = { id: 'apt_123' };
+      httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const result = await service.createAppointment(
+        'cal_001', 'loc_001', 'contact_123',
+        '2026-03-17T14:00:00Z', '2026-03-17T14:30:00Z',
+      );
+
+      expect(result).toEqual(responseData);
+      expect(httpService.post).toHaveBeenCalledWith(
+        '/calendars/events/appointments',
+        {
+          calendarId: 'cal_001',
+          locationId: 'loc_001',
+          contactId: 'contact_123',
+          startTime: '2026-03-17T14:00:00Z',
+          endTime: '2026-03-17T14:30:00Z',
+          appointmentStatus: 'confirmed',
+        },
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-private-token',
+          }),
+        }),
+      );
+    });
+
+    it('should propagate errors from GHL Calendar API', async () => {
+      const error = new Error('Calendar API error');
+      httpService.post.mockReturnValue(throwError(() => error));
+
+      await expect(
+        service.createAppointment(
+          'cal_001', 'loc_001', 'contact_123',
+          '2026-03-17T14:00:00Z', '2026-03-17T14:30:00Z',
+        ),
+      ).rejects.toThrow('Calendar API error');
+    });
+  });
 });

@@ -134,4 +134,7 @@ ConversationSchema.index({ requiresHumanIntervention: 1, clinicId: 1 });
 ConversationSchema.index({ isHighPriority: 1, clinicId: 1 });
 ConversationSchema.index({ flaggedForReview: 1, clinicId: 1 });
 ConversationSchema.index({ createdAt: -1 });
-ConversationSchema.index({ ghlContactId: 1, clinicId: 1 }, { unique: true, sparse: true });
+ConversationSchema.index(
+  { ghlContactId: 1, clinicId: 1 },
+  { unique: true, partialFilterExpression: { ghlContactId: { $type: 'string' } } },
+);

@@ -11,6 +11,7 @@ import { Slot } from '../ai/interfaces/slot.interface';
 import { selectSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/slot-formatter';
 import { buildContextFromDb } from './context-builder';
 import { detectSlotSelection, SlotSelectionResult } from '../ai/slot-selector';
+import { AppointmentsService, BookingResult } from '../appointments/appointments.service';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -43,7 +44,8 @@ async function buildSlotContext(
 
 /**
  * Manages live conversations persisted in MongoDB.
- * Orchestrates the AI chat flow, slot offering, and slot-selection detection.
+ * Orchestrates the AI chat flow, slot offering, slot-selection detection,
+ * and automatic booking when a lead confirms a slot (US-15 integration).
  */
 @Injectable()
 export class ConversationsService {
@@ -56,6 +58,7 @@ export class ConversationsService {
     @InjectModel(Lead.name) private leadModel: Model<LeadDocument>,
     private readonly chatService: ChatService,
     private readonly slotProvider: SlotProvider,
+    private readonly appointmentsService: AppointmentsService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -96,8 +99,10 @@ export class ConversationsService {
 
   /**
    * Processes a lead's message, runs slot-selection detection, and generates
-   * an AI reply. Both messages are persisted to MongoDB.
-   * @returns Object with the AI reply, offered slots, and selection result
+   * an AI reply. When the lead confirms a slot (SLOT_SELECTED), the appointment
+   * is automatically booked via AppointmentsService and the confirmation
+   * message is sent. Both messages are persisted to MongoDB.
+   * @returns Object with the AI reply, offered slots, selection result, and booking result
    */
   async sendMessage(conversationId: string, userMessage: string) {
     const { conversation, messages, clinic, lead } = await this.getConversation(conversationId);
@@ -126,6 +131,14 @@ export class ConversationsService {
       }
     }
 
+    // If the lead confirmed a slot, book the appointment automatically
+    let bookingResult: BookingResult | null = null;
+    if (selectionResult?.intent === 'SLOT_SELECTED' && selectionResult.selectedSlot) {
+      bookingResult = await this.handleBooking(
+        conversation, clinic, lead, selectionResult,
+      );
+    }
+
     const { selected, slotSection } = await buildSlotContext(
       this.slotProvider, clinicConfig.clinicId, urgency, selectionResult,
     );
@@ -136,15 +149,63 @@ export class ConversationsService {
     );
     if (!reply) return null;
 
+    // Use confirmation message as the AI reply when booking succeeded
+    const finalReply = bookingResult?.success && bookingResult.confirmationMessage
+      ? bookingResult.confirmationMessage
+      : reply;
+
     await this.storeOfferedSlots(conversation, selected);
-    await this.saveMessage(conversation, clinic, lead, 'ai', reply);
+    await this.saveMessage(conversation, clinic, lead, 'ai', finalReply);
     await this.updateConversationMeta(conversation, 'ai', undefined);
 
     const offeredSlots = selected.map(s => ({
       dateTime: new Date(`${s.date}T${s.startTime}:00`).toISOString(),
       displayText: formatSlotDisplay(s),
     }));
-    return { reply, offeredSlots, slotSelection: selectionResult };
+    return { reply: finalReply, offeredSlots, slotSelection: selectionResult, bookingResult };
+  }
+
+  /**
+   * Handles automatic appointment booking when a lead confirms a slot.
+   * Extracts the selected slot datetime and delegates to AppointmentsService.
+   */
+  private async handleBooking(
+    conversation: ConversationDocument,
+    clinic: ClinicDocument,
+    lead: LeadDocument,
+    selectionResult: SlotSelectionResult,
+  ): Promise<BookingResult> {
+    const selectedSlot = selectionResult.selectedSlot!;
+    const startTime = selectedSlot.dateTime instanceof Date
+      ? selectedSlot.dateTime.toISOString()
+      : new Date(selectedSlot.dateTime).toISOString();
+
+    const contactId = lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
+    const bookingDto = {
+      clinicId: clinic._id.toString(),
+      contactId,
+      conversationId: conversation._id.toString(),
+      leadId: lead._id.toString(),
+      startTime,
+    };
+
+    try {
+      const result = await this.appointmentsService.bookAppointment(bookingDto);
+
+      if (result.success) {
+        this.logger.log(
+          `Auto-booked appointment ${result.appointmentId} for conversation ${conversation._id}`,
+        );
+      } else if (result.slotTaken) {
+        this.logger.warn(
+          `Slot was taken during auto-booking for conversation ${conversation._id}`,
+        );
+      }
+      return result;
+    } catch (error) {
+      this.logger.error(`Auto-booking failed: ${error.message}`);
+      return { success: false, error: 'Booking failed unexpectedly' };
+    }
   }
 
   /** Resets a conversation by deleting all messages and resetting phase. */
