@@ -203,6 +203,17 @@ describe('edge cases', () => {
     expect(result.selectedSlot?.displayText).toBe('Monday 23rd March at 9am');
   });
 
+  it('matches "3:20" without am/pm to 3:20pm slot by flipping period', () => {
+    const slots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-23T14:00:00', displayText: 'Monday 23rd March at 2pm' },
+      { dateTime: '2026-03-23T15:20:00', displayText: 'Monday 23rd March at 3:20pm' },
+      { dateTime: '2026-03-23T16:00:00', displayText: 'Monday 23rd March at 4pm' },
+    ];
+    const result = detectSlotSelection('3:20', slots);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Monday 23rd March at 3:20pm');
+  });
+
   it('returns AMBIGUOUS with all slots when message cannot be matched', () => {
     const result = detectSlotSelection('sounds good', THREE_DISTINCT_DAYS);
     expect(result.intent).toBe('AMBIGUOUS');
