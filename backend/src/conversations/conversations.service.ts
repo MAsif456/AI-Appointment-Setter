@@ -180,14 +180,17 @@ export class ConversationsService {
       ? selectedSlot.dateTime.toISOString()
       : new Date(selectedSlot.dateTime).toISOString();
 
+    const contactId = lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
+    const bookingDto = {
+      clinicId: clinic._id.toString(),
+      contactId,
+      conversationId: conversation._id.toString(),
+      leadId: lead._id.toString(),
+      startTime,
+    };
+
     try {
-      const result = await this.appointmentsService.bookAppointment({
-        clinicId: clinic._id.toString(),
-        contactId: conversation.ghlContactId ?? lead._id.toString(),
-        conversationId: conversation._id.toString(),
-        leadId: lead._id.toString(),
-        startTime,
-      });
+      const result = await this.appointmentsService.bookAppointment(bookingDto);
 
       if (result.success) {
         this.logger.log(
