@@ -146,17 +146,26 @@ function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
         `Ask them to clarify, e.g. "I have ${options} — which works best for you?"`,
       ];
     }
-    case 'DIFFERENT_DATE':
+    case 'DIFFERENT_DATE': {
+      const dateLabel = ctx.requestedDate ?? 'their requested dates';
       return [
-        `The lead is asking for availability on ${ctx.requestedDate} instead.`,
-        `Apologise the offered slots don't suit and offer to check ${ctx.requestedDate}.`,
+        `The lead is asking for availability on ${dateLabel} instead.`,
+        `Apologise the offered slots don't suit and offer to check ${dateLabel}.`,
         'The updated slots (if any) are shown in the AVAILABLE SLOTS section above.',
       ];
+    }
     case 'DIFFERENT_TIME':
       return [
         `The lead prefers ${ctx.timePreference} slots.`,
         'The updated slots reflecting this preference are shown in the AVAILABLE SLOTS section above.',
         'Offer them naturally.',
+      ];
+    case 'FURTHER_DATE':
+      return [
+        'The lead is asking for later or further available dates.',
+        'The updated slots showing the latest availability are in the AVAILABLE SLOTS section above.',
+        'Offer them naturally and let the lead know these are the furthest dates available.',
+        'IMPORTANT: ONLY offer the exact slots listed above. Do NOT invent or suggest any dates or times that are not in the AVAILABLE SLOTS section.',
       ];
     case 'NONE_SUITABLE':
       return [

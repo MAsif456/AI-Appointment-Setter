@@ -4,6 +4,7 @@ export type SlotSelectionIntent =
   | 'AMBIGUOUS'        // Reply matches more than one offered slot
   | 'DIFFERENT_DATE'   // Lead is asking for a different day
   | 'DIFFERENT_TIME'   // Lead is asking for a different time of day
+  | 'FURTHER_DATE'     // Lead wants later/furthest available dates
   | 'NONE_SUITABLE';   // None of the offered slots work
 
 /** Minimal representation of a previously offered slot */
@@ -22,6 +23,10 @@ export interface SlotSelectionResult {
   ambiguousSlots?: OfferedSlotRef[];
   /** Day name extracted from message when intent is DIFFERENT_DATE (e.g. "Friday") */
   requestedDate?: string;
+  /** Parsed start date when the lead asks for a future range (e.g. "next week") */
+  requestedStartDate?: Date;
+  /** Parsed end date when the lead asks for a future range (e.g. "next week") */
+  requestedEndDate?: Date;
   /** Time preference extracted from message when intent is DIFFERENT_TIME (e.g. "morning") */
   timePreference?: string;
 }

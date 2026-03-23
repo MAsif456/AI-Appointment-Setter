@@ -67,9 +67,10 @@ export function formatSlotDisplay(slot: Slot): string {
 
 /**
  * Selects a subset of slots based on the urgency level.
- * If the urgency level is 'urgent', returns the first 3 slots.
- * If the urgency level is 'routine', returns up to 3 slots per day.
- * If the urgency level is 'flexible', returns all slots.
+ * - urgent: returns the first 3 slots (earliest possible).
+ * - routine: returns one slot per day from the first 3 available days.
+ * - flexible: spreads 3 slots across the available range (early, mid, late)
+ *   to give the lead a variety of dates and times.
  * @param slots - The slots to select from.
  * @param urgency - The urgency level.
  * @returns A subset of slots selected based on the urgency level.
@@ -90,6 +91,28 @@ export function selectSlots(
     return sorted.slice(0, 3);
   }
 
+  // Get unique days
+  const uniqueDays: string[] = [];
+  for (const slot of sorted) {
+    if (!uniqueDays.includes(slot.date)) uniqueDays.push(slot.date);
+  }
+
+  if (urgency === 'flexible' && uniqueDays.length >= 3) {
+    // Pick slots spread across the range: early, middle, and late day
+    const earlyDay = uniqueDays[0];
+    const midDay = uniqueDays[Math.floor(uniqueDays.length / 2)];
+    const lateDay = uniqueDays[uniqueDays.length - 1];
+
+    const pickFromDay = (day: string): Slot => {
+      const daySlots = sorted.filter(s => s.date === day);
+      // Pick a midday slot for variety rather than always the earliest
+      return daySlots[Math.floor(daySlots.length / 2)];
+    };
+
+    return [pickFromDay(earlyDay), pickFromDay(midDay), pickFromDay(lateDay)];
+  }
+
+  // routine or flexible with fewer than 3 days: one slot per day, max 3
   const byDay = new Map<string, Slot>();
   for (const slot of sorted) {
     if (!byDay.has(slot.date) && byDay.size < 3) {
@@ -97,6 +120,31 @@ export function selectSlots(
     }
   }
   return Array.from(byDay.values());
+}
+
+/**
+ * Selects up to 3 slots spread across the latest available days.
+ * Used when the lead asks for "further dates" or "the furthest date".
+ * @param slots - All available slots
+ * @returns Up to 3 slots from the latest days
+ */
+export function selectLatestSlots(slots: Slot[]): Slot[] {
+  if (slots.length === 0) return [];
+
+  const sorted = [...slots].sort((a, b) => {
+    const dateA = `${a.date}T${a.startTime}`;
+    const dateB = `${b.date}T${b.startTime}`;
+    return dateB.localeCompare(dateA); // latest first
+  });
+
+  const byDay = new Map<string, Slot>();
+  for (const slot of sorted) {
+    if (!byDay.has(slot.date) && byDay.size < 3) {
+      byDay.set(slot.date, slot);
+    }
+  }
+  // Return in chronological order
+  return Array.from(byDay.values()).reverse();
 }
 
 
@@ -132,6 +180,7 @@ export function buildSlotPromptSection(
     '- Use 12-hour time with am/pm (e.g. 2pm, 10am)',
     '- NEVER use American date format (MM/DD/YYYY)',
     '- Present slots conversationally, not as a list',
+    '- ONLY offer the exact slots listed above — do NOT invent or suggest dates/times not shown here',
   ];
 
   if (urgency === 'urgent') {

@@ -8,7 +8,7 @@ import { Lead, LeadDocument } from '../database/schemas/lead.schema';
 import { ChatService, ChatMessage } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { Slot } from '../ai/interfaces/slot.interface';
-import { selectSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/slot-formatter';
+import { selectSlots, selectLatestSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/slot-formatter';
 import { buildContextFromDb } from './context-builder';
 import { detectSlotSelection, SlotSelectionResult } from '../ai/slot-selector';
 
@@ -22,12 +22,33 @@ async function buildSlotContext(
   urgency: 'urgent' | 'routine' | 'flexible',
   selectionResult: SlotSelectionResult | null,
 ): Promise<{ selected: Slot[]; slotSection: string }> {
-  const allSlots = await provider.getAvailableSlots(clinicId);
-  let slots = selectSlots(allSlots, urgency);
+  // When the lead requested a specific date range, pass it to the provider
+  const requestedStart = selectionResult?.requestedStartDate
+    ? new Date(selectionResult.requestedStartDate)
+    : undefined;
+  const requestedEnd = selectionResult?.requestedEndDate
+    ? new Date(selectionResult.requestedEndDate)
+    : undefined;
 
-  if (selectionResult?.intent === 'DIFFERENT_DATE' && selectionResult.requestedDate) {
+  const allSlots = await provider.getAvailableSlots(clinicId, requestedStart, requestedEnd);
+  let slots: Slot[];
+
+  if (selectionResult?.intent === 'FURTHER_DATE') {
+    // Lead wants later/furthest dates — pick from the end of the range
+    slots = selectLatestSlots(allSlots);
+  } else if (selectionResult?.intent === 'DIFFERENT_DATE' && selectionResult.requestedDate) {
+    // Lead asked for a specific day name — filter by that day
     const day = selectionResult.requestedDate.toLowerCase();
     slots = allSlots.filter(s => DAYS_LOWER[new Date(`${s.date}T${s.startTime}:00`).getDay()] === day);
+    // Pick one slot per day, max 3
+    const byDay = new Map<string, Slot>();
+    for (const s of slots) {
+      if (!byDay.has(s.date) && byDay.size < 3) byDay.set(s.date, s);
+    }
+    slots = Array.from(byDay.values());
+  } else if (selectionResult?.intent === 'DIFFERENT_DATE' && selectionResult.requestedStartDate) {
+    // Lead asked for a date range (e.g. "this week") — spread across the range
+    slots = selectSlots(allSlots, urgency);
   } else if (selectionResult?.intent === 'DIFFERENT_TIME' && selectionResult.timePreference) {
     slots = allSlots.filter(s => {
       const hour = parseInt(s.startTime.split(':')[0], 10);
@@ -36,6 +57,8 @@ async function buildSlotContext(
       if (selectionResult.timePreference === 'evening')   return hour >= 17;
       return true; // 'earlier' / 'later' — let AI decide from all slots
     });
+  } else {
+    slots = selectSlots(allSlots, urgency);
   }
 
   return { selected: slots, slotSection: buildSlotPromptSection(slots, urgency) };
@@ -114,7 +137,12 @@ export class ConversationsService {
     ];
 
     const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
-    const urgency = (lead.urgency as 'urgent' | 'routine' | 'flexible') || 'flexible';
+    const URGENCY_MAP: Record<string, 'urgent' | 'routine' | 'flexible'> = {
+      urgent: 'urgent',
+      routine: 'routine',
+      unknown: 'flexible',
+    };
+    const urgency = URGENCY_MAP[lead.urgency] ?? 'flexible';
 
     // Detect what the lead meant if we have previously offered slots
     let selectionResult: SlotSelectionResult | null = null;
@@ -126,9 +154,25 @@ export class ConversationsService {
       }
     }
 
-    const { selected, slotSection } = await buildSlotContext(
-      this.slotProvider, clinicConfig.clinicId, urgency, selectionResult,
-    );
+    // When the lead has selected a slot, keep the previously offered slots
+    // instead of re-fetching — avoids the AI contradicting its earlier offer.
+    let selected: Slot[];
+    let slotSection: string;
+    if (selectionResult?.intent === 'SLOT_SELECTED' && conversation.offeredSlots?.length > 0) {
+      selected = conversation.offeredSlots.map((s: any) => {
+        const dt = new Date(s.dateTime);
+        return {
+          date: dt.toISOString().split('T')[0],
+          startTime: dt.toTimeString().substring(0, 5),
+          endTime: '', // not needed for display
+        };
+      });
+      slotSection = buildSlotPromptSection(selected, urgency);
+    } else {
+      ({ selected, slotSection } = await buildSlotContext(
+        this.slotProvider, clinicConfig.clinicId, urgency, selectionResult,
+      ));
+    }
 
     const reply = await this.chatService.sendMessage(
       leadInfo, clinicConfig, history, userMessage,

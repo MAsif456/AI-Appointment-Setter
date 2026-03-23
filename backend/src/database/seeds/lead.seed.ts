@@ -45,7 +45,7 @@ export async function seedLeads(LeadModel: any, clinics: any[]) {
       postcode: '',
       postcodeStatus: 'not_checked',
       issue: 'Shoulder pain',
-      urgency: 'urgent',
+      urgency: 'unknown',
       patientType: 'new',
       leadSource: 'facebook',
       preferredChannel: 'whatsapp',

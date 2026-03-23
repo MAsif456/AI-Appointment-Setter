@@ -27,12 +27,15 @@ export class SlotProvider {
    * @param clinicId - The ID of the clinic to fetch available slots for.
    * @returns A promise that resolves to an array of available appointment slots.
    */
-  async getAvailableSlots(clinicId: string): Promise<Slot[]> {
+  async getAvailableSlots(
+    clinicId: string,
+    requestedStart?: Date,
+    requestedEnd?: Date,
+  ): Promise<Slot[]> {
     try {
-      // Query a 7-day window starting from today
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 7);
+      // Use the requested date range, or default to a 7-day window from today
+      const startDate = requestedStart ?? new Date();
+      const endDate = requestedEnd ?? new Date(startDate.getTime() + 31 * 24 * 60 * 60 * 1000);
 
       const ghlSlots = await this.slotsService.fetchAvailableSlots(
         clinicId, startDate, endDate,

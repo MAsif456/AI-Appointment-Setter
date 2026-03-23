@@ -68,11 +68,87 @@ function detectNoneSuitable(message: string): boolean {
   return NONE_SUITABLE_PHRASES.some(phrase => lower.includes(phrase));
 }
 
+/** Result of date detection — either a day name or a computed date range */
+interface DateDetectionResult {
+  /** Day name when the lead asks for a specific day (e.g. "Friday") */
+  dayName?: string;
+  /** Computed start date when the lead asks for a future range */
+  startDate?: Date;
+  /** Computed end date when the lead asks for a future range */
+  endDate?: Date;
+}
+
+/** Phrases that indicate a future date range, mapped to a resolver function */
+const DATE_RANGE_PATTERNS: { pattern: RegExp; resolve: () => { start: Date; end: Date } }[] = [
+  {
+    pattern: /\b(?:next\s+week|a\s+week\s+from\s+now|in\s+a\s+week)\b/i,
+    resolve: () => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      // Next Monday
+      const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+      const start = new Date(today);
+      start.setDate(today.getDate() + daysUntilMonday);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      return { start, end };
+    },
+  },
+  {
+    pattern: /\b(?:this\s+week)\b/i,
+    resolve: () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getDay();
+      // End of this week (Sunday)
+      const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      const end = new Date(today);
+      end.setDate(today.getDate() + daysUntilSunday + 1);
+      return { start: today, end };
+    },
+  },
+  {
+    pattern: /\b(?:in\s+two\s+weeks|in\s+2\s+weeks|two\s+weeks\s+from\s+now)\b/i,
+    resolve: () => {
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(today.getDate() + 14);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      return { start, end };
+    },
+  },
+  {
+    pattern: /\b(?:tomorrow)\b/i,
+    resolve: () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const end = new Date(tomorrow);
+      end.setDate(tomorrow.getDate() + 1);
+      return { start: tomorrow, end };
+    },
+  },
+];
+
 /**
  * Checks whether the message is asking for a completely different date.
- * @returns Day name (e.g. "Friday") if detected, otherwise null
+ * Handles both specific day names (e.g. "Friday") and relative date
+ * phrases (e.g. "next week", "tomorrow", "in two weeks").
+ * @returns A DateDetectionResult with either a day name or a date range, or null
  */
-function detectDifferentDate(message: string): string | null {
+function detectDifferentDate(message: string): DateDetectionResult | null {
+  // Check for date range phrases first (more specific)
+  for (const { pattern, resolve } of DATE_RANGE_PATTERNS) {
+    if (pattern.test(message)) {
+      const { start, end } = resolve();
+      return { startDate: start, endDate: end };
+    }
+  }
+
+  // Fall back to specific day name detection
   const patterns = [
     /(?:anything|available|availability|slots?)\s+on\s+(\w+)/i,
     /(?:what about|how about)\s+(\w+)/i,
@@ -82,13 +158,13 @@ function detectDifferentDate(message: string): string | null {
     const match = message.match(pattern);
     if (match) {
       const day = DAY_NAMES.find(d => d.toLowerCase() === match[1].toLowerCase());
-      if (day) return day;
+      if (day) return { dayName: day };
     }
   }
   // Day mentioned in a question without a more specific pattern
   if (message.includes('?')) {
     for (const day of DAY_NAMES) {
-      if (message.toLowerCase().includes(day.toLowerCase())) return day;
+      if (message.toLowerCase().includes(day.toLowerCase())) return { dayName: day };
     }
   }
   return null;
@@ -108,6 +184,26 @@ function detectDifferentTime(message: string): string | null {
   return null;
 }
 
+/** Phrases indicating the lead wants later/furthest available dates */
+const FURTHER_DATE_PHRASES = [
+  'further date', 'further dates',
+  'furthest date', 'furthest available',
+  'later date', 'later dates',
+  'latest date', 'latest available',
+  'other dates', 'other date',
+  'anything later', 'something later',
+  'anything further', 'something further',
+];
+
+/**
+ * Checks whether the message is asking for later/further dates.
+ * @returns true if the lead wants later slots
+ */
+function detectFurtherDate(message: string): boolean {
+  const lower = message.toLowerCase();
+  return FURTHER_DATE_PHRASES.some(phrase => lower.includes(phrase));
+}
+
 /**
  * Detects ordinal position words ("first", "second", "last") in the message.
  * @returns 0-based index into the offered slots array, or null if not found
@@ -125,8 +221,8 @@ function detectPosition(message: string, totalSlots: number): number | null {
  * returns a structured result describing the lead's intent.
  *
  * Detection priority (short-circuits on first match):
- *   NONE_SUITABLE → DIFFERENT_DATE → DIFFERENT_TIME → positional →
- *   day+time → day-only → time-only → AMBIGUOUS (all slots)
+ *   NONE_SUITABLE → FURTHER_DATE → DIFFERENT_DATE → DIFFERENT_TIME →
+ *   positional → day+time → day-only → time-only → AMBIGUOUS (all slots)
  *
  * @param message      - The lead's raw reply text
  * @param offeredSlots - The slots the AI previously presented to the lead
@@ -138,8 +234,19 @@ export function detectSlotSelection(
   if (!offeredSlots.length) return { intent: 'NONE_SUITABLE' };
   if (detectNoneSuitable(message)) return { intent: 'NONE_SUITABLE' };
 
-  const requestedDate = detectDifferentDate(message);
-  if (requestedDate) return { intent: 'DIFFERENT_DATE', requestedDate };
+  // Check for "further/later dates" before date range detection
+  // so "further dates this week" is caught as FURTHER_DATE
+  if (detectFurtherDate(message)) return { intent: 'FURTHER_DATE' };
+
+  const dateResult = detectDifferentDate(message);
+  if (dateResult) {
+    return {
+      intent: 'DIFFERENT_DATE',
+      requestedDate: dateResult.dayName,
+      requestedStartDate: dateResult.startDate,
+      requestedEndDate: dateResult.endDate,
+    };
+  }
 
   const timePreference = detectDifferentTime(message);
   if (timePreference) return { intent: 'DIFFERENT_TIME', timePreference };
