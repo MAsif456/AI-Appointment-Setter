@@ -49,7 +49,7 @@ export async function seedLeads(LeadModel: any, clinics: any[]) {
       patientType: 'new',
       leadSource: 'facebook',
       preferredChannel: 'whatsapp',
-      ghlContactId: 'CmkrWRsOqOAaVAE64eDM',
+      ghlContactId: 'lrwfAEEg7RT3eGIx5Gzw',
       ghlTags: [],
     },
     {
