@@ -64,18 +64,17 @@ export class AbuseHandlerService {
     conversation.directedHostilityCount ?? 0,
     conversation.abuseOfferPending ?? false,
   );
-  // Add this line temporarily:
   this.logger.log(`abuse check: offerPending=${conversation.abuseOfferPending}, 
     classification=${abuseResult.classification}, shouldEscalate=${abuseResult.shouldEscalate}`);
 
-    // Clean message or casual swearing — fall through to normal AI flow
-    if (abuseResult.classification === 'none' || abuseResult.classification === 'casual') {
-      return null;
-    }
-
-    // Lead accepted the human offer — signal escalation to the caller
+    // check escalation before classification check
     if (abuseResult.shouldEscalate) {
       return this.signalEscalation(conversation, clinic, lead, abuseResult.response!);
+    }
+
+    // Then check classification — if it's 'none' or 'casual', we can skip the abuse flow entirely
+    if (abuseResult.classification === 'none' || abuseResult.classification === 'casual') {
+      return null;
     }
 
     // Directed hostility — return canned redirect or repeat human offer

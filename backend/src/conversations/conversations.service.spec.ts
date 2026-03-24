@@ -5,6 +5,7 @@ import { ConversationsService } from './conversations.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -41,6 +42,10 @@ describe('ConversationsService', () => {
       { date: '2026-03-17', startTime: '14:00', endTime: '14:30' },
     ]),
   };
+
+  const mockAbuseHandler = {
+    handle: jest.fn().mockResolvedValue(null),
+};
 
   const mockAppointmentsService = {
     bookAppointment: jest.fn(),
@@ -84,6 +89,7 @@ describe('ConversationsService', () => {
         { provide: getModelToken('Lead'), useValue: mockLeadModel },
         { provide: ChatService, useValue: mockChatService },
         { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AbuseHandlerService, useValue: mockAbuseHandler },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
       ],
     }).compile();
