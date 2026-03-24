@@ -2,6 +2,9 @@
  * Service responsible for processing incoming GoHighLevel (GHL) webhook payloads.
  *
  * Routes events to the correct clinic based on the location.id field in the payload.
+ * After routing, delegates to OrchestratorService which handles the full AI conversation
+ * flow (US-10).
+ *
  * Always resolves successfully — exceptions are caught and logged so that GHL never
  * receives a non-200 response, which would otherwise trigger unwanted retries.
  *
@@ -12,7 +15,11 @@
  *   - Event type: payload.type  (custom key added in GHL Automation)
  */
 import { Injectable, Logger } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ClinicsService } from '../clinics/clinics.service';
+import { ClinicDocument } from '../database/schemas/clinic.schema';
+import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { OrchestratorService } from '../orchestrator/orchestrator.service';
 import {
   GhlWebhookPayload,
   GhlContactCreatePayload,
@@ -27,12 +34,16 @@ export interface WebhookResponse {
 /**
  * Handles all routing logic for GHL webhook events.
  * Depends on ClinicsService to resolve location.id → clinic document.
+ * Delegates conversation orchestration to OrchestratorService.
  */
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
 
-  constructor(private readonly clinicsService: ClinicsService) {}
+  constructor(
+    private readonly clinicsService: ClinicsService,
+    private readonly orchestratorService: OrchestratorService,
+  ) {}
 
   /**
    * Entry point for all incoming GHL webhook events.
@@ -43,7 +54,8 @@ export class WebhooksService {
    *   3. Look up the clinic by GHL Location ID.
    *   4. If clinic is not found, log and return 200 without processing.
    *   5. If clinic is inactive, log and return 200 without processing.
-   *   6. Dispatch to the appropriate handler based on event type.
+   *   6. Build the ClinicConfig from the clinic document.
+   *   7. Dispatch to the appropriate handler based on event type.
    *
    * The entire body is wrapped in try/catch so that any unexpected error
    * is logged and a 200 response is still returned to GHL.
@@ -78,12 +90,14 @@ export class WebhooksService {
         return { success: true };
       }
 
+      const clinicConfig = this.buildClinicConfig(clinic);
+
       switch (type) {
         case 'ContactCreate':
-          this.handleContactCreate(payload as GhlContactCreatePayload, clinic.name);
+          await this.handleContactCreate(payload as GhlContactCreatePayload, clinic.name, clinicConfig);
           break;
         case 'InboundMessage':
-          this.handleInboundMessage(payload as GhlInboundMessagePayload, clinic.name);
+          await this.handleInboundMessage(payload as GhlInboundMessagePayload, clinic.name, clinicConfig);
           break;
         default:
           this.logger.warn(`Unrecognised GHL event type: ${type}`);
@@ -102,39 +116,70 @@ export class WebhooksService {
   /**
    * Handles a ContactCreate event.
    * Contact fields arrive at root level in snake_case format per GHL standard data.
+   * Delegates the full AI greeting flow to OrchestratorService.
    *
    * @param payload - The ContactCreate webhook payload from GHL.
    * @param clinicName - The name of the matched clinic, used in log output.
+   * @param clinicConfig - The resolved clinic configuration for the orchestrator.
    */
-  private handleContactCreate(
+  private async handleContactCreate(
     payload: GhlContactCreatePayload,
     clinicName: string,
-  ): void {
+    clinicConfig: ClinicConfig,
+  ): Promise<void> {
     const { first_name, last_name, phone, email, issue } = payload;
     this.logger.log(`Routing lead to clinic: ${clinicName}`);
     this.logger.log(
       `Lead details — name: ${first_name ?? ''} ${last_name ?? ''}, phone: ${phone ?? 'N/A'}, email: ${email ?? 'N/A'}, issue: ${issue ?? 'N/A'}`,
     );
-    // TODO: persist lead document via LeadsService once implemented
+    await this.orchestratorService.handleNewLead(payload, clinicConfig);
   }
 
   /**
    * Handles an InboundMessage event.
    * Message content arrives nested under payload.message.body per GHL standard data.
+   * Delegates the intent detection and AI response flow to OrchestratorService.
    *
    * @param payload - The InboundMessage webhook payload from GHL.
    * @param clinicName - The name of the matched clinic, used in log output.
+   * @param clinicConfig - The resolved clinic configuration for the orchestrator.
    */
-  private handleInboundMessage(
+  private async handleInboundMessage(
     payload: GhlInboundMessagePayload,
     clinicName: string,
-  ): void {
+    clinicConfig: ClinicConfig,
+  ): Promise<void> {
     const { id: contactId, conversationId } = payload;
     const messageBody = payload.message?.body;
     this.logger.log(`Routing message to clinic: ${clinicName}`);
     this.logger.log(
       `Message details — contactId: ${contactId ?? 'N/A'}, conversationId: ${conversationId ?? 'N/A'}, content: ${messageBody ?? 'N/A'}`,
     );
-    // TODO: persist message document via ConversationsService once implemented
+    await this.orchestratorService.handleInboundMessage(payload, clinicConfig);
+  }
+
+  /**
+   * Converts a ClinicDocument from MongoDB into the ClinicConfig interface
+   * expected by the AI and orchestrator services.
+   *
+   * Maps the stored tone value ('friendly' | 'professional' | 'balanced') to the
+   * AI interface's capitalised format ('Friendly' | 'Professional').
+   * Treats 'balanced' and any unknown value as 'Friendly'.
+   *
+   * @param clinic - The full clinic document from MongoDB.
+   * @returns A ClinicConfig ready to pass to AI and orchestration services.
+   */
+  private buildClinicConfig(clinic: ClinicDocument): ClinicConfig {
+    const tone = clinic.aiConfig?.tone === 'professional' ? 'Professional' : 'Friendly';
+    return {
+      clinicId: (clinic._id as Types.ObjectId).toString(),
+      name: clinic.name,
+      tone,
+      greetingTemplate: clinic.aiConfig?.greetingTemplate || undefined,
+      serviceAreas: clinic.serviceAreas?.map((sa) => sa.postcodePrefix) ?? [],
+      customInstructions: clinic.aiConfig?.customInstructions || undefined,
+      ghlLocationId: clinic.ghlLocationId,
+      isActive: clinic.isActive,
+    };
   }
 }

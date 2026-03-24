@@ -287,3 +287,141 @@ describe('extractTimeFromDisplay works with formatSlotDisplay output', () => {
     expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2:30pm');
   });
 });
+
+// ---------------------------------------------------------------------------
+// "N weeks from next week" — compound date range detection
+// ---------------------------------------------------------------------------
+describe('N weeks from next week', () => {
+  it('detects "2 weeks from next week" as DIFFERENT_DATE with correct range', () => {
+    const result = detectSlotSelection('it has to be 2 weeks from next week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedEndDate).toBeDefined();
+    // Start should be 2 weeks after next Monday (≈ 3 weeks from now)
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+    const expectedStart = new Date(today);
+    expectedStart.setDate(today.getDate() + daysUntilMonday + 14);
+    expectedStart.setHours(0, 0, 0, 0);
+    expect(result.requestedStartDate!.getTime()).toBe(expectedStart.getTime());
+  });
+
+  it('handles typo "2 week ffroom next week"', () => {
+    const result = detectSlotSelection('My bad it has to be 2 week ffroom next week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('handles "two weeks from next week" with word number', () => {
+    const result = detectSlotSelection('two weeks from next week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('does not match plain "next week" with this pattern', () => {
+    const result = detectSlotSelection('How about next week?', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    // Should use the simple "next week" pattern, not the compound one
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+    const expectedStart = new Date(today);
+    expectedStart.setDate(today.getDate() + daysUntilMonday);
+    expectedStart.setHours(0, 0, 0, 0);
+    expect(result.requestedStartDate!.getTime()).toBe(expectedStart.getTime());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// "a further N week(s) from then" — relative shift from last offered slots
+// ---------------------------------------------------------------------------
+describe('relative week shift from offered slots', () => {
+  // Offered slots in the week of April 13-17 (as in the real scenario)
+  const APRIL_WEEK_SLOTS: OfferedSlotRef[] = [
+    { dateTime: '2026-04-13T13:20:00', displayText: 'Monday 13th April at 1:20pm' },
+    { dateTime: '2026-04-15T13:20:00', displayText: 'Wednesday 15th April at 1:20pm' },
+    { dateTime: '2026-04-17T13:20:00', displayText: 'Friday 17th April at 1:20pm' },
+  ];
+
+  /** Helper to get local YYYY-MM-DD from a Date (avoids UTC timezone shift) */
+  function localDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  it('detects "a further one week from then" as DIFFERENT_DATE in the week of April 20', () => {
+    const result = detectSlotSelection(
+      'I need it to be a further one week from then',
+      APRIL_WEEK_SLOTS,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedEndDate).toBeDefined();
+    // Latest offered slot is Friday April 17. Next Monday after that is April 20.
+    // n=1 so start = April 20 (the next Monday), end = April 27
+    expect(localDateStr(result.requestedStartDate!)).toBe('2026-04-20');
+    expect(localDateStr(result.requestedEndDate!)).toBe('2026-04-27');
+  });
+
+  it('detects "another two weeks from that"', () => {
+    const result = detectSlotSelection(
+      'another two weeks from that',
+      APRIL_WEEK_SLOTS,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    // n=2: next Monday (April 20) + 1 extra week = April 27, end = May 4
+    expect(localDateStr(result.requestedStartDate!)).toBe('2026-04-27');
+    expect(localDateStr(result.requestedEndDate!)).toBe('2026-05-04');
+  });
+
+  it('detects "a further 1 week from those"', () => {
+    const result = detectSlotSelection(
+      'a further 1 week from those',
+      APRIL_WEEK_SLOTS,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(localDateStr(result.requestedStartDate!)).toBe('2026-04-20');
+  });
+
+  it('does not trigger on plain "further date" (no week number)', () => {
+    const result = detectSlotSelection('further date please', APRIL_WEEK_SLOTS);
+    expect(result.intent).toBe('FURTHER_DATE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Garbled input tolerance — keywords buried in junk characters
+// ---------------------------------------------------------------------------
+describe('garbled input tolerance', () => {
+  it('detects "this week" in "this weekqaq"', () => {
+    const result = detectSlotSelection('this weekqaq', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('detects "today" in "ADSJHatodaysdjhbkasd"', () => {
+    const result = detectSlotSelection('ADSJHatodaysdjhbkasd', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('detects "week" in "adfjjbdfjbweekfdasfbdkbd"', () => {
+    // "week" alone doesn't trigger a date range, but the cleaning shouldn't break
+    const result = detectSlotSelection('adfjjbdfjbweekfdasfbdkbd', THREE_DISTINCT_DAYS);
+    // No specific date range expected, just shouldn't crash
+    expect(result).toBeDefined();
+  });
+
+  it('detects "flexible" in "jkadflexiblehjksd"', () => {
+    // "flexible" is not a date range keyword for detectDifferentDate,
+    // but the cleaning should handle it without breaking
+    const result = detectSlotSelection('jkadflexiblehjksd', THREE_DISTINCT_DAYS);
+    expect(result).toBeDefined();
+  });
+
+  it('preserves "weeks" in "2 weeks from next week"', () => {
+    const result = detectSlotSelection('it has to be 2 weeks from next week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+});

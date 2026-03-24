@@ -3,7 +3,8 @@
  *
  * Covers all routing branches: missing location.id, unknown clinic, inactive clinic,
  * ContactCreate, InboundMessage, unrecognised event type, and database errors.
- * ClinicsService is mocked so no database connection is required.
+ * ClinicsService and OrchestratorService are mocked so no database connection or
+ * AI calls are required.
  *
  * Test payloads match GHL's actual standard data format:
  *   - Location ID is nested as location.id
@@ -14,6 +15,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service';
 import { ClinicsService } from '../clinics/clinics.service';
+import { OrchestratorService } from '../orchestrator/orchestrator.service';
 
 /** Minimal mock clinic document representing an active clinic. */
 const mockActiveClinic = {
@@ -21,6 +23,8 @@ const mockActiveClinic = {
   name: 'Cardiff Physiotherapy Centre',
   ghlLocationId: 'loc_cardiff_001',
   isActive: true,
+  aiConfig: { tone: 'friendly', greetingTemplate: '', customInstructions: '' },
+  serviceAreas: [],
 };
 
 /** Minimal mock clinic document representing an inactive clinic. */
@@ -32,16 +36,23 @@ const cardiffLocation = { id: 'loc_cardiff_001', name: 'Cardiff Physio' };
 describe('WebhooksService', () => {
   let service: WebhooksService;
   let clinicsService: { findByGhlLocationId: jest.Mock };
+  let orchestratorService: { handleNewLead: jest.Mock; handleInboundMessage: jest.Mock };
 
   beforeEach(async () => {
     clinicsService = {
       findByGhlLocationId: jest.fn().mockResolvedValue(mockActiveClinic),
     };
 
+    orchestratorService = {
+      handleNewLead: jest.fn().mockResolvedValue(undefined),
+      handleInboundMessage: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WebhooksService,
         { provide: ClinicsService, useValue: clinicsService },
+        { provide: OrchestratorService, useValue: orchestratorService },
       ],
     }).compile();
 
@@ -136,6 +147,17 @@ describe('WebhooksService', () => {
       );
     });
 
+    it('should call orchestratorService.handleNewLead for a ContactCreate event', async () => {
+      await service.handleGhlWebhook({
+        type: 'ContactCreate',
+        location: cardiffLocation,
+        first_name: 'Jane',
+        last_name: 'Doe',
+      });
+
+      expect(orchestratorService.handleNewLead).toHaveBeenCalledTimes(1);
+    });
+
     it('should log "Routing message to clinic" for an InboundMessage event', async () => {
       const logSpy = jest.spyOn(Logger.prototype, 'log');
 
@@ -150,6 +172,18 @@ describe('WebhooksService', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('Routing message to clinic: Cardiff Physiotherapy Centre'),
       );
+    });
+
+    it('should call orchestratorService.handleInboundMessage for an InboundMessage event', async () => {
+      await service.handleGhlWebhook({
+        type: 'InboundMessage',
+        location: cardiffLocation,
+        id: 'contact_abc123',
+        conversationId: 'conv_xyz789',
+        message: { body: 'I need an appointment please' },
+      });
+
+      expect(orchestratorService.handleInboundMessage).toHaveBeenCalledTimes(1);
     });
 
     it('should warn for an unrecognised event type and still return 200', async () => {
@@ -180,6 +214,22 @@ describe('WebhooksService', () => {
       expect(result).toEqual({ success: true });
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('DB connection lost'),
+        expect.anything(),
+      );
+    });
+
+    it('should return 200 and log the error when orchestratorService throws', async () => {
+      orchestratorService.handleNewLead.mockRejectedValue(new Error('Orchestrator error'));
+      const errorSpy = jest.spyOn(Logger.prototype, 'error');
+
+      const result = await service.handleGhlWebhook({
+        type: 'ContactCreate',
+        location: cardiffLocation,
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Orchestrator error'),
         expect.anything(),
       );
     });
