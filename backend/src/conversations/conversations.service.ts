@@ -12,6 +12,7 @@ import { selectSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/sl
 import { buildContextFromDb } from './context-builder';
 import { detectSlotSelection, SlotSelectionResult } from '../ai/slot-selector';
 import { AppointmentsService, BookingResult } from '../appointments/appointments.service';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -59,6 +60,7 @@ export class ConversationsService {
     private readonly chatService: ChatService,
     private readonly slotProvider: SlotProvider,
     private readonly appointmentsService: AppointmentsService,
+    private readonly abuseHandler: AbuseHandlerService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -110,6 +112,15 @@ export class ConversationsService {
 
     await this.saveMessage(conversation, clinic, lead, 'lead', userMessage);
 
+    const abuseHandled = await this.abuseHandler.handle(
+      conversation, clinic, lead, userMessage,
+    );
+    if (abuseHandled) {
+      // If the lead accepted the human offer, signal to the caller so the
+      // US-20 escalation service can take over (phase change, GHL tags, etc.)
+      return abuseHandled;
+    }
+    
     const history: ChatMessage[] = [
       ...messages.map(m => ({
         role: m.sender === 'ai' ? 'assistant' as const : 'user' as const,
@@ -215,6 +226,7 @@ export class ConversationsService {
     await this.messageModel.deleteMany({ conversationId: conversation._id });
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       phase: 'greeting', messageCount: 0, offeredSlots: [],
+        directedHostilityCount: 0, abuseOfferPending: false, 
       lastMessageAt: null, lastMessageFrom: null,
     });
   }

@@ -8,6 +8,8 @@ import { AiModule } from '../ai/ai.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
+import { AbuseHandlerService } from './abuse-handler.service';
+import { AbuseDetectionService } from './abuse-detection.service';
 
 
 @Module({
@@ -22,7 +24,7 @@ import { ConversationsService } from './conversations.service';
     AppointmentsModule,
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService],
+  providers: [ConversationsService, AbuseHandlerService, AbuseDetectionService],
   exports: [ConversationsService],
 })
 export class ConversationsModule {
