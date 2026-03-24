@@ -14,6 +14,7 @@ import { GroqService } from '../ai/groq.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { PostcodeValidationService } from './postcode-validation.service';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -33,6 +34,7 @@ describe('OrchestratorService — detectIntent', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        PostcodeValidationService,
       ],
     }).compile();
 
@@ -124,6 +126,24 @@ describe('OrchestratorService — detectIntent', () => {
 
     it('should NOT detect booking intent when the phase is greeting', () => {
       expect(service.detectIntent('book me in', 'greeting').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('INVALID_POSTCODE_FORMAT', () => {
+    it('should return INVALID_POSTCODE_FORMAT for a numeric-only string (12345) in qualifying phase', () => {
+      expect(service.detectIntent('12345', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return INVALID_POSTCODE_FORMAT for a short alphanumeric string with digit (AB12) in qualifying phase', () => {
+      expect(service.detectIntent('AB12', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return UNKNOWN for an invalid-format attempt outside the qualifying phase', () => {
+      expect(service.detectIntent('12345', 'greeting').intent).toBe('UNKNOWN');
+    });
+
+    it('should return UNKNOWN for a plain word with no digits (hello)', () => {
+      expect(service.detectIntent('hello', 'qualifying').intent).toBe('UNKNOWN');
     });
   });
 
