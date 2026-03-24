@@ -102,10 +102,18 @@ interface DateDetectionResult {
   endDate?: Date;
 }
 
-/** Word-to-number map for week offset parsing */
+/** Word-to-number map for week/month offset parsing */
 const WORD_TO_NUM: Record<string, number> = {
-  one: 1, two: 2, three: 3, four: 4,
-  '1': 1, '2': 2, '3': 3, '4': 4,
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+  '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+};
+
+/** Month names for detecting "in April", "sometime in June" etc. */
+const MONTH_NAMES: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+  jan: 0, feb: 1, mar: 2, apr: 3, jun: 5,
+  jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
 };
 
 /** Phrases that indicate a future date range, mapped to a resolver function */
@@ -171,6 +179,24 @@ const DATE_RANGE_PATTERNS: { pattern: RegExp; resolve: () => { start: Date; end:
       return { start: tomorrow, end };
     },
   },
+  {
+    pattern: /\b(?:next\s+month)\b/i,
+    resolve: () => {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+      return { start, end };
+    },
+  },
+  {
+    pattern: /\b(?:this\s+month)\b/i,
+    resolve: () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      return { start: today, end };
+    },
+  },
 ];
 
 /**
@@ -186,11 +212,14 @@ const DATE_RANGE_PATTERNS: { pattern: RegExp; resolve: () => { start: Date; end:
 const DATE_KEYWORDS = [
   'as soon as possible', 'two weeks from now',
   'in two weeks', 'in 2 weeks', 'right away',
-  'this week', 'next week', 'same-day', 'same day',
+  'this week', 'next week', 'next month', 'this month',
+  'same-day', 'same day',
   'tomorrow', 'flexible', 'wednesday', 'thursday',
   'saturday', 'tuesday', 'friday', 'sunday', 'monday',
+  'september', 'february', 'november', 'december', 'january',
+  'october', 'august', 'march', 'april', 'june', 'july',
   'morning', 'afternoon', 'evening',
-  'urgent', 'today', 'weeks', 'asap', 'week',
+  'urgent', 'today', 'weeks', 'asap', 'week', 'month',
 ].sort((a, b) => b.length - a.length);
 
 /** Returns true if the character is a letter */
@@ -272,6 +301,123 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
     }
   }
 
+  // Check for "the first/second/third/fourth/last week of [month]" phrases
+  const weekOfMonthPattern = /\b(?:the\s+)?(first|second|third|fourth|last|1st|2nd|3rd|4th)\s+week\s+of\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\b/i;
+  const weekOfMonthMatch = msg.match(weekOfMonthPattern);
+  if (weekOfMonthMatch) {
+    const weekWord = weekOfMonthMatch[1].toLowerCase();
+    const monthIdx = MONTH_NAMES[weekOfMonthMatch[2].toLowerCase()];
+    if (monthIdx !== undefined) {
+      const weekMap: Record<string, number> = {
+        first: 0, '1st': 0, second: 1, '2nd': 1,
+        third: 2, '3rd': 2, fourth: 3, '4th': 3, last: -1,
+      };
+      const weekNum = weekMap[weekWord];
+      const today = new Date();
+      let year = today.getFullYear();
+      if (monthIdx < today.getMonth() || (monthIdx === today.getMonth() && today.getDate() > 28)) {
+        year++;
+      }
+      let start: Date;
+      if (weekNum === -1) {
+        // Last week: go to the last day of the month and back up to the Monday
+        const lastDay = new Date(year, monthIdx + 1, 0);
+        const dayOfWeek = lastDay.getDay();
+        const daysBackToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        start = new Date(lastDay);
+        start.setDate(lastDay.getDate() - daysBackToMonday);
+      } else {
+        // First day of month, find the first Monday, then offset by weekNum weeks
+        const firstOfMonth = new Date(year, monthIdx, 1);
+        const dayOfWeek = firstOfMonth.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
+        start = new Date(firstOfMonth);
+        start.setDate(firstOfMonth.getDate() + daysToMonday + weekNum * 7);
+        // For "first week", if Monday is after the 1st, include days from the 1st
+        if (weekNum === 0 && daysToMonday > 0) {
+          start = firstOfMonth;
+        }
+      }
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      return { startDate: start, endDate: end };
+    }
+  }
+
+  // Check for "the first/second/third/fourth/last week" without a month name
+  // Uses the most recently discussed month context (from previously offered slots)
+  const weekOnlyPattern = /\b(?:the\s+)?(first|second|third|fourth|last|1st|2nd|3rd|4th)\s+week\b/i;
+  const weekOnlyMatch = msg.match(weekOnlyPattern);
+  // Only trigger if the message does NOT contain a month name (otherwise the pattern above handles it)
+  if (weekOnlyMatch && !weekOfMonthMatch) {
+    // Ignore if it looks like a relative phrase (e.g. "first week of next month")
+    if (!/week\s+of\s+next/i.test(msg)) {
+      const weekWord = weekOnlyMatch[1].toLowerCase();
+      const weekMap: Record<string, number> = {
+        first: 0, '1st': 0, second: 1, '2nd': 1,
+        third: 2, '3rd': 2, fourth: 3, '4th': 3, last: -1,
+      };
+      const weekNum = weekMap[weekWord];
+      // Default to next month if no context
+      const today = new Date();
+      const monthIdx = today.getMonth() + 1;
+      const year = monthIdx > 11 ? today.getFullYear() + 1 : today.getFullYear();
+      const actualMonth = monthIdx > 11 ? 0 : monthIdx;
+      let start: Date;
+      if (weekNum === -1) {
+        const lastDay = new Date(year, actualMonth + 1, 0);
+        const dayOfWeek = lastDay.getDay();
+        const daysBackToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        start = new Date(lastDay);
+        start.setDate(lastDay.getDate() - daysBackToMonday);
+      } else {
+        const firstOfMonth = new Date(year, actualMonth, 1);
+        const dayOfWeek = firstOfMonth.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
+        start = new Date(firstOfMonth);
+        start.setDate(firstOfMonth.getDate() + daysToMonday + weekNum * 7);
+        if (weekNum === 0 && daysToMonday > 0) {
+          start = firstOfMonth;
+        }
+      }
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      return { startDate: start, endDate: end };
+    }
+  }
+
+  // Check for "in N months" phrases (e.g. "in 2 months", "in three months")
+  const inMonthsMatch = msg.match(/\bin\s+(\d+|one|two|three|four|five|six)\s+months?\b/i);
+  if (inMonthsMatch) {
+    const n = WORD_TO_NUM[inMonthsMatch[1].toLowerCase()] ?? parseInt(inMonthsMatch[1], 10);
+    if (n > 0 && n <= 6) {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth() + n, 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + n + 1, 1);
+      return { startDate: start, endDate: end };
+    }
+  }
+
+  // Check for month name references (e.g. "in April", "sometime in June", "April")
+  const monthNamePattern = /\b(?:in\s+|sometime\s+in\s+|during\s+)?(?:the\s+month\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\b/i;
+  const monthNameMatch = msg.match(monthNamePattern);
+  if (monthNameMatch) {
+    const monthIdx = MONTH_NAMES[monthNameMatch[1].toLowerCase()];
+    if (monthIdx !== undefined) {
+      const today = new Date();
+      let year = today.getFullYear();
+      // If the month has passed this year, use next year
+      if (monthIdx < today.getMonth() || (monthIdx === today.getMonth() && today.getDate() > 28)) {
+        year++;
+      }
+      const start = new Date(year, monthIdx, 1);
+      const end = new Date(year, monthIdx + 1, 1);
+      return { startDate: start, endDate: end };
+    }
+  }
+
   // Check for specific date-of-month references (e.g. "on the 30th", "the 15th", "on 3rd", "on the 30")
   // Two patterns: with ordinal suffix (any context), or bare number only after "on"/"on the"
   // Excludes positional phrases like "the 1st one" or "the 2nd" when ≤ 3 (handled by slot selection)
@@ -284,13 +430,31 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       // Try this month first, then next month
-      const candidate = new Date(today.getFullYear(), today.getMonth(), day);
+      let candidate = new Date(today.getFullYear(), today.getMonth(), day);
+      // If the day doesn't exist in this month (e.g. 31st in a 30-day month),
+      // JavaScript rolls over to the next month — detect and skip to a valid month
+      if (candidate.getDate() !== day) {
+        candidate = new Date(today.getFullYear(), today.getMonth() + 1, day);
+      }
       if (candidate < today) {
         candidate.setMonth(candidate.getMonth() + 1);
       }
-      const end = new Date(candidate);
-      end.setDate(candidate.getDate() + 1);
-      return { startDate: candidate, endDate: end };
+      // Final validity check — if the day still doesn't exist (e.g. 31st Feb → 3rd Mar)
+      if (candidate.getDate() !== day) {
+        // Skip to the next month where this day exists (within 6 months)
+        for (let i = 0; i < 6; i++) {
+          candidate.setMonth(candidate.getMonth() + 1);
+          candidate.setDate(day);
+          if (candidate.getDate() === day) break;
+          // Reset to 1st before trying next month to avoid cascading overflow
+          candidate.setDate(1);
+        }
+      }
+      if (candidate.getDate() === day) {
+        const end = new Date(candidate);
+        end.setDate(candidate.getDate() + 1);
+        return { startDate: candidate, endDate: end };
+      }
     }
   }
 
@@ -417,7 +581,13 @@ function detectRelativeWeekShift(
 function detectPosition(message: string, totalSlots: number): number | null {
   const lower = message.toLowerCase();
   for (const [word, idx] of Object.entries(POSITIONAL_MAP)) {
-    if (lower.includes(word)) return idx === -1 ? totalSlots - 1 : idx;
+    if (!lower.includes(word)) continue;
+    // Avoid false positives: "first week of June" is a date request, not a positional pick.
+    // Check that the positional word is NOT followed by "week" or "month".
+    const pos = lower.indexOf(word);
+    const after = lower.substring(pos + word.length).trimStart();
+    if (/^week\b|^month\b/.test(after)) continue;
+    return idx === -1 ? totalSlots - 1 : idx;
   }
   return null;
 }
@@ -440,8 +610,53 @@ export function detectSlotSelection(
   if (!offeredSlots.length) return { intent: 'NONE_SUITABLE' };
   if (detectNoneSuitable(message)) return { intent: 'NONE_SUITABLE' };
 
+  // --- Early slot matching: try to match against offered slots FIRST ---
+  // This prevents "Tuesday 1st September at 10am" from being misinterpreted
+  // as a DIFFERENT_DATE (September) when it actually matches an offered slot.
+  // Only triggers when the lead mentions a day name AND/OR an explicit time (with am/pm).
+  // Bare numbers like "2" or "15" are NOT treated as times here to avoid
+  // false positives on messages like "2 weeks from next week" or "on 15".
+  const lower = message.toLowerCase();
+  const mentionedDay = DAY_NAMES.find(d => lower.includes(d.toLowerCase())) ?? null;
+  const timeMatch = message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm))\b/i);
+  const mentionedTime = timeMatch ? normaliseTime(timeMatch[1]) : null;
+
+  if (mentionedDay && mentionedTime) {
+    // Both day and explicit time — strong signal this is a slot confirmation
+    let candidates = offeredSlots.filter(
+      s => extractDayFromDisplay(s.displayText)?.toLowerCase() === mentionedDay.toLowerCase(),
+    );
+    const byTime = candidates.filter(s => extractTimeFromDisplay(s.displayText) === mentionedTime);
+    if (byTime.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byTime[0] };
+    if (byTime.length > 1) return { intent: 'AMBIGUOUS', ambiguousSlots: byTime };
+    // Day matched but time didn't — try flipping am/pm
+    const byFlipped = candidates.filter(s => extractTimeFromDisplay(s.displayText) === flipPeriod(mentionedTime));
+    if (byFlipped.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byFlipped[0] };
+    if (byFlipped.length > 1) return { intent: 'AMBIGUOUS', ambiguousSlots: byFlipped };
+  }
+
+  // Day name + date reference (e.g. "Monday 30th March") without a specific time —
+  // if the day matches offered slots, return them as AMBIGUOUS so the AI asks which time.
+  // This prevents "starting on Monday 30th March" from being misinterpreted as DIFFERENT_DATE.
+  if (mentionedDay && !mentionedTime) {
+    const hasDateRef = /\d{1,2}(?:st|nd|rd|th)?\s*(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)/i.test(message);
+    if (hasDateRef) {
+      const byDay = offeredSlots.filter(
+        s => extractDayFromDisplay(s.displayText)?.toLowerCase() === mentionedDay.toLowerCase(),
+      );
+      if (byDay.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byDay[0] };
+      if (byDay.length > 1) return { intent: 'AMBIGUOUS', ambiguousSlots: byDay };
+    }
+  }
+
+  // --- Positional references ("the first one", "the 2nd") ---
+  const position = detectPosition(message, offeredSlots.length);
+  if (position !== null && position >= 0 && position < offeredSlots.length) {
+    return { intent: 'SLOT_SELECTED', selectedSlot: offeredSlots[position] };
+  }
+
+  // --- Date/range detection for when the lead wants different slots ---
   // Check for relative week-shift phrases ("a further one week from then")
-  // before the generic FURTHER_DATE check, so we can compute the correct range
   const relativeShift = detectRelativeWeekShift(message, offeredSlots);
   if (relativeShift) {
     return {
@@ -451,10 +666,9 @@ export function detectSlotSelection(
     };
   }
 
-  // Check for "further/later dates" before date range detection
-  // so "further dates this week" is caught as FURTHER_DATE
-  if (detectFurtherDate(message)) return { intent: 'FURTHER_DATE' };
-
+  // Check for date references — if the message contains both a "further/other dates"
+  // phrase AND a specific date reference (e.g. "other dates on the first week of June"),
+  // the date reference takes priority so we fetch the right range
   const dateResult = detectDifferentDate(message);
   if (dateResult) {
     return {
@@ -465,50 +679,43 @@ export function detectSlotSelection(
     };
   }
 
+  // Only check for generic "further/other dates" when no specific date was detected above
+  if (detectFurtherDate(message)) return { intent: 'FURTHER_DATE' };
+
   const timePreference = detectDifferentTime(message);
   if (timePreference) return { intent: 'DIFFERENT_TIME', timePreference };
 
-  const position = detectPosition(message, offeredSlots.length);
-  if (position !== null && position >= 0 && position < offeredSlots.length) {
-    return { intent: 'SLOT_SELECTED', selectedSlot: offeredSlots[position] };
-  }
+  // --- Late slot matching: day-only, time-only, or bare number matching ---
+  // This handles "Tuesday please", "The 4pm one", "9", "3:20" etc.
+  const lateTimeMatch = message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm)?)\b/i);
+  const lateTime = lateTimeMatch ? normaliseTime(lateTimeMatch[1]) : null;
+  const lateHasExplicitPeriod = lateTimeMatch ? /(?:am|pm)/i.test(lateTimeMatch[1]) : false;
 
-  // Day and/or time keyword matching against offered slots
-  const lower = message.toLowerCase();
-  const mentionedDay = DAY_NAMES.find(d => lower.includes(d.toLowerCase())) ?? null;
-  const timeMatch = message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm)?)\b/i);
-  const mentionedTime = timeMatch ? normaliseTime(timeMatch[1]) : null;
-  const hasExplicitPeriod = timeMatch ? /(?:am|pm)/i.test(timeMatch[1]) : false;
-
-  let candidates = [...offeredSlots];
+  // Day-only matching (e.g. "Tuesday please")
   if (mentionedDay) {
-    candidates = candidates.filter(
+    const byDay = offeredSlots.filter(
       s => extractDayFromDisplay(s.displayText)?.toLowerCase() === mentionedDay.toLowerCase(),
     );
-  }
-  if (mentionedTime && candidates.length > 0) {
-    const byTime = candidates.filter(s => extractTimeFromDisplay(s.displayText) === mentionedTime);
-    if (byTime.length > 0) {
-      candidates = byTime;
-    } else if (!hasExplicitPeriod) {
-      const byFlipped = candidates.filter(s => extractTimeFromDisplay(s.displayText) === flipPeriod(mentionedTime));
-      if (byFlipped.length > 0) candidates = byFlipped;
+    if (lateTime && byDay.length > 0) {
+      const byDayTime = byDay.filter(s => extractTimeFromDisplay(s.displayText) === lateTime);
+      if (byDayTime.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byDayTime[0] };
+      if (byDayTime.length > 1) return { intent: 'AMBIGUOUS', ambiguousSlots: byDayTime };
     }
+    if (byDay.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byDay[0] };
+    if (byDay.length > 1) return { intent: 'AMBIGUOUS', ambiguousSlots: byDay };
   }
-  if (candidates.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: candidates[0] };
-  if (candidates.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: candidates };
 
   // Time-only fallback when no day was mentioned
-  if (mentionedTime) {
+  if (lateTime) {
     const byTimeOnly = offeredSlots.filter(
-      s => extractTimeFromDisplay(s.displayText) === mentionedTime,
+      s => extractTimeFromDisplay(s.displayText) === lateTime,
     );
     if (byTimeOnly.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byTimeOnly[0] };
     if (byTimeOnly.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: byTimeOnly };
 
-    if (!hasExplicitPeriod) {
+    if (!lateHasExplicitPeriod) {
       const byFlipped = offeredSlots.filter(
-        s => extractTimeFromDisplay(s.displayText) === flipPeriod(mentionedTime),
+        s => extractTimeFromDisplay(s.displayText) === flipPeriod(lateTime),
       );
       if (byFlipped.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byFlipped[0] };
       if (byFlipped.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: byFlipped };

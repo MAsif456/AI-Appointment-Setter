@@ -45,7 +45,7 @@ describe('SlotProvider', () => {
     expect(startDate).toBeInstanceOf(Date);
     expect(endDate).toBeInstanceOf(Date);
 
-    // End date should be ~31 days after start date
+    // End date should be ~31 days after start date (default fetch window)
     const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
     expect(diffDays).toBeCloseTo(31, 0);
   });

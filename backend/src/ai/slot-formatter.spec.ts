@@ -141,7 +141,7 @@ describe('buildSlotPromptSection', () => {
   it('should include "fully booked" message when no slots available', () => {
     const result = buildSlotPromptSection([], 'routine');
     expect(result).toContain('fully booked');
-    expect(result).toContain('alternative date');
+    expect(result).toContain('different day');
   });
 
   it('should include formatted slot times for multiple slots', () => {

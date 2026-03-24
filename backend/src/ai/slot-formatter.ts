@@ -98,10 +98,17 @@ export function selectSlots(
   }
 
   if (urgency === 'flexible' && uniqueDays.length >= 3) {
-    // Pick slots spread across the range: early, middle, and late day
-    const earlyDay = uniqueDays[0];
-    const midDay = uniqueDays[Math.floor(uniqueDays.length / 2)];
-    const lateDay = uniqueDays[uniqueDays.length - 1];
+    // Cap the spread to 28 days (4 weeks) from the first available day
+    // so that options feel relevant rather than spanning months apart
+    const firstDate = new Date(uniqueDays[0]);
+    const maxDate = new Date(firstDate);
+    maxDate.setDate(firstDate.getDate() + 28);
+    const cappedDays = uniqueDays.filter(d => new Date(d) <= maxDate);
+    const spreadDays = cappedDays.length >= 3 ? cappedDays : uniqueDays.slice(0, Math.min(uniqueDays.length, 10));
+
+    const earlyDay = spreadDays[0];
+    const midDay = spreadDays[Math.floor(spreadDays.length / 2)];
+    const lateDay = spreadDays[spreadDays.length - 1];
 
     const pickFromDay = (day: string): Slot => {
       const daySlots = sorted.filter(s => s.date === day);
@@ -163,10 +170,10 @@ export function buildSlotPromptSection(
   if (slots.length === 0) {
     return [
       '=== AVAILABLE SLOTS ===',
-      'No slots are currently available.',
-      'Tell the lead: "We\'re fully booked on that date.',
-      'Would you like me to check a different day?"',
-      'Ask for an alternative date preference.',
+      'No slots are currently available for the requested date.',
+      'Tell the lead we are fully booked on that date.',
+      'Ask if they would like to try a different day, a different week, or a specific month.',
+      'We can book appointments up to 6 months in advance.',
     ].join('\n');
   }
 

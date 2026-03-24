@@ -24,18 +24,42 @@ async function buildSlotContext(
   selectionResult: SlotSelectionResult | null,
 ): Promise<{ selected: Slot[]; slotSection: string }> {
   // When the lead requested a specific date range, pass it to the provider
-  const requestedStart = selectionResult?.requestedStartDate
+  let requestedStart = selectionResult?.requestedStartDate
     ? new Date(selectionResult.requestedStartDate)
     : undefined;
-  const requestedEnd = selectionResult?.requestedEndDate
+  let requestedEnd = selectionResult?.requestedEndDate
     ? new Date(selectionResult.requestedEndDate)
     : undefined;
+
+  // For FURTHER_DATE, search backwards from the 6-month booking window until
+  // we find a month with actual GHL availability. GHL only allows ~31-day query
+  // windows, so we check month-by-month starting from the furthest out.
+  if (selectionResult?.intent === 'FURTHER_DATE' && !requestedStart) {
+    const now = new Date();
+    let furthestSlots: Slot[] = [];
+    // Try months 5, 4, 3, 2, 1 ahead — stop as soon as we find slots
+    for (let offset = 5; offset >= 1; offset--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+      const found = await provider.getAvailableSlots(clinicId, monthStart, monthEnd);
+      if (found.length > 0) {
+        furthestSlots = found;
+        break;
+      }
+    }
+    if (furthestSlots.length > 0) {
+      const selected = selectLatestSlots(furthestSlots);
+      return { selected, slotSection: buildSlotPromptSection(selected, urgency) };
+    }
+    // If nothing found in months 1-5 ahead, fall through to the default 31-day fetch
+  }
 
   const allSlots = await provider.getAvailableSlots(clinicId, requestedStart, requestedEnd);
   let slots: Slot[];
 
   if (selectionResult?.intent === 'FURTHER_DATE') {
-    // Lead wants later/furthest dates — pick from the end of the range
+    // Fallback: if the backward search above didn't return early,
+    // pick latest from whatever the default range returned
     slots = selectLatestSlots(allSlots);
   } else if (selectionResult?.intent === 'DIFFERENT_DATE' && selectionResult.requestedDate) {
     // Lead asked for a specific day name — filter by that day
@@ -158,15 +182,24 @@ export class ConversationsService {
         this.logger.error('Slot detection failed, continuing without selection', error);
       }
     } else {
-      // No slots offered yet — still detect date-range preferences
-      // (e.g. "this week", "next week") so the first slot fetch is filtered
-      const dateRange = detectDateRangePreference(userMessage);
-      if (dateRange) {
-        selectionResult = {
-          intent: 'DIFFERENT_DATE',
-          requestedStartDate: dateRange.startDate,
-          requestedEndDate: dateRange.endDate,
-        };
+      // No slots offered yet — detect date-range preferences and furthest-date requests
+      // so the first slot fetch is filtered appropriately
+      const furtherPhrases = [
+        'furthest date', 'furthest available', 'latest date', 'latest available',
+        'further date', 'further dates', 'furthest', 'latest',
+      ];
+      const lowerMsg = userMessage.toLowerCase();
+      if (furtherPhrases.some(p => lowerMsg.includes(p))) {
+        selectionResult = { intent: 'FURTHER_DATE' };
+      } else {
+        const dateRange = detectDateRangePreference(userMessage);
+        if (dateRange) {
+          selectionResult = {
+            intent: 'DIFFERENT_DATE',
+            requestedStartDate: dateRange.startDate,
+            requestedEndDate: dateRange.endDate,
+          };
+        }
       }
     }
 
