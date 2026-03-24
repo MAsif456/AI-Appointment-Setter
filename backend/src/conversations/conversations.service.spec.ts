@@ -5,6 +5,8 @@ import { ConversationsService } from './conversations.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { UrgencyPipeline } from '../ai/urgency-pipeline';
+import { EscalationService } from '../ai/escalation.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -29,7 +31,7 @@ describe('ConversationsService', () => {
   };
 
   const mockClinicModel = { findById: jest.fn() };
-  const mockLeadModel = { findById: jest.fn() };
+  const mockLeadModel = { findById: jest.fn(), findByIdAndUpdate: jest.fn().mockResolvedValue({}) };
 
   const mockChatService = {
     startConversation: jest.fn(),
@@ -44,6 +46,24 @@ describe('ConversationsService', () => {
 
   const mockAppointmentsService = {
     bookAppointment: jest.fn(),
+  };
+
+  const mockUrgencyPipeline = {
+    assessMessage: jest.fn().mockResolvedValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    }),
+    assessFormData: jest.fn().mockReturnValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    }),
+  };
+
+  const mockEscalationService = {
+    escalateEmergency: jest.fn(),
+    handleNoSlotsForUrgent: jest.fn(),
+    notifyClinicStaff: jest.fn(),
+    updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
 
   // Shared test fixtures
@@ -85,6 +105,8 @@ describe('ConversationsService', () => {
         { provide: ChatService, useValue: mockChatService },
         { provide: SlotProvider, useValue: mockSlotProvider },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
+        { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
+        { provide: EscalationService, useValue: mockEscalationService },
       ],
     }).compile();
 
