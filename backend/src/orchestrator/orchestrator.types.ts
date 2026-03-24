@@ -41,8 +41,13 @@ export interface OrchestratorContext {
   };
 }
 
+/** Static response returned when a message looks like a postcode but is not a valid UK format. */
+export const INVALID_POSTCODE_RESPONSE =
+  "That doesn't look like a UK postcode. Could you double-check and send it again?";
+
 /** Discriminated union of all possible detected intents. */
 export type IntentResult =
   | { intent: 'PROVIDE_POSTCODE'; data: { postcode: string } }
+  | { intent: 'INVALID_POSTCODE_FORMAT' }
   | { intent: 'WANT_TO_BOOK' }
   | { intent: 'UNKNOWN' };
