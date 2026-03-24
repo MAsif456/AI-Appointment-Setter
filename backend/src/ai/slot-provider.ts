@@ -27,7 +27,7 @@ export class SlotProvider {
     requestedEnd?: Date,
   ): Promise<Slot[]> {
     try {
-      // Use the requested date range, or default to a 7-day window from today
+      // Use the requested date range, or default to a 31-day window from today
       const startDate = requestedStart ?? new Date();
       const endDate = requestedEnd ?? new Date(startDate.getTime() + 31 * 24 * 60 * 60 * 1000);
 

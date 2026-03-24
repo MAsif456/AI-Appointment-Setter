@@ -34,7 +34,7 @@ describe('SlotProvider', () => {
     expect(result[1]).toEqual({ date: '2026-03-24', startTime: '10:00', endTime: '10:30' });
   });
 
-  it('should call SlotsService with clinicId and a 7-day date range', async () => {
+  it('should call SlotsService with clinicId and a 31-day date range', async () => {
     mockSlotsService.fetchAvailableSlots.mockResolvedValue([]);
 
     await provider.getAvailableSlots('clinic_001');
@@ -45,9 +45,9 @@ describe('SlotProvider', () => {
     expect(startDate).toBeInstanceOf(Date);
     expect(endDate).toBeInstanceOf(Date);
 
-    // End date should be ~7 days after start date
+    // End date should be ~31 days after start date
     const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-    expect(diffDays).toBeCloseTo(7, 0);
+    expect(diffDays).toBeCloseTo(31, 0);
   });
 
   it('should return empty array when GHL returns empty array', async () => {
