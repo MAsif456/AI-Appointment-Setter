@@ -425,3 +425,73 @@ describe('garbled input tolerance', () => {
     expect(result.requestedStartDate).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Date-of-month references (e.g. "on the 30th", "the 15th")
+// ---------------------------------------------------------------------------
+describe('Date-of-month detection', () => {
+  it('detects "on the 30th" as DIFFERENT_DATE with a single-day range', () => {
+    const result = detectSlotSelection('I would like it on the 30th', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedEndDate).toBeDefined();
+    // The range should span exactly 1 day
+    const diffMs = result.requestedEndDate!.getTime() - result.requestedStartDate!.getTime();
+    expect(diffMs).toBe(24 * 60 * 60 * 1000);
+    // The start date should be on the 30th
+    expect(result.requestedStartDate!.getDate()).toBe(30);
+  });
+
+  it('detects "the 15th" as DIFFERENT_DATE targeting the 15th', () => {
+    const result = detectSlotSelection('the 15th', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate!.getDate()).toBe(15);
+  });
+
+  it('detects "on 4th" as DIFFERENT_DATE targeting the 4th', () => {
+    const result = detectSlotSelection('on 4th', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate!.getDate()).toBe(4);
+  });
+
+  it('picks next month if the date has already passed this month', () => {
+    // Use a date that is definitely in the past (the 1st, unless today is the 1st)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const pastDay = today.getDate() > 1 ? 1 : null;
+    if (pastDay) {
+      // We need a day >= 4 to avoid the positional exclusion
+      const testDay = Math.max(today.getDate() - 1, 4);
+      if (testDay < today.getDate()) {
+        const result = detectSlotSelection(`on the ${testDay}th`, THREE_DISTINCT_DAYS);
+        expect(result.intent).toBe('DIFFERENT_DATE');
+        expect(result.requestedStartDate!.getMonth()).toBe(today.getMonth() + 1 > 11 ? 0 : today.getMonth() + 1);
+      }
+    }
+  });
+
+  it('detects "on the 30" (no ordinal suffix) as DIFFERENT_DATE targeting the 30th', () => {
+    const result = detectSlotSelection('on the 30', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate!.getDate()).toBe(30);
+  });
+
+  it('detects "on 15" (no ordinal suffix, no "the") as DIFFERENT_DATE targeting the 15th', () => {
+    const result = detectSlotSelection('I want it on 15', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate!.getDate()).toBe(15);
+  });
+
+  it('does not treat "the 1st one" as a date-of-month reference', () => {
+    const result = detectSlotSelection('the 1st one', THREE_DISTINCT_DAYS);
+    // Should be SLOT_SELECTED (positional), not DIFFERENT_DATE
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+
+  it('does not treat "the 2nd" as a date-of-month (positional selector)', () => {
+    const result = detectSlotSelection('the 2nd', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Wednesday 25th March at 10am');
+  });
+});

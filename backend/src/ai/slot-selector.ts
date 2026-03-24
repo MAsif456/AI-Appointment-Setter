@@ -272,6 +272,28 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
     }
   }
 
+  // Check for specific date-of-month references (e.g. "on the 30th", "the 15th", "on 3rd", "on the 30")
+  // Two patterns: with ordinal suffix (any context), or bare number only after "on"/"on the"
+  // Excludes positional phrases like "the 1st one" or "the 2nd" when ≤ 3 (handled by slot selection)
+  const dateOfMonthMatch =
+    msg.match(/\b(?:on\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\b(?!\s+one)/i) ||
+    msg.match(/\bon\s+(?:the\s+)?(\d{1,2})\b/i);
+  if (dateOfMonthMatch) {
+    const day = parseInt(dateOfMonthMatch[1], 10);
+    if (day >= 4 && day <= 31) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      // Try this month first, then next month
+      const candidate = new Date(today.getFullYear(), today.getMonth(), day);
+      if (candidate < today) {
+        candidate.setMonth(candidate.getMonth() + 1);
+      }
+      const end = new Date(candidate);
+      end.setDate(candidate.getDate() + 1);
+      return { startDate: candidate, endDate: end };
+    }
+  }
+
   // Fall back to specific day name detection
   const patterns = [
     /(?:anything|available|availability|slots?)\s+on\s+(\w+)/i,
