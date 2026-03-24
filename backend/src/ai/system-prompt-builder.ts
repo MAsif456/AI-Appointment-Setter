@@ -1,6 +1,8 @@
 import { LeadInfo } from './interfaces/lead-info.interface';
 import { ClinicConfig } from './interfaces/clinic-config.interface';
 import { SlotSelectionIntent } from './slot-selector.types';
+import { UrgencyContext } from './urgency-detector.types';
+import { PROMPT_EMERGENCY, PROMPT_URGENT, PROMPT_ROUTINE } from './urgency-messages';
 
 // Tone instruction mappings for conversation style
 const TONE_INSTRUCTIONS: Record<string, string> = {
@@ -10,11 +12,7 @@ const TONE_INSTRUCTIONS: Record<string, string> = {
     'Use a formal, businesslike, and respectful tone. Be courteous and precise.',
 };
 
-/**
- * Structured context describing what the system detected about the lead's
- * slot-selection reply.  Passed alongside the slot section so the AI can
- * generate an appropriate follow-up response.
- */
+/** Context describing the lead's slot-selection reply. */
 export interface SlotSelectionContext {
   intent: SlotSelectionIntent;
   /** The slot the lead confirmed (SLOT_SELECTED only) */
@@ -27,10 +25,7 @@ export interface SlotSelectionContext {
   timePreference?: string;
 }
 
-/**
- * Options for injecting available slot context into the system prompt.
- * When provided, the AI will use these slots in its OFFER SLOT stage.
- */
+/** Options for injecting available slot context into the system prompt. */
 export interface SlotPromptOptions {
   /** Pre-built prompt section from buildSlotPromptSection() */
   slotSection: string;
@@ -39,19 +34,12 @@ export interface SlotPromptOptions {
 }
 
 
-/**
- * Builds a system prompt string for the Groq AI based on lead and clinic data.
- * The prompt instructs the AI to act as a clinic receptionist without revealing
- * that it is an AI or disclosing any model information.
- * @param leadInfo - The lead's personal details and issue
- * @param clinicConfig - The clinic's tone, name, and custom instructions
- * @param slotOptions - Optional context passed alongside a message for slot offering
- * @returns A formatted prompt string ready to send to the AI
- */
+/** Builds the system prompt for the Groq AI based on lead, clinic, and urgency data. */
 export function buildSystemPrompt(
   leadInfo: LeadInfo,
   clinicConfig: ClinicConfig,
   slotOptions?: SlotPromptOptions,
+  urgencyContext?: UrgencyContext,
 ): string {
   const tone =
     TONE_INSTRUCTIONS[clinicConfig.tone] || TONE_INSTRUCTIONS['Friendly'];
@@ -79,7 +67,7 @@ export function buildSystemPrompt(
     '- If valid, confirm and move on. If outside area, let them know politely',
     '',
     'STAGE 3 - QUALIFICATION:',
-    '- Ask about urgency (same-day, this week, or flexible)',
+    '- Do NOT ask about urgency — the system detects this automatically from context',
     '- Ask if they are a new or returning patient',
     '- Keep questions natural, not a rigid checklist',
     '',
@@ -101,6 +89,9 @@ export function buildSystemPrompt(
     '',
     // Inject available slots when provided
     slotOptions?.slotSection || '',
+    '',
+    // Inject urgency context when provided
+    ...buildUrgencyContextLines(urgencyContext),
     '',
     '=== RULES ===',
     '- Keep each response to 1-3 short sentences',
@@ -126,11 +117,22 @@ export function buildSystemPrompt(
 }
 
 /**
- * Generates the instructional lines for the SLOT SELECTION STATUS section
- * based on what the system detected about the lead's reply.
- * @param ctx - The selection context produced by detectSlotSelection()
- * @returns Array of prompt lines describing how the AI should respond
+ * Generates urgency-context lines for the system prompt.
+ * Guides the AI on how to handle the conversation based on detected urgency.
  */
+function buildUrgencyContextLines(ctx?: UrgencyContext): string[] {
+  if (!ctx || ctx.level === 'unknown') return [];
+
+  const lines = ['=== URGENCY CONTEXT ==='];
+  switch (ctx.level) {
+    case 'emergency': lines.push(...PROMPT_EMERGENCY); break;
+    case 'urgent':    lines.push(...PROMPT_URGENT);    break;
+    case 'routine':   lines.push(...PROMPT_ROUTINE);   break;
+  }
+  return lines;
+}
+
+/** Generates instructional lines for the SLOT SELECTION STATUS section. */
 function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
   switch (ctx.intent) {
     case 'SLOT_SELECTED':
