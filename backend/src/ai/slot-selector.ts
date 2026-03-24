@@ -582,9 +582,12 @@ function detectPosition(message: string, totalSlots: number): number | null {
   const lower = message.toLowerCase();
   for (const [word, idx] of Object.entries(POSITIONAL_MAP)) {
     if (!lower.includes(word)) continue;
-    // Avoid false positives: "first week of June" is a date request, not a positional pick.
-    // Check that the positional word is NOT followed by "week" or "month".
     const pos = lower.indexOf(word);
+    // Avoid false positives:
+    // - "first week of June" / "last month" → not a positional pick
+    // - "31st" containing "1st" → not a positional pick (digit before match)
+    const before = pos > 0 ? lower[pos - 1] : ' ';
+    if (/\d/.test(before)) continue; // e.g. "31st" — digit before "1st"
     const after = lower.substring(pos + word.length).trimStart();
     if (/^week\b|^month\b/.test(after)) continue;
     return idx === -1 ? totalSlots - 1 : idx;

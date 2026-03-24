@@ -495,3 +495,245 @@ describe('Date-of-month detection', () => {
     expect(result.selectedSlot?.displayText).toBe('Wednesday 25th March at 10am');
   });
 });
+
+// ---------------------------------------------------------------------------
+// normaliseTime — 24-hour bare numbers (lines 74-79)
+// ---------------------------------------------------------------------------
+describe('normaliseTime — 24-hour bare numbers', () => {
+  it('matches bare "14" to a 2pm slot', () => {
+    const slots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T14:00:00', displayText: 'Tuesday 24th March at 2pm' },
+    ];
+    const result = detectSlotSelection('14', slots);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// flipPeriod — am→pm and pm→am (lines 84-86)
+// ---------------------------------------------------------------------------
+describe('flipPeriod — am/pm flipping', () => {
+  it('flips "2pm" to "2am" when no exact match and selects via flipped period', () => {
+    const slots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T02:00:00', displayText: 'Tuesday 24th March at 2am' },
+      { dateTime: '2026-03-25T10:00:00', displayText: 'Wednesday 25th March at 10am' },
+    ];
+    // User says "Tuesday at 2pm" but only 2am exists — early matching flips and finds it
+    const result = detectSlotSelection('Tuesday at 2pm', slots);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2am');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DATE_RANGE_PATTERNS — "in two weeks", "tomorrow", "next month", "this month"
+// (lines 162-197)
+// ---------------------------------------------------------------------------
+describe('DATE_RANGE_PATTERNS coverage', () => {
+  it('detects "in two weeks" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('how about in two weeks?', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('detects "tomorrow" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('can I come in tomorrow?', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    expect(result.requestedStartDate!.getDate()).toBe(tomorrow.getDate());
+  });
+
+  it('detects "next month" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('next month please', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    const nextMonth = new Date();
+    expect(result.requestedStartDate!.getMonth()).toBe(nextMonth.getMonth() + 1);
+  });
+
+  it('detects "this month" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('anything this month?', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getMonth()).toBe(new Date().getMonth());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Week-of-month detection (lines 308-344)
+// ---------------------------------------------------------------------------
+describe('week-of-month detection', () => {
+  it('detects "first week of June" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('first week of June', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getMonth()).toBe(5); // June = 5
+  });
+
+  it('detects "last week of April" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('last week of April', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getMonth()).toBe(3); // April = 3
+  });
+
+  it('detects "second week of May" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('second week of May', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getMonth()).toBe(4); // May = 4
+  });
+
+  it('detects "3rd week of July" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('3rd week of July', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getMonth()).toBe(6); // July = 6
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Week-only detection without month name (lines 355-387)
+// ---------------------------------------------------------------------------
+describe('week-only detection (no month name)', () => {
+  it('detects "the first week" as DIFFERENT_DATE defaulting to next month', () => {
+    const result = detectSlotSelection('the first week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('detects "the last week" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('the last week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('detects "fourth week" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('fourth week', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// "in N months" detection (lines 394-399)
+// ---------------------------------------------------------------------------
+describe('in N months detection', () => {
+  it('detects "in 2 months" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('in 2 months', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    const expected = new Date();
+    expect(result.requestedStartDate!.getMonth()).toBe(expected.getMonth() + 2);
+  });
+
+  it('detects "in three months" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('in three months', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Month name detection (lines 407-417)
+// ---------------------------------------------------------------------------
+describe('month name detection', () => {
+  it('detects "in April" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('anything in April?', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getMonth()).toBe(3); // April = 3
+  });
+
+  it('detects "sometime in June" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('sometime in June', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate!.getMonth()).toBe(5); // June = 5
+  });
+
+  it('detects abbreviated month "Jul" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('how about Jul?', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate!.getMonth()).toBe(6); // July = 6
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Invalid date-of-month rollover (lines 437, 445-450)
+// ---------------------------------------------------------------------------
+describe('date-of-month invalid day rollover', () => {
+  it('handles "on the 31st" by finding next month with 31 days', () => {
+    const result = detectSlotSelection('on the 31st', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    expect(result.requestedStartDate!.getDate()).toBe(31);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Day+date matching against offered slots (lines 644-648)
+// ---------------------------------------------------------------------------
+describe('day name + date reference matching offered slots', () => {
+  it('"starting on Tuesday 24th March" matches offered Tuesday slots as AMBIGUOUS', () => {
+    const result = detectSlotSelection('starting on Tuesday 24th March', TWO_TUESDAY_SLOTS);
+    expect(result.intent).toBe('AMBIGUOUS');
+    expect(result.ambiguousSlots).toHaveLength(2);
+  });
+
+  it('"Monday 30th March" with single Monday slot returns SLOT_SELECTED', () => {
+    const mondaySlots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-30T10:30:00', displayText: 'Monday 30th March at 10:30am' },
+      { dateTime: '2026-03-31T13:20:00', displayText: 'Tuesday 31st March at 1:20pm' },
+    ];
+    const result = detectSlotSelection('Monday 30th March', mondaySlots);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Monday 30th March at 10:30am');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectPosition skips "week"/"month" (lines 593-596)
+// ---------------------------------------------------------------------------
+describe('detectPosition skips week/month phrases', () => {
+  it('"first week of August" does NOT select the first slot', () => {
+    const result = detectSlotSelection('first week of August', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    // Should detect as week-of-month, not positional
+  });
+
+  it('"last month" does NOT select the last slot', () => {
+    const result = detectSlotSelection('last month', THREE_DISTINCT_DAYS);
+    // Should not be SLOT_SELECTED via positional "last"
+    expect(result.intent).not.toBe('SLOT_SELECTED');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Late slot matching — day+time in late block (lines 700-702)
+// ---------------------------------------------------------------------------
+describe('late slot matching — day with implicit time', () => {
+  it('"Tuesday 2" matches Tuesday at 2pm via late matching', () => {
+    const result = detectSlotSelection('Tuesday 2', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Time-only flipped period AMBIGUOUS (line 721)
+// ---------------------------------------------------------------------------
+describe('flipped period AMBIGUOUS in late matching', () => {
+  it('returns AMBIGUOUS when flipped time matches multiple slots', () => {
+    const slots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T02:00:00', displayText: 'Tuesday 24th March at 2am' },
+      { dateTime: '2026-03-25T02:00:00', displayText: 'Wednesday 25th March at 2am' },
+    ];
+    // User says "2pm" but only 2am slots exist — flip finds two
+    const result = detectSlotSelection('2pm', slots);
+    expect(result.intent).toBe('AMBIGUOUS');
+    expect(result.ambiguousSlots).toHaveLength(2);
+  });
+});
