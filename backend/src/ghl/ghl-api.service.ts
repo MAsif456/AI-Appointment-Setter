@@ -3,14 +3,18 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { lastValueFrom } from 'rxjs';
 import { SendMessageDto } from './dto/send-message.dto';
+import { CircuitBreaker } from './circuit-breaker';
 
 @Injectable()
 export class GhlApiService {
   private readonly logger = new Logger(GhlApiService.name);
   private readonly maxRetries = 3;
+  private readonly appointmentCircuitBreaker: CircuitBreaker;
 
   /**
    * Constructs a GhlApiService instance.
+   * Initialises a circuit breaker for appointment creation calls to protect
+   * against cascading failures when the GHL API is unresponsive.
    *
    * @param {HttpService} httpService - The HTTP service to use for making requests.
    * @param {ConfigService} configService - The ConfigService to use for getting configuration values.
@@ -18,7 +22,13 @@ export class GhlApiService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.appointmentCircuitBreaker = new CircuitBreaker({
+      failureThreshold: 3,
+      resetTimeoutMs: 30_000,
+      name: 'GHL-Appointments',
+    });
+  }
 
   /**
    * Gets the HTTP headers required for making requests to the GHL API.
@@ -116,5 +126,41 @@ export class GhlApiService {
       ),
     );
     return data;
+  }
+
+  /**
+   * Creates an appointment in the GHL Calendar.
+   *
+   * @param {string} calendarId - The GHL calendar ID.
+   * @param {string} locationId - The GHL location ID.
+   * @param {string} contactId - The GHL contact ID.
+   * @param {string} startTime - ISO 8601 start time.
+   * @param {string} endTime - ISO 8601 end time.
+   * @returns {Promise<any>} - The created appointment data from GHL.
+   */
+  async createAppointment(
+    calendarId: string,
+    locationId: string,
+    contactId: string,
+    startTime: string,
+    endTime: string,
+  ): Promise<any> {
+    return this.appointmentCircuitBreaker.execute(async () => {
+      const { data } = await lastValueFrom(
+        this.httpService.post(
+          '/calendars/events/appointments',
+          {
+            calendarId,
+            locationId,
+            contactId,
+            startTime,
+            endTime,
+            appointmentStatus: 'confirmed',
+          },
+          { headers: this.getHeaders() },
+        ),
+      );
+      return data;
+    });
   }
 }

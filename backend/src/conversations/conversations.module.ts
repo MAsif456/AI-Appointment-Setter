@@ -5,6 +5,7 @@ import { Message, MessageSchema } from '../database/schemas/message.schema';
 import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import { AiModule } from '../ai/ai.module';
+import { AppointmentsModule } from '../appointments/appointments.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 
@@ -18,6 +19,7 @@ import { ConversationsService } from './conversations.service';
       { name: Lead.name, schema: LeadSchema },
     ]),
     AiModule,
+    AppointmentsModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService],
