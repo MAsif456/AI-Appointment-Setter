@@ -10,7 +10,7 @@ import { SlotProvider } from '../ai/slot-provider';
 import { Slot } from '../ai/interfaces/slot.interface';
 import { selectSlots, selectLatestSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/slot-formatter';
 import { buildContextFromDb } from './context-builder';
-import { detectSlotSelection, SlotSelectionResult } from '../ai/slot-selector';
+import { detectSlotSelection, detectDateRangePreference, SlotSelectionResult } from '../ai/slot-selector';
 import { AppointmentsService, BookingResult } from '../appointments/appointments.service';
 
 /** Day names indexed by Date.getDay() */
@@ -157,6 +157,17 @@ export class ConversationsService {
       } catch (error) {
         this.logger.error('Slot detection failed, continuing without selection', error);
       }
+    } else {
+      // No slots offered yet — still detect date-range preferences
+      // (e.g. "this week", "next week") so the first slot fetch is filtered
+      const dateRange = detectDateRangePreference(userMessage);
+      if (dateRange) {
+        selectionResult = {
+          intent: 'DIFFERENT_DATE',
+          requestedStartDate: dateRange.startDate,
+          requestedEndDate: dateRange.endDate,
+        };
+      }
     }
 
     // If the lead confirmed a slot, book the appointment automatically
@@ -167,11 +178,16 @@ export class ConversationsService {
       );
     }
 
-    // When the lead has selected a slot, keep the previously offered slots
-    // instead of re-fetching — avoids the AI contradicting its earlier offer.
+    // When the lead has selected a slot or their reply is ambiguous (e.g.
+    // answering a qualification question like "new"/"returning"), keep the
+    // previously offered slots instead of re-fetching from the default
+    // 31-day range — avoids the AI contradicting its earlier date-filtered offer.
+    const keepExistingSlots =
+      selectionResult?.intent === 'SLOT_SELECTED' ||
+      selectionResult?.intent === 'AMBIGUOUS';
     let selected: Slot[];
     let slotSection: string;
-    if (selectionResult?.intent === 'SLOT_SELECTED' && conversation.offeredSlots?.length > 0) {
+    if (keepExistingSlots && conversation.offeredSlots?.length > 0) {
       selected = conversation.offeredSlots.map((s: any) => {
         const dt = new Date(s.dateTime);
         return {

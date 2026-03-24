@@ -79,20 +79,25 @@ export function buildSystemPrompt(
     '- If valid, confirm and move on. If outside area, let them know politely',
     '',
     'STAGE 3 - QUALIFICATION:',
-    '- Ask about urgency (same-day, this week, or flexible)',
-    '- Ask if they are a new or returning patient',
+    '- Ask about urgency — offer all three options: same-day, this week, or flexible',
+    '- Do NOT ask if they are a new or returning patient',
     '- Keep questions natural, not a rigid checklist',
+    '- IMPORTANT: If the lead has already stated when they want to come in (e.g. "same day", "this week", "next week", "tomorrow"),',
+    '  do NOT ask about urgency again. Skip straight to STAGE 4 and offer appointment slots.',
     '',
     'STAGE 4 - OFFER SLOT:',
     '- Use the AVAILABLE SLOTS section below to offer real times',
     '- Present slots in natural British English (e.g. "Tuesday 17th March at 2pm")',
     '- Offer a maximum of 3 slots, prioritised by urgency',
     '- If no slots available, ask the lead for an alternative date',
+    '- NEVER say "no appointments available" if slots ARE listed in the AVAILABLE SLOTS section',
     '',
     'STAGE 5 - CONFIRM BOOKING:',
     '- Confirm: date, time, clinic name, and what to expect',
     '- Let them know a confirmation will follow',
     '- Ask if there is anything else they need',
+    '',
+    `Today's date is ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`,
     '',
     '=== PATIENT INFO ===',
     `Name: ${leadInfo.firstName}${leadInfo.lastName ? ' ' + leadInfo.lastName : ''}`,
@@ -109,6 +114,7 @@ export function buildSystemPrompt(
     '- Sound like a real person at the clinic reception desk',
     '- Only move to the next stage when the current one is complete',
     '- Be helpful and proactive in suggesting next steps',
+    '- NEVER ask if the lead is a new or returning patient',
   ];
 
   if (clinicConfig.customInstructions) {
@@ -147,11 +153,14 @@ function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
       ];
     }
     case 'DIFFERENT_DATE': {
-      const dateLabel = ctx.requestedDate ?? 'their requested dates';
+      const dateLabel = ctx.requestedDate ? ` for ${ctx.requestedDate}` : '';
       return [
-        `The lead is asking for availability on ${dateLabel} instead.`,
-        `Apologise the offered slots don't suit and offer to check ${dateLabel}.`,
-        'The updated slots (if any) are shown in the AVAILABLE SLOTS section above.',
+        `The system has already filtered the AVAILABLE SLOTS section above to match the lead's requested timing${dateLabel}.`,
+        'CRITICAL: If slots ARE listed in the AVAILABLE SLOTS section, they ARE available for the time the lead asked for.',
+        'Offer them directly. Do NOT say "unfortunately we don\'t have availability" or "no appointments available"',
+        'when slots are listed — that would be incorrect.',
+        'If the AVAILABLE SLOTS section says "No slots are currently available", only then tell the lead',
+        'and ask for an alternative date.',
       ];
     }
     case 'DIFFERENT_TIME':

@@ -7,6 +7,12 @@ import { SlotSelectionResult, SlotSelectionIntent, OfferedSlotRef } from './slot
 
 export type { SlotSelectionResult, SlotSelectionIntent, OfferedSlotRef };
 
+/** Result of detecting a date-range preference from a raw message */
+export interface DateRangePreference {
+  startDate: Date;
+  endDate: Date;
+}
+
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const NONE_SUITABLE_PHRASES = [
@@ -96,8 +102,24 @@ interface DateDetectionResult {
   endDate?: Date;
 }
 
+/** Word-to-number map for week offset parsing */
+const WORD_TO_NUM: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4,
+  '1': 1, '2': 2, '3': 3, '4': 4,
+};
+
 /** Phrases that indicate a future date range, mapped to a resolver function */
 const DATE_RANGE_PATTERNS: { pattern: RegExp; resolve: () => { start: Date; end: Date } }[] = [
+  {
+    pattern: /\b(?:same[\s-]?day|today|asap|as\s+soon\s+as\s+possible|right\s+away|urgent)\b/i,
+    resolve: () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(today);
+      end.setDate(today.getDate() + 1);
+      return { start: today, end };
+    },
+  },
   {
     pattern: /\b(?:next\s+week|a\s+week\s+from\s+now|in\s+a\s+week)\b/i,
     resolve: () => {
@@ -157,10 +179,94 @@ const DATE_RANGE_PATTERNS: { pattern: RegExp; resolve: () => { start: Date; end:
  * phrases (e.g. "next week", "tomorrow", "in two weeks").
  * @returns A DateDetectionResult with either a day name or a date range, or null
  */
+/**
+ * Date keywords to extract from garbled input, sorted longest-first
+ * so multi-word phrases and longer words match before their substrings.
+ */
+const DATE_KEYWORDS = [
+  'as soon as possible', 'two weeks from now',
+  'in two weeks', 'in 2 weeks', 'right away',
+  'this week', 'next week', 'same-day', 'same day',
+  'tomorrow', 'flexible', 'wednesday', 'thursday',
+  'saturday', 'tuesday', 'friday', 'sunday', 'monday',
+  'morning', 'afternoon', 'evening',
+  'urgent', 'today', 'weeks', 'asap', 'week',
+].sort((a, b) => b.length - a.length);
+
+/** Returns true if the character is a letter */
+function isLetter(ch: string | undefined): boolean {
+  return !!ch && /[a-zA-Z]/.test(ch);
+}
+
+/**
+ * Cleans a message by isolating known date keywords even when surrounded
+ * by junk characters (e.g. "adfjweekfdas" → " week ", "AStodayXX" → " today ").
+ * Only modifies words where the keyword is embedded in junk — properly
+ * bounded words (e.g. "weeks" matching "week") are left untouched.
+ */
+function cleanDateMessage(message: string): string {
+  let cleaned = message;
+
+  for (const kw of DATE_KEYWORDS) {
+    const lower = cleaned.toLowerCase();
+    const idx = lower.indexOf(kw);
+    if (idx === -1) continue;
+
+    const charBefore = idx > 0 ? cleaned[idx - 1] : undefined;
+    const charAfter = idx + kw.length < cleaned.length ? cleaned[idx + kw.length] : undefined;
+    const junkBefore = isLetter(charBefore);
+    const junkAfter = isLetter(charAfter);
+
+    // Only clean if there's genuine junk (3+ extra letters) around the keyword,
+    // not just normal suffixes like "weeks" or "today's"
+    const wordStart = junkBefore ? idx - 1 : idx;
+    const wordEnd = junkAfter ? idx + kw.length + 1 : idx + kw.length;
+    // Find the full "word" around this keyword
+    let ws = idx;
+    while (ws > 0 && isLetter(cleaned[ws - 1])) ws--;
+    let we = idx + kw.length;
+    while (we < cleaned.length && isLetter(cleaned[we])) we++;
+    const fullWord = cleaned.slice(ws, we);
+    const junkLen = fullWord.length - kw.length;
+
+    // Only insert spaces if there's significant junk (more than 1 extra char)
+    if (junkLen > 1) {
+      const prefix = junkBefore ? ' ' : '';
+      const suffix = junkAfter ? ' ' : '';
+      cleaned = cleaned.slice(0, idx) + prefix + kw + suffix + cleaned.slice(idx + kw.length);
+    }
+  }
+  return cleaned;
+}
+
 function detectDifferentDate(message: string): DateDetectionResult | null {
+  // Clean the message to handle garbled input with date keywords buried inside
+  const msg = cleanDateMessage(message);
+
+  // "N week(s) from next week" — compound phrase, must be checked before simple patterns
+  const weeksFromNextWeek = msg.match(
+    /\b(\d+|one|two|three|four)\s+weeks?\s+(?:from|after|past|f+r+o+m+)\s+next\s+week\b/i,
+  );
+  if (weeksFromNextWeek) {
+    const n = WORD_TO_NUM[weeksFromNextWeek[1].toLowerCase()] ?? parseInt(weeksFromNextWeek[1], 10);
+    if (n > 0) {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+      const nextMonday = new Date(today);
+      nextMonday.setDate(today.getDate() + daysUntilMonday);
+      nextMonday.setHours(0, 0, 0, 0);
+      const start = new Date(nextMonday);
+      start.setDate(nextMonday.getDate() + n * 7);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      return { startDate: start, endDate: end };
+    }
+  }
+
   // Check for date range phrases first (more specific)
   for (const { pattern, resolve } of DATE_RANGE_PATTERNS) {
-    if (pattern.test(message)) {
+    if (pattern.test(msg)) {
       const { start, end } = resolve();
       return { startDate: start, endDate: end };
     }
@@ -173,17 +279,33 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
     /(?:on|for)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
   ];
   for (const pattern of patterns) {
-    const match = message.match(pattern);
+    const match = msg.match(pattern);
     if (match) {
       const day = DAY_NAMES.find(d => d.toLowerCase() === match[1].toLowerCase());
       if (day) return { dayName: day };
     }
   }
   // Day mentioned in a question without a more specific pattern
-  if (message.includes('?')) {
+  if (msg.includes('?')) {
     for (const day of DAY_NAMES) {
-      if (message.toLowerCase().includes(day.toLowerCase())) return { dayName: day };
+      if (msg.toLowerCase().includes(day.toLowerCase())) return { dayName: day };
     }
+  }
+  return null;
+}
+
+/**
+ * Detects date-range preferences from any message, even when no slots
+ * have been offered yet.  Used by the conversation service to filter
+ * the initial slot fetch when the lead mentions a timing preference
+ * (e.g. "this week", "next week") before slots are presented.
+ *
+ * @returns A DateRangePreference with start/end dates, or null
+ */
+export function detectDateRangePreference(message: string): DateRangePreference | null {
+  const result = detectDifferentDate(message);
+  if (result?.startDate && result?.endDate) {
+    return { startDate: result.startDate, endDate: result.endDate };
   }
   return null;
 }
@@ -209,6 +331,7 @@ const FURTHER_DATE_PHRASES = [
   'later date', 'later dates',
   'latest date', 'latest available',
   'other dates', 'other date',
+  'more dates', 'any more dates',
   'anything later', 'something later',
   'anything further', 'something further',
 ];
@@ -220,6 +343,49 @@ const FURTHER_DATE_PHRASES = [
 function detectFurtherDate(message: string): boolean {
   const lower = message.toLowerCase();
   return FURTHER_DATE_PHRASES.some(phrase => lower.includes(phrase));
+}
+
+/**
+ * Pattern for "further/another N week(s) from then/that/those/there".
+ * This is a relative shift from the previously offered slots.
+ */
+const FURTHER_WEEK_FROM_PATTERN =
+  /\b(?:further|another|an?\s+additional)\s+(\d+|one|two|three|four)\s+weeks?\s+(?:from|after|past)\s+(?:then|that|those|there|them)\b/i;
+
+/**
+ * Detects relative week-shift phrases like "a further one week from then".
+ * Computes a date range starting N weeks after the latest offered slot.
+ * @returns DateDetectionResult with computed range, or null
+ */
+function detectRelativeWeekShift(
+  message: string,
+  offeredSlots: OfferedSlotRef[],
+): DateDetectionResult | null {
+  const match = message.match(FURTHER_WEEK_FROM_PATTERN);
+  if (!match || offeredSlots.length === 0) return null;
+
+  const n = WORD_TO_NUM[match[1].toLowerCase()] ?? parseInt(match[1], 10);
+  if (!(n > 0)) return null;
+
+  // Find the latest offered slot date
+  const latestDate = offeredSlots.reduce((latest, s) => {
+    const d = new Date(s.dateTime);
+    return d > latest ? d : latest;
+  }, new Date(offeredSlots[0].dateTime));
+
+  // Start of the week N weeks after the latest offered slot
+  const dayOfWeek = latestDate.getDay();
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 7 : 8 - dayOfWeek;
+  const nextMondayAfterLatest = new Date(latestDate);
+  nextMondayAfterLatest.setDate(latestDate.getDate() + daysUntilMonday);
+  nextMondayAfterLatest.setHours(0, 0, 0, 0);
+
+  // Shift by (n - 1) additional weeks since nextMonday is already 1 week out
+  const start = new Date(nextMondayAfterLatest);
+  start.setDate(nextMondayAfterLatest.getDate() + (n - 1) * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return { startDate: start, endDate: end };
 }
 
 /**
@@ -251,6 +417,17 @@ export function detectSlotSelection(
 ): SlotSelectionResult {
   if (!offeredSlots.length) return { intent: 'NONE_SUITABLE' };
   if (detectNoneSuitable(message)) return { intent: 'NONE_SUITABLE' };
+
+  // Check for relative week-shift phrases ("a further one week from then")
+  // before the generic FURTHER_DATE check, so we can compute the correct range
+  const relativeShift = detectRelativeWeekShift(message, offeredSlots);
+  if (relativeShift) {
+    return {
+      intent: 'DIFFERENT_DATE',
+      requestedStartDate: relativeShift.startDate,
+      requestedEndDate: relativeShift.endDate,
+    };
+  }
 
   // Check for "further/later dates" before date range detection
   // so "further dates this week" is caught as FURTHER_DATE
