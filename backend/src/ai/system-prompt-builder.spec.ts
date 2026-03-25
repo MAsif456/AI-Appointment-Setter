@@ -158,7 +158,82 @@ describe('buildSystemPrompt', () => {
       const ctx: SlotSelectionContext = { intent: 'NONE_SUITABLE' };
       const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
       expect(prompt).toContain('No problem');
-      expect(prompt).toContain('When would work better');
+      expect(prompt).toContain('dates or times would work better');
+    });
+
+    it('AMBIGUOUS with same-time slots asks which day', () => {
+      const ctx: SlotSelectionContext = {
+        intent: 'AMBIGUOUS',
+        ambiguousSlots: [
+          { displayText: 'Tuesday 7th April at 1:20pm' },
+          { displayText: 'Thursday 9th April at 1:20pm' },
+          { displayText: 'Monday 13th April at 1:20pm' },
+        ],
+      };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('which day');
+      expect(prompt).toContain('Do NOT pick one arbitrarily');
+    });
+
+    it('AMBIGUOUS with same-day slots asks which time', () => {
+      const ctx: SlotSelectionContext = {
+        intent: 'AMBIGUOUS',
+        ambiguousSlots: [
+          { displayText: 'Tuesday 7th April at 10am' },
+          { displayText: 'Tuesday 7th April at 2pm' },
+        ],
+      };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('which time');
+      expect(prompt).toContain('Do NOT pick one arbitrarily');
+    });
+
+    it('DIFFERENT_DATE instructs not to re-offer old slots', () => {
+      const ctx: SlotSelectionContext = { intent: 'DIFFERENT_DATE' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('Do NOT re-offer any previously offered slots');
+      expect(prompt).toContain('Do NOT fall back to previously offered slots');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Previously offered slots injection
+  // ---------------------------------------------------------------------------
+  describe('previouslyOfferedSlots injection', () => {
+    it('includes PREVIOUSLY OFFERED SLOTS section when provided', () => {
+      const prompt = buildSystemPrompt(lead, clinic, {
+        slotSection: '',
+        previouslyOfferedSlots: [
+          'Tuesday 7th April at 1:20pm',
+          'Thursday 9th April at 1:20pm',
+        ],
+      });
+      expect(prompt).toContain('=== PREVIOUSLY OFFERED SLOTS ===');
+      expect(prompt).toContain('1. Tuesday 7th April at 1:20pm');
+      expect(prompt).toContain('2. Thursday 9th April at 1:20pm');
+    });
+
+    it('does NOT include PREVIOUSLY OFFERED SLOTS header when list is empty', () => {
+      const prompt = buildSystemPrompt(lead, clinic, {
+        slotSection: '',
+        previouslyOfferedSlots: [],
+      });
+      expect(prompt).not.toContain('=== PREVIOUSLY OFFERED SLOTS ===');
+    });
+
+    it('does NOT include PREVIOUSLY OFFERED SLOTS header when undefined', () => {
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection: '' });
+      expect(prompt).not.toContain('=== PREVIOUSLY OFFERED SLOTS ===');
+    });
+
+    it('includes rule to only offer slots from AVAILABLE SLOTS section', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).toContain('Only offer slots listed in the AVAILABLE SLOTS section');
+    });
+
+    it('includes rule to acknowledge previously offered slots accurately', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).toContain('Never deny offering a slot that is listed there');
     });
   });
 });

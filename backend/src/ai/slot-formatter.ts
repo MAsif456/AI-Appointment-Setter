@@ -1,5 +1,8 @@
 import { Slot } from './interfaces/slot.interface';
 
+/** Day names Mon–Fri for the day-availability overview */
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
 /**
  * Returns a string representing the day of the month in an ordinal
  * format (e.g. 1st, 2nd, 3rd, etc.).
@@ -217,6 +220,97 @@ export function buildSlotPromptSection(
     '',
     'IMPORTANT: When you offer slots, the conversation phase moves to booking.',
     'Store the offered slots for later selection matching.',
+  );
+
+  return lines.join('\n');
+}
+
+/**
+ * Builds a prompt section that lists which weekdays (Mon–Fri) have availability
+ * within the given slots, and which are fully booked. Used for the two-step
+ * day-overview flow: first show available days, then let the lead pick a day
+ * before offering specific time slots.
+ * @param slots - All available slots for the requested week
+ * @param rangeStart - Start of the requested date range
+ * @param rangeEnd - End of the requested date range
+ * @returns A formatted prompt section for the AI
+ */
+export function buildDayAvailabilitySection(
+  slots: Slot[],
+  rangeStart: Date,
+  rangeEnd: Date,
+): string {
+  if (slots.length === 0) {
+    return [
+      '=== DAY AVAILABILITY ===',
+      'No slots are currently available for this week.',
+      'Tell the lead we are fully booked this week.',
+      'Ask if they would like to try a different week or a specific month.',
+    ].join('\n');
+  }
+
+  // Collect which weekdays have at least one slot
+  const daysWithSlots = new Set<string>();
+  for (const slot of slots) {
+    const date = new Date(`${slot.date}T${slot.startTime}:00`);
+    const dayIndex = date.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+    if (dayIndex >= 1 && dayIndex <= 5) {
+      daysWithSlots.add(WEEKDAY_NAMES[dayIndex - 1]);
+    }
+  }
+
+  // Determine which weekdays fall within the requested range, excluding past days
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekdaysInRange: string[] = [];
+  const cursor = new Date(rangeStart);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(rangeEnd);
+  end.setHours(23, 59, 59, 999);
+  while (cursor <= end) {
+    // Skip days that have already passed
+    if (cursor >= today) {
+      const dayIndex = cursor.getDay();
+      if (dayIndex >= 1 && dayIndex <= 5) {
+        const name = WEEKDAY_NAMES[dayIndex - 1];
+        if (!weekdaysInRange.includes(name)) weekdaysInRange.push(name);
+      }
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const available = weekdaysInRange.filter(d => daysWithSlots.has(d));
+  const fullyBooked = weekdaysInRange.filter(d => !daysWithSlots.has(d));
+
+  const lines: string[] = [
+    '=== DAY AVAILABILITY ===',
+  ];
+
+  if (available.length > 0) {
+    lines.push(`Available days: ${available.join(', ')}`);
+  }
+  if (fullyBooked.length > 0) {
+    lines.push(`Fully booked days: ${fullyBooked.join(', ')}`);
+  }
+
+  // Build the list of days NOT to mention (past weekdays not in range + weekends)
+  const allWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const daysNotToMention = allWeekdays.filter(d => !weekdaysInRange.includes(d));
+
+  lines.push(
+    '',
+    'INSTRUCTIONS:',
+    `- Tell the lead we have availability on: ${available.join(', ')}.`,
+    fullyBooked.length > 0
+      ? `- Mention that ${fullyBooked.join(', ')} ${fullyBooked.length === 1 ? 'is' : 'are'} fully booked.`
+      : '- Do NOT mention any fully booked days.',
+    daysNotToMention.length > 0
+      ? `- CRITICAL: Do NOT mention ${daysNotToMention.join(', ')} at all — ${daysNotToMention.length === 1 ? 'that day has' : 'those days have'} already passed.`
+      : '',
+    '- ONLY mention the days listed above. Do NOT add, invent, or reference any other days.',
+    '- Ask the lead which day they would prefer.',
+    '- Do NOT offer specific times yet — wait for the lead to choose a day first.',
+    '- Use natural, conversational British English.',
   );
 
   return lines.join('\n');

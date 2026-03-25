@@ -104,7 +104,7 @@ describe('ConversationsController', () => {
         message: 'My postcode is CF10 3AB',
       });
 
-      expect(result).toEqual({ reply: 'Let me check.', offeredSlots: mockOfferedSlots });
+      expect(result).toMatchObject({ reply: 'Let me check.', offeredSlots: mockOfferedSlots });
       expect(mockService.sendMessage).toHaveBeenCalledWith(
         'conv1',
         'My postcode is CF10 3AB',
@@ -117,7 +117,7 @@ describe('ConversationsController', () => {
       const result = await controller.sendMessage('conv1', {
         message: 'Hello',
       });
-      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null });
+      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null, bookingResult: null });
     });
   });
 });

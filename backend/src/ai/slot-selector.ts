@@ -16,9 +16,10 @@ export interface DateRangePreference {
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const NONE_SUITABLE_PHRASES = [
-  'none of those', 'none of them', "don't work", 'dont work',
-  'nothing works', 'not available', 'none work', "can't make any",
-  'cant make any', 'none of these', "won't work", 'wont work',
+  'none of those', 'none of them', "don't work", 'dont work', 'dosent work', 'doesnt work',
+  "doesn't work", 'nothing works', 'not available', 'none work', "can't make any",
+  'cant make any', 'none of these', "won't work", 'wont work', 'none do',
+  "don't suit", 'dont suit', "doesn't suit", 'doesnt suit',
 ];
 
 const DIFFERENT_TIME_KEYWORDS: Record<string, string> = {
@@ -65,6 +66,17 @@ function normaliseTime(raw: string): string {
     const period = h >= 12 ? 'pm' : 'am';
     const h12 = h % 12 || 12;
     return m === 0 ? `${h12}${period}` : `${h12}:${String(m).padStart(2, '0')}${period}`;
+  }
+  // 3-4 digit time like "930" → "9:30", "1030" → "10:30" → normalise to 12-hour
+  const multiDigit = lower.match(/^(\d{1,2})(\d{2})$/);
+  if (multiDigit) {
+    const h = parseInt(multiDigit[1], 10);
+    const m = parseInt(multiDigit[2], 10);
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      const period = h >= 12 ? 'pm' : 'am';
+      const h12 = h % 12 || 12;
+      return m === 0 ? `${h12}${period}` : `${h12}:${String(m).padStart(2, '0')}${period}`;
+    }
   }
   // Bare number like "9" → try as hour (assume am for single digits ≤ 12)
   const bareHour = lower.match(/^(\d{1,2})$/);
@@ -388,15 +400,66 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
     }
   }
 
-  // Check for "in N months" phrases (e.g. "in 2 months", "in three months")
-  const inMonthsMatch = msg.match(/\bin\s+(\d+|one|two|three|four|five|six)\s+months?\b/i);
-  if (inMonthsMatch) {
-    const n = WORD_TO_NUM[inMonthsMatch[1].toLowerCase()] ?? parseInt(inMonthsMatch[1], 10);
-    if (n > 0 && n <= 6) {
+  // Check for "in N months" / "N months from now" / "N months later" / "N months away"
+  const inMonthsMatch = msg.match(
+    /\b(?:in\s+)?(\d+|one|two|three|four|five|six)\s+months?\s*(?:from\s+(?:now|today)|later|away|ahead|time)?\b/i,
+  );
+  // Only match if the phrase starts with "in" OR ends with a qualifier — avoid bare "2 months"
+  // matching when actually part of "2 months from that date" (pronoun case handled elsewhere)
+  if (inMonthsMatch && (/\bin\s+/i.test(msg) || /months?\s+(?:from\s+(?:now|today)|later|away|ahead|time)\b/i.test(msg))) {
+    // Exclude "from that/the/this" — those need pronoun resolution from offered slots
+    if (!/months?\s+from\s+(?:that|the|this)/i.test(msg)) {
+      const n = WORD_TO_NUM[inMonthsMatch[1].toLowerCase()] ?? parseInt(inMonthsMatch[1], 10);
+      if (n > 0 && n <= 6) {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth() + n, 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + n + 1, 1);
+        return { startDate: start, endDate: end };
+      }
+    }
+  }
+
+  // Check for "in N weeks" / "N weeks from now" / "N weeks later"
+  const inWeeksMatch = msg.match(
+    /\b(?:in\s+)?(\d+|one|two|three|four|five|six)\s+weeks?\s*(?:from\s+(?:now|today)|later|away|ahead|time)?\b/i,
+  );
+  if (inWeeksMatch && (/\bin\s+\d/i.test(msg) || /weeks?\s+(?:from\s+(?:now|today)|later|away|ahead|time)\b/i.test(msg))) {
+    if (!/weeks?\s+from\s+(?:that|the|this)/i.test(msg)) {
+      const n = WORD_TO_NUM[inWeeksMatch[1].toLowerCase()] ?? parseInt(inWeeksMatch[1], 10);
+      if (n > 0 && n <= 12) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(today);
+        start.setDate(today.getDate() + n * 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 7);
+        return { startDate: start, endDate: end };
+      }
+    }
+  }
+
+  // Check for "Nth [of] Month" patterns (e.g. "1st April", "the 3rd of June", "Wednesday 1st April")
+  // Must run before the generic month-name match so "1st April" returns a single-day range, not the whole month.
+  const MONTH_NAMES_RE = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec';
+  const ordinalMonthPattern = new RegExp(
+    `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${MONTH_NAMES_RE})\\b`, 'i',
+  );
+  const ordinalMonthMatch = msg.match(ordinalMonthPattern);
+  if (ordinalMonthMatch) {
+    const dayNum = parseInt(ordinalMonthMatch[1], 10);
+    const monthIdx = MONTH_NAMES[ordinalMonthMatch[2].toLowerCase()];
+    if (dayNum >= 1 && dayNum <= 31 && monthIdx !== undefined) {
       const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth() + n, 1);
-      const end = new Date(today.getFullYear(), today.getMonth() + n + 1, 1);
-      return { startDate: start, endDate: end };
+      let year = today.getFullYear();
+      if (monthIdx < today.getMonth() || (monthIdx === today.getMonth() && dayNum < today.getDate())) {
+        year++;
+      }
+      const candidate = new Date(year, monthIdx, dayNum);
+      if (candidate.getDate() === dayNum) {
+        const end = new Date(candidate);
+        end.setDate(candidate.getDate() + 1);
+        return { startDate: candidate, endDate: end };
+      }
     }
   }
 
@@ -421,12 +484,17 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
   // Check for specific date-of-month references (e.g. "on the 30th", "the 15th", "on 3rd", "on the 30")
   // Two patterns: with ordinal suffix (any context), or bare number only after "on"/"on the"
   // Excludes positional phrases like "the 1st one" or "the 2nd" when ≤ 3 (handled by slot selection)
+  // UNLESS preceded by a day name (e.g. "Friday 3rd" is clearly a date, not a position).
   const dateOfMonthMatch =
     msg.match(/\b(?:on\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\b(?!\s+one)/i) ||
     msg.match(/\bon\s+(?:the\s+)?(\d{1,2})\b/i);
   if (dateOfMonthMatch) {
     const day = parseInt(dateOfMonthMatch[1], 10);
-    if (day >= 4 && day <= 31) {
+    // Allow 1-3 if preceded by a day name (e.g. "Friday 3rd"), otherwise require >= 4
+    const DAY_NAMES_RE = /(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/i;
+    const hasDayNamePrefix = DAY_NAMES_RE.test(msg.substring(0, dateOfMonthMatch.index));
+    const minDay = hasDayNamePrefix ? 1 : 4;
+    if (day >= minDay && day <= 31) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       // Try this month first, then next month
@@ -510,17 +578,41 @@ function detectDifferentTime(message: string): string | null {
   return null;
 }
 
+/**
+ * Phrases indicating the lead is asking for alternative/other options
+ * (e.g. "what other times", "any other availability", "other options").
+ * When combined with a day name, this means "other times on that day",
+ * not "I want to book that day".
+ */
+const OTHER_OPTIONS_PHRASES = [
+  'what other', 'any other', 'other times', 'other time',
+  'other options', 'other availability', 'other slots',
+  'what else', 'anything else available',
+  'more options', 'more times', 'more availability',
+  'different times', 'different time', 'different options',
+  'alternative times', 'alternative time', 'alternatives',
+];
+
 /** Phrases indicating the lead wants later/furthest available dates */
 const FURTHER_DATE_PHRASES = [
   'further date', 'further dates',
-  'furthest date', 'furthest available',
+  'furthest date', 'furthest available', 'furthest availability',
   'later date', 'later dates',
-  'latest date', 'latest available',
+  'latest date', 'latest available', 'latest availability',
   'other dates', 'other date',
   'more dates', 'any more dates',
   'anything later', 'something later',
   'anything further', 'something further',
 ];
+
+/**
+ * Checks whether the message is asking for alternative/other options.
+ * @returns true if the lead wants different slots than what was offered
+ */
+function detectOtherOptions(message: string): boolean {
+  const lower = message.toLowerCase();
+  return OTHER_OPTIONS_PHRASES.some(phrase => lower.includes(phrase));
+}
 
 /**
  * Checks whether the message is asking for later/further dates.
@@ -611,7 +703,144 @@ export function detectSlotSelection(
   offeredSlots: OfferedSlotRef[],
 ): SlotSelectionResult {
   if (!offeredSlots.length) return { intent: 'NONE_SUITABLE' };
-  if (detectNoneSuitable(message)) return { intent: 'NONE_SUITABLE' };
+  const noneSuitable = detectNoneSuitable(message);
+  // If the lead says "none of those" but also provides a new date preference
+  // (e.g. "none work, how about August?"), prioritise the date preference
+  if (noneSuitable) {
+    const dateResult = detectDifferentDate(message);
+    if (dateResult) {
+      return {
+        intent: 'DIFFERENT_DATE',
+        requestedDate: dateResult.dayName,
+        requestedStartDate: dateResult.startDate,
+        requestedEndDate: dateResult.endDate,
+      };
+    }
+    return { intent: 'NONE_SUITABLE' };
+  }
+
+  // --- "Other options" detection: must run before slot matching ---
+  // Phrases like "what other times on Thursday" should NOT match as SLOT_SELECTED.
+  // They indicate the lead wants alternative slots, possibly on a specific day.
+  const lower = message.toLowerCase();
+  const askingForOtherOptions = detectOtherOptions(message);
+  if (askingForOtherOptions) {
+    // Also detect a time-of-day preference (e.g. "other times, maybe in the afternoon")
+    const otherTimePref = detectDifferentTime(message);
+
+    // Handle "that date" / "that day" / "same day" — resolve from offered slots
+    // MUST run before detectDifferentDate() because "same day" matches a generic
+    // DATE_RANGE_PATTERN (today's date) rather than the offered slot's date.
+    if (/\b(?:that|the same|this)\s+(?:date|day)\b/i.test(message) && offeredSlots.length > 0) {
+      // Extract unique day names from currently offered slots
+      const offeredDays = [...new Set(
+        offeredSlots.map(s => extractDayFromDisplay(s.displayText)).filter(Boolean),
+      )];
+      if (offeredDays.length === 1) {
+        // Only one date was offered — "that date" unambiguously refers to it
+        const slot = offeredSlots[0];
+        const dt = new Date(slot.dateTime);
+        const start = new Date(dt);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return {
+          intent: 'DIFFERENT_DATE',
+          requestedDate: offeredDays[0]!,
+          requestedStartDate: start,
+          requestedEndDate: end,
+          ...(otherTimePref ? { timePreference: otherTimePref } : {}),
+        };
+      }
+      // Multiple days offered — can't resolve "that date", ask for clarification
+    }
+    // Check for a specific date reference (e.g. "other times on Wednesday 1st April")
+    // This must run before bare day-name matching so "1st April" isn't lost.
+    const dateResult = detectDifferentDate(message);
+    if (dateResult) {
+      return {
+        intent: 'DIFFERENT_DATE',
+        requestedDate: dateResult.dayName,
+        requestedStartDate: dateResult.startDate,
+        requestedEndDate: dateResult.endDate,
+        ...(otherTimePref ? { timePreference: otherTimePref } : {}),
+      };
+    }
+    // Fall back to bare day name — "other times on Thursday"
+    const dayForOther = DAY_NAMES.find(d => lower.includes(d.toLowerCase())) ?? null;
+    if (dayForOther) {
+      // If the lead mentioned a day name that matches an offered slot, resolve to
+      // that slot's actual date so we fetch from the correct week (not last week's Friday).
+      const matchingSlot = offeredSlots.find(
+        s => extractDayFromDisplay(s.displayText)?.toLowerCase() === dayForOther.toLowerCase(),
+      );
+      if (matchingSlot) {
+        const dt = new Date(matchingSlot.dateTime);
+        const start = new Date(dt);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return {
+          intent: 'DIFFERENT_DATE',
+          requestedDate: dayForOther,
+          requestedStartDate: start,
+          requestedEndDate: end,
+          ...(otherTimePref ? { timePreference: otherTimePref } : {}),
+        };
+      }
+      return { intent: 'DIFFERENT_DATE', requestedDate: dayForOther, ...(otherTimePref ? { timePreference: otherTimePref } : {}) };
+    }
+
+    // If only a time preference was expressed with no date (e.g. "any other times in the morning")
+    // resolve to the offered slots' day if they're all on the same day
+    if (otherTimePref && offeredSlots.length > 0) {
+      const offeredDays = [...new Set(
+        offeredSlots.map(s => extractDayFromDisplay(s.displayText)).filter(Boolean),
+      )];
+      if (offeredDays.length === 1) {
+        const slot = offeredSlots[0];
+        const dt = new Date(slot.dateTime);
+        const start = new Date(dt);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return {
+          intent: 'DIFFERENT_DATE',
+          requestedDate: offeredDays[0]!,
+          requestedStartDate: start,
+          requestedEndDate: end,
+          timePreference: otherTimePref,
+        };
+      }
+      // Multiple days — return as DIFFERENT_TIME so it filters across all days
+      return { intent: 'DIFFERENT_TIME', timePreference: otherTimePref };
+    }
+    // No explicit date — but if the most recently offered slots are all on the
+    // same day, the lead likely means "other times on THAT day" (e.g. they were
+    // just shown a single Wednesday 15th slot and reply "any other times?").
+    if (offeredSlots.length > 0) {
+      const offeredDays = [...new Set(
+        offeredSlots.map(s => extractDayFromDisplay(s.displayText)).filter(Boolean),
+      )];
+      if (offeredDays.length === 1) {
+        const slot = offeredSlots[0];
+        const dt = new Date(slot.dateTime);
+        const start = new Date(dt);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return {
+          intent: 'DIFFERENT_DATE',
+          requestedDate: offeredDays[0]!,
+          requestedStartDate: start,
+          requestedEndDate: end,
+        };
+      }
+    }
+    // Generic "other options" without a resolvable day — treat as none suitable
+    // so the AI asks what dates/times work better
+    return { intent: 'NONE_SUITABLE' };
+  }
 
   // --- Early slot matching: try to match against offered slots FIRST ---
   // This prevents "Tuesday 1st September at 10am" from being misinterpreted
@@ -619,7 +848,6 @@ export function detectSlotSelection(
   // Only triggers when the lead mentions a day name AND/OR an explicit time (with am/pm).
   // Bare numbers like "2" or "15" are NOT treated as times here to avoid
   // false positives on messages like "2 weeks from next week" or "on 15".
-  const lower = message.toLowerCase();
   const mentionedDay = DAY_NAMES.find(d => lower.includes(d.toLowerCase())) ?? null;
   const timeMatch = message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm))\b/i);
   const mentionedTime = timeMatch ? normaliseTime(timeMatch[1]) : null;
@@ -639,14 +867,32 @@ export function detectSlotSelection(
   }
 
   // Day name + date reference (e.g. "Monday 30th March") without a specific time —
-  // if the day matches offered slots, return them as AMBIGUOUS so the AI asks which time.
+  // if the day matches offered slots, try bare number time matching first, then
+  // return AMBIGUOUS so the AI asks which time.
   // This prevents "starting on Monday 30th March" from being misinterpreted as DIFFERENT_DATE.
   if (mentionedDay && !mentionedTime) {
-    const hasDateRef = /\d{1,2}(?:st|nd|rd|th)?\s*(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)/i.test(message);
+    // Match "27th March" (ordinal + month) OR "27th" after a day name (bare ordinal)
+    const hasDateRef = /\d{1,2}(?:st|nd|rd|th)?\s*(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)/i.test(message)
+      || /\b\d{1,2}(?:st|nd|rd|th)\b/i.test(message);
     if (hasDateRef) {
       const byDay = offeredSlots.filter(
         s => extractDayFromDisplay(s.displayText)?.toLowerCase() === mentionedDay.toLowerCase(),
       );
+      // Try bare number time matching (e.g. "Friday 27th at 230" → 2:30pm)
+      if (byDay.length > 1) {
+        const earlyBareTime = message.match(/\b(\d{3,4}(?:am|pm)?)\b/i)
+          || message.match(/\bat\s+(\d{1,2}(?:[.:]\d{2})?)\b/i);
+        if (earlyBareTime) {
+          const parsed = normaliseTime(earlyBareTime[1]);
+          const byTime = byDay.filter(s => extractTimeFromDisplay(s.displayText) === parsed);
+          if (byTime.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byTime[0] };
+          // Also try flipping am/pm for bare numbers without explicit period
+          if (!/(?:am|pm)/i.test(earlyBareTime[1])) {
+            const byFlipped = byDay.filter(s => extractTimeFromDisplay(s.displayText) === flipPeriod(parsed));
+            if (byFlipped.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byFlipped[0] };
+          }
+        }
+      }
       if (byDay.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byDay[0] };
       if (byDay.length > 1) return { intent: 'AMBIGUOUS', ambiguousSlots: byDay };
     }
@@ -689,8 +935,9 @@ export function detectSlotSelection(
   if (timePreference) return { intent: 'DIFFERENT_TIME', timePreference };
 
   // --- Late slot matching: day-only, time-only, or bare number matching ---
-  // This handles "Tuesday please", "The 4pm one", "9", "3:20" etc.
-  const lateTimeMatch = message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm)?)\b/i);
+  // This handles "Tuesday please", "The 4pm one", "9", "3:20", "1030" etc.
+  const lateTimeMatch = message.match(/\b(\d{3,4}(?:am|pm)?)\b/i)
+    || message.match(/\b(\d{1,2}(?:[.:]\d{2})?(?:am|pm)?)\b/i);
   const lateTime = lateTimeMatch ? normaliseTime(lateTimeMatch[1]) : null;
   const lateHasExplicitPeriod = lateTimeMatch ? /(?:am|pm)/i.test(lateTimeMatch[1]) : false;
 
@@ -722,6 +969,22 @@ export function detectSlotSelection(
       );
       if (byFlipped.length === 1) return { intent: 'SLOT_SELECTED', selectedSlot: byFlipped[0] };
       if (byFlipped.length > 1)  return { intent: 'AMBIGUOUS', ambiguousSlots: byFlipped };
+    }
+  }
+
+  // --- Confirmation phrases: when only 1 slot is offered and the lead
+  // says something affirmative, auto-select that slot ---
+  if (offeredSlots.length === 1) {
+    const confirmPhrases = [
+      /\bok\b/, /\bokay\b/, /\byes\b/, /\byeah\b/, /\byep\b/, /\byup\b/,
+      /\bsure\b/, /\bsounds?\s*good\b/, /\bthat\s*(?:works|one)\b/,
+      /\bbook\s*(?:it|that|me\s*in)\b/, /\bperfect\b/, /\bgreat\b/,
+      /\bgo\s*(?:for|with|ahead)\b/, /\bplease\b/, /\bfine\b/,
+      /\blet'?s?\s*(?:do|go)\b/, /\bconfirm\b/, /\bi'?ll\s*take\b/,
+      /\bworks?\s*for\s*me\b/, /\bthat'?s?\s*(?:fine|good|great|perfect)\b/,
+    ];
+    if (confirmPhrases.some(p => p.test(lower))) {
+      return { intent: 'SLOT_SELECTED', selectedSlot: offeredSlots[0] };
     }
   }
 

@@ -5,7 +5,8 @@ export type SlotSelectionIntent =
   | 'DIFFERENT_DATE'   // Lead is asking for a different day
   | 'DIFFERENT_TIME'   // Lead is asking for a different time of day
   | 'FURTHER_DATE'     // Lead wants later/furthest available dates
-  | 'NONE_SUITABLE';   // None of the offered slots work
+  | 'NONE_SUITABLE'    // None of the offered slots work
+  | 'DAY_OVERVIEW';    // Show available days (Mon-Fri) before offering specific slots
 
 /** Minimal representation of a previously offered slot */
 export interface OfferedSlotRef {

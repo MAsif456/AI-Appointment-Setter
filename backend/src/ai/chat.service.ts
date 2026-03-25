@@ -64,14 +64,49 @@ export class ChatService {
       options?.slotOptions,
     );
 
-    // Build the full message array for Groq
+    // Build the full message array for Groq.
+    // Groq's free tier has a 12K TPM limit, so we estimate token usage and
+    // trim older history (keeping the first 2 messages for greeting context
+    // and the most recent messages) to stay within budget.
+    const MAX_TOKENS = 9000; // leave headroom for the response (~3K)
+    const estimateTokens = (text: string) => Math.ceil(text.length / 3);
+
+    const systemTokens = estimateTokens(systemPrompt);
+    const userMsgTokens = estimateTokens(userMessage);
+    let budget = MAX_TOKENS - systemTokens - userMsgTokens;
+
+    // Keep first 2 messages (greeting exchange) for context, then fill from the end
+    const firstMessages = history.slice(0, 2);
+    const restMessages = history.slice(2);
+
+    let firstTokens = 0;
+    for (const msg of firstMessages) {
+      firstTokens += estimateTokens(msg.content);
+    }
+    budget -= firstTokens;
+
+    // Fill from the most recent messages backwards
+    const trimmedRest: ChatMessage[] = [];
+    for (let i = restMessages.length - 1; i >= 0; i--) {
+      const tokens = estimateTokens(restMessages[i].content);
+      if (budget - tokens < 0) break;
+      budget -= tokens;
+      trimmedRest.unshift(restMessages[i]);
+    }
+
+    const trimmedHistory = [...firstMessages, ...trimmedRest];
+    if (trimmedHistory.length < history.length) {
+      this.logger.warn(
+        `Trimmed conversation history from ${history.length} to ${trimmedHistory.length} messages to fit token budget`,
+      );
+    }
+
     const messages: Array<{
       role: 'system' | 'user' | 'assistant';
       content: string;
     }> = [{ role: 'system', content: systemPrompt }];
 
-    // Add conversation history
-    for (const msg of history) {
+    for (const msg of trimmedHistory) {
       messages.push({ role: msg.role, content: msg.content });
     }
 

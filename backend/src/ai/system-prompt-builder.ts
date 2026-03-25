@@ -36,6 +36,8 @@ export interface SlotPromptOptions {
   slotSection: string;
   /** Optional detection result from the slot-selector — guides AI response */
   selectionContext?: SlotSelectionContext;
+  /** Display texts of previously offered slots — injected so the AI never contradicts itself */
+  previouslyOfferedSlots?: string[];
 }
 
 
@@ -82,11 +84,14 @@ export function buildSystemPrompt(
     '- Ask about urgency — offer all three options: same-day, this week, or flexible',
     '- Do NOT ask if they are a new or returning patient',
     '- Keep questions natural, not a rigid checklist',
-    '- IMPORTANT: If the lead has already stated when they want to come in (e.g. "same day", "this week", "next week", "tomorrow"),',
-    '  do NOT ask about urgency again. Skip straight to STAGE 4 and offer appointment slots.',
+    '- IMPORTANT: You MUST complete this stage before offering any appointment slots. Even if AVAILABLE SLOTS are shown below, do NOT offer them until the lead has told you their preferred timeframe.',
+    '- EXCEPTION: If the lead has already stated when they want to come in (e.g. "same day", "this week", "next week", "tomorrow"),',
+    '  do NOT ask about urgency again. Skip straight to STAGE 4.',
     '',
     'STAGE 4 - OFFER SLOT:',
-    '- Use the AVAILABLE SLOTS section below to offer real times',
+    '- IMPORTANT: Do NOT enter this stage until Stages 1–3 are fully complete (greeting done, postcode checked, urgency/preference asked).',
+    '- If a DAY AVAILABILITY section is shown below, present available days (Mon–Fri) and mention any fully booked days. Ask the lead to pick a day. Do NOT offer specific times yet.',
+    '- If an AVAILABLE SLOTS section is shown below, use it to offer real times.',
     '- Present slots in natural British English (e.g. "Tuesday 17th March at 2pm")',
     '- Offer a maximum of 3 slots, prioritised by urgency',
     '- If no slots available, ask the lead for an alternative date',
@@ -107,6 +112,15 @@ export function buildSystemPrompt(
     // Inject available slots when provided
     slotOptions?.slotSection || '',
     '',
+    // Inject previously offered slots so the AI can reference them accurately
+    ...(slotOptions?.previouslyOfferedSlots?.length
+      ? [
+          '=== PREVIOUSLY OFFERED SLOTS ===',
+          'These are the exact slots you previously offered to the lead (for reference only — do NOT re-offer these if the AVAILABLE SLOTS section above has different slots):',
+          ...slotOptions.previouslyOfferedSlots.map((s, i) => `${i + 1}. ${s}`),
+          '',
+        ]
+      : []),
     '=== RULES ===',
     '- Keep each response to 1-3 short sentences',
     '- Do NOT use emojis or hashtags',
@@ -115,6 +129,8 @@ export function buildSystemPrompt(
     '- Only move to the next stage when the current one is complete',
     '- Be helpful and proactive in suggesting next steps',
     '- NEVER ask if the lead is a new or returning patient',
+    '- CRITICAL: Only offer slots listed in the AVAILABLE SLOTS section above. NEVER invent, guess, or re-offer slots from conversation history that are not in the current AVAILABLE SLOTS section.',
+    '- If the lead references a slot you previously offered (listed in PREVIOUSLY OFFERED SLOTS), acknowledge it accurately with the correct date and time. Never deny offering a slot that is listed there.',
   ];
 
   if (clinicConfig.customInstructions) {
@@ -146,21 +162,46 @@ function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
         'Let them know a confirmation will follow.',
       ];
     case 'AMBIGUOUS': {
-      const options = ctx.ambiguousSlots?.map(s => s.displayText).join(' or ') ?? '';
+      const slots = ctx.ambiguousSlots ?? [];
+      const options = slots.map(s => s.displayText).join(', ') || '';
+      // Determine the distinguishing attribute to help the AI ask a focused question
+      const days = slots.map(s => {
+        const m = s.displayText.match(/^(\w+)\s/);
+        return m ? m[1] : '';
+      });
+      const times = slots.map(s => {
+        const m = s.displayText.match(/at\s+(.+)$/i);
+        return m ? m[1] : '';
+      });
+      const allSameTime = new Set(times.filter(Boolean)).size <= 1;
+      const allSameDay = new Set(days.filter(Boolean)).size <= 1;
+      let clarifyHint: string;
+      if (allSameTime && !allSameDay) {
+        // Same time, different days — ask which day
+        clarifyHint = `All matched slots are at ${times[0]}. Ask: "I have slots at ${times[0]} on ${days.join(', ')} — which day works best for you?"`;
+      } else if (allSameDay && !allSameTime) {
+        // Same day, different times — ask which time
+        clarifyHint = `All matched slots are on ${days[0]}. Ask: "I have ${days[0]} at ${times.join(', ')} — which time works best for you?"`;
+      } else {
+        clarifyHint = `Ask: "I have ${options} — which one works best for you?"`;
+      }
       return [
         `The lead's reply matched multiple slots: ${options}.`,
-        `Ask them to clarify, e.g. "I have ${options} — which works best for you?"`,
+        'CRITICAL: Do NOT pick one arbitrarily. You MUST ask the lead to clarify which one they want.',
+        clarifyHint,
       ];
     }
     case 'DIFFERENT_DATE': {
       const dateLabel = ctx.requestedDate ? ` for ${ctx.requestedDate}` : '';
       return [
-        `The system has already filtered the AVAILABLE SLOTS section above to match the lead's requested timing${dateLabel}.`,
+        `The lead has requested different availability${dateLabel}. The system has fetched fresh slots for this request.`,
         'CRITICAL: If slots ARE listed in the AVAILABLE SLOTS section, they ARE available for the time the lead asked for.',
         'Offer them directly. Do NOT say "unfortunately we don\'t have availability" or "no appointments available"',
         'when slots are listed — that would be incorrect.',
-        'If the AVAILABLE SLOTS section says "No slots are currently available", only then tell the lead',
-        'and ask for an alternative date.',
+        'Do NOT re-offer any previously offered slots that are not in the current AVAILABLE SLOTS section.',
+        'If the AVAILABLE SLOTS section says "No slots are currently available", tell the lead:',
+        '"Our availability currently only extends to [approximate range]. I can ask my team to check further ahead — would you like me to do that?"',
+        'Do NOT fall back to previously offered slots when no new slots are available.',
       ];
     }
     case 'DIFFERENT_TIME':
@@ -179,7 +220,16 @@ function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
     case 'NONE_SUITABLE':
       return [
         "None of the offered slots work for the lead.",
-        'Respond: "No problem! When would work better for you?"',
+        'Ask what dates or times would work better before suggesting alternatives.',
+        'Respond: "No problem! What dates or times would work better for you?"',
+        'Do NOT re-offer the same slots. Wait for the lead to provide new preferences.',
+      ];
+    case 'DAY_OVERVIEW':
+      return [
+        'The lead has asked about availability for a week range.',
+        'The DAY AVAILABILITY section above shows which weekdays have openings and which are fully booked.',
+        'Present this information naturally and ask the lead to pick a day.',
+        'Do NOT offer specific time slots yet — wait for the lead to choose a day first.',
       ];
   }
 }
