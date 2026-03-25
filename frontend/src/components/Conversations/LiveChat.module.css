@@ -190,6 +190,8 @@
 .phaseQualifying { background-color: #fef3c7; color: #92400e; }
 .phaseBooking { background-color: #ede9fe; color: #6d28d9; }
 .phaseConfirmed { background-color: #d1fae5; color: #065f46; }
+.phaseEscalated { background-color: #fee2e2; color: #991b1b; }
+.phaseDeclined { background-color: #f3f4f6; color: #6b7280; }
 
 .errorMessage {
   align-self: center;
