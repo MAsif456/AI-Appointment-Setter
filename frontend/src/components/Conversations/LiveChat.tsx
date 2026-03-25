@@ -114,6 +114,7 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
           ...prev,
           { id: `ai-${Date.now()}`, sender: 'ai', content: data.reply },
         ]);
+        if (data.phase) setPhase(data.phase);
       } else {
         setError('AI failed to respond. Please try again.');
       }

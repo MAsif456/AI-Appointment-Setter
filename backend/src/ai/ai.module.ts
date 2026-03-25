@@ -18,6 +18,6 @@ import { AppointmentsModule } from '../appointments/appointments.module';
   imports: [ConfigModule, AppointmentsModule],
   controllers: [ChatController],
   providers: [GroqService, GreetingService, ChatService, SlotProvider, UrgencyLlmClassifier, UrgencyPipeline],
-  exports: [GreetingService, ChatService, SlotProvider, UrgencyPipeline],
+  exports: [GroqService, GreetingService, ChatService, SlotProvider, UrgencyPipeline],
 })
 export class AiModule {}
