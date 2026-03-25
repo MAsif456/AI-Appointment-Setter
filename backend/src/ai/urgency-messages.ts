@@ -32,6 +32,10 @@ export const PATIENT_EMERGENCY_RESPONSE =
   "This sounds like it needs urgent attention. I've notified the clinic team right now, " +
   'and someone will contact you very shortly. If this is a medical emergency, please call 999.';
 
+export const PATIENT_EMERGENCY_FOLLOWUP =
+  'Your case has already been flagged and the clinic team has been notified. ' +
+  'Someone will be in touch with you shortly. If you need immediate help, please call 999.';
+
 export const PATIENT_NO_SLOTS_URGENT =
   "I can see we're quite fully booked at the moment, but I've flagged your case as " +
   'urgent with the team. Someone will be in touch shortly to find a time for you.';
