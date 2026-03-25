@@ -58,6 +58,31 @@ describe('EscalationService', () => {
       expect(result.aiMessage).toContain('notified the clinic team');
     });
 
+    it('falls back to conversation.ghlContactId when lead.ghlContactId is null', async () => {
+      const leadNoGhl = { ...mockLead, ghlContactId: undefined };
+
+      await service.escalateEmergency(
+        mockConversation, leadNoGhl as any, mockClinic, emergencyAssessment,
+      );
+
+      expect(mockGhlApi.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'ghl_c1' }),
+      );
+    });
+
+    it('falls back to lead._id when both ghlContactId fields are null', async () => {
+      const leadNoGhl = { ...mockLead, ghlContactId: undefined };
+      const convNoGhl = { ...mockConversation, ghlContactId: undefined };
+
+      await service.escalateEmergency(
+        convNoGhl as any, leadNoGhl as any, mockClinic, emergencyAssessment,
+      );
+
+      expect(mockGhlApi.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'lead_1' }),
+      );
+    });
+
     it('handles GHL notification failure gracefully', async () => {
       mockGhlApi.sendMessageWithRetry.mockRejectedValue(new Error('GHL down'));
 
@@ -83,6 +108,17 @@ describe('EscalationService', () => {
       );
       expect(msg).toContain('flagged your case as urgent');
       expect(msg).toContain('Someone will be in touch');
+    });
+
+    it('falls back to lead._id when ghlContactId fields are null', async () => {
+      const leadNoGhl = { ...mockLead, ghlContactId: undefined };
+      const convNoGhl = { ...mockConversation, ghlContactId: undefined };
+
+      await service.handleNoSlotsForUrgent(convNoGhl as any, mockClinic, leadNoGhl as any);
+
+      expect(mockGhlApi.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: 'lead_1' }),
+      );
     });
   });
 

@@ -15,6 +15,7 @@ import { AppointmentsService, BookingResult } from '../appointments/appointments
 import { UrgencyLevel } from '../ai/urgency-detector.types';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
+import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -156,6 +157,12 @@ export class ConversationsService {
 
     // Emergency: escalate and return early
     if (resolvedUrgency === 'emergency') {
+      // Already escalated — send a softer follow-up instead of repeating the full escalation
+      if (conversation.phase === 'escalated') {
+        await this.saveMessage(conversation, clinic, lead, 'ai', PATIENT_EMERGENCY_FOLLOWUP);
+        await this.updateConversationMeta(conversation, 'ai', undefined);
+        return { reply: PATIENT_EMERGENCY_FOLLOWUP, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
       const result = await this.escalationService.escalateEmergency(
         conversation, lead, clinic, urgencyAssessment,
       );
@@ -276,6 +283,7 @@ export class ConversationsService {
       phase: 'greeting', messageCount: 0, offeredSlots: [],
       lastMessageAt: null, lastMessageFrom: null,
     });
+    await this.leadModel.findByIdAndUpdate(conversation.leadId, { urgency: 'unknown' });
   }
 
   /** Creates a message document in MongoDB, optionally with urgency audit data. */
@@ -296,7 +304,6 @@ export class ConversationsService {
       channel: conversation.channel,
     };
     if (urgencyData) {
-      doc.detectedIntent = urgencyData.level;
       doc.extractedData = new Map([
         ['urgency', urgencyData.level],
         ['urgencyScore', urgencyData.score.toString()],

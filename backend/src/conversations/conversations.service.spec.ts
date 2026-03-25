@@ -166,7 +166,7 @@ describe('ConversationsService', () => {
   });
 
   describe('resetConversation', () => {
-    it('should delete messages and reset conversation phase', async () => {
+    it('should delete messages and reset conversation phase and lead urgency', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
 
@@ -178,6 +178,10 @@ describe('ConversationsService', () => {
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'conv1',
         expect.objectContaining({ phase: 'greeting', messageCount: 0 }),
+      );
+      expect(mockLeadModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'lead1',
+        { urgency: 'unknown' },
       );
     });
 
@@ -209,6 +213,26 @@ describe('ConversationsService', () => {
       expect(result!.offeredSlots).toBeDefined();
       // Should create two messages: user + AI
       expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return follow-up message when conversation is already escalated', async () => {
+      const escalatedConversation = { ...mockConversation, phase: 'escalated' };
+      mockConversationModel.findById.mockResolvedValue(escalatedConversation);
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockUrgencyPipeline.assessMessage.mockResolvedValueOnce({
+        resolved: 'emergency',
+        assessment: { level: 'emergency', score: 1.0, signals: [], isAmbiguous: false, requiresEscalation: true, emergencyKeywordsMatched: [] },
+      });
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      const result = await service.sendMessage('conv1', 'actually its fine now');
+
+      expect(result!.reply).toContain('already been flagged');
+      expect(result!.reply).toContain('999');
+      // Should NOT call escalateEmergency again
+      expect(mockEscalationService.escalateEmergency).not.toHaveBeenCalled();
     });
 
     it('should return null when AI fails', async () => {

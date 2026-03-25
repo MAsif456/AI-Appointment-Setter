@@ -14,6 +14,12 @@ describe('classifyUrgencyFromText', () => {
       "It's really painful",
       'As soon as possible please',
       "I can't wait much longer",
+      'I need to be seen immediately',
+      'I need the earliest available',
+      "I'm in so much pain",
+      "I'm in agony",
+      'It keeps getting worse',
+      'I can barely move',
     ])('classifies "%s" as urgent', (msg) => {
       const result = classifyUrgencyFromText(msg);
       expect(result.level).toBe('urgent');
@@ -28,6 +34,9 @@ describe('classifyUrgencyFromText', () => {
       'Whenever works for me',
       'Next week would be great',
       'Just a routine check-up',
+      'Just a general appointment please',
+      'Take your time',
+      'At your convenience',
     ])('classifies "%s" as routine', (msg) => {
       const result = classifyUrgencyFromText(msg);
       expect(result.level).toBe('routine');
@@ -38,10 +47,16 @@ describe('classifyUrgencyFromText', () => {
     it.each([
       "I can't move",
       'I have chest pain',
+      'my chest hurts',
       "I can't breathe",
+      "i cant breath",
       "I can't walk at all",
       'I think I need an ambulance',
       'Call 999 please',
+      'I passed out earlier',
+      'struggling to breathe',
+      'I collapsed at work',
+      "I've had a seizure",
     ])('classifies "%s" as emergency', (msg) => {
       const result = classifyUrgencyFromText(msg);
       expect(result.level).toBe('emergency');
@@ -73,6 +88,21 @@ describe('classifyUrgencyFromText', () => {
 
     it('classifies "my throat is swelling" as emergency', () => {
       const result = classifyUrgencyFromText('my throat is swelling up');
+      expect(result.level).toBe('emergency');
+    });
+
+    it('classifies "my chest hurts" as emergency via hurt+chest contextual pair', () => {
+      const result = classifyUrgencyFromText('my chest hurts a lot');
+      expect(result.level).toBe('emergency');
+    });
+
+    it('classifies "my finger hurts a little" as routine via hurt+finger de-escalator', () => {
+      const result = classifyUrgencyFromText('my finger hurts a little');
+      expect(result.level).toBe('routine');
+    });
+
+    it('classifies "my arm is numb" as emergency via numb+arm contextual pair', () => {
+      const result = classifyUrgencyFromText('my left arm is numb');
       expect(result.level).toBe('emergency');
     });
   });
@@ -145,13 +175,6 @@ describe('classifyFormData', () => {
 });
 
 describe('mergeAssessments', () => {
-/**
- * Convenience function to create an UrgencyAssessment object
- * with default values.
- *
- * @param {UrgencyLevel} level - The level of urgency.
- * @returns {UrgencyAssessment} - An UrgencyAssessment object with default values.
- */
   const makeAssessment = (level: 'routine' | 'urgent' | 'emergency'): UrgencyAssessment => ({
     level,
     score: level === 'emergency' ? 1.0 : level === 'urgent' ? 0.75 : 0.1,
