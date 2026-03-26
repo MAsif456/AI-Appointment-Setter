@@ -13,6 +13,7 @@ import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 describe('ConversationsService – slot selection detection', () => {
   let service: ConversationsService;
@@ -78,6 +79,7 @@ describe('ConversationsService – slot selection detection', () => {
   const mockLeadModel = { findById: jest.fn().mockResolvedValue(mockLead), findByIdAndUpdate: jest.fn().mockResolvedValue({}) };
   const mockChatService = { sendMessage: jest.fn().mockResolvedValue('AI reply') };
   const mockSlotProvider = { getAvailableSlots: jest.fn().mockResolvedValue(mockAvailableSlots) };
+  const mockAbuseHandler = { handle: jest.fn().mockResolvedValue(null) };
   const mockAppointmentsService = {
     bookAppointment: jest.fn().mockResolvedValue({ success: true, confirmationMessage: 'Booked!' }),
   };
@@ -108,6 +110,7 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: getModelToken('Lead'), useValue: mockLeadModel },
         { provide: ChatService, useValue: mockChatService },
         { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AbuseHandlerService, useValue: mockAbuseHandler },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
@@ -196,6 +199,6 @@ describe('ConversationsService – slot selection detection', () => {
     expect(result!.slotSelection?.intent).toBe('DIFFERENT_TIME');
     expect(result!.slotSelection?.timePreference).toBe('morning');
     // Wednesday 10am is the only morning slot in the mock data
-    expect(result!.offeredSlots.some(s => s.displayText.includes('10am'))).toBe(true);
+    expect((result!.offeredSlots as Array<{ displayText: string }>).some(s => s.displayText.includes('10am'))).toBe(true);
   });
 });

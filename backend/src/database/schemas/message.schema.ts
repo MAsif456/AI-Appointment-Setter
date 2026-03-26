@@ -43,6 +43,10 @@ export class Message {
   @Prop({ default: false })
   isReminder: boolean;
 
+  // Abuse detection
+  @Prop({ default: false })
+  isAbusive: boolean;
+
   // AI Processing Time (for "Avg Response Time" metric)
   @Prop()
   aiProcessingStartedAt?: Date;

@@ -7,6 +7,7 @@ import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -43,6 +44,10 @@ describe('ConversationsService', () => {
       { date: '2026-03-17', startTime: '14:00', endTime: '14:30' },
     ]),
   };
+
+  const mockAbuseHandler = {
+    handle: jest.fn().mockResolvedValue(null),
+};
 
   const mockAppointmentsService = {
     bookAppointment: jest.fn(),
@@ -104,6 +109,7 @@ describe('ConversationsService', () => {
         { provide: getModelToken('Lead'), useValue: mockLeadModel },
         { provide: ChatService, useValue: mockChatService },
         { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AbuseHandlerService, useValue: mockAbuseHandler },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
@@ -212,7 +218,7 @@ describe('ConversationsService', () => {
       expect(result!.reply).toBe('Let me check that.');
       expect(result!.offeredSlots).toBeDefined();
       // Should create two messages: user + AI
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(3);
     });
 
     it('should return follow-up message when conversation is already escalated', async () => {
@@ -246,7 +252,7 @@ describe('ConversationsService', () => {
 
       expect(result).toBeNull();
       // Only the user message should be saved, not an AI reply
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(1);
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
     });
   });
 });

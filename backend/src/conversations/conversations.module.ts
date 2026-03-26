@@ -10,6 +10,8 @@ import { GhlModule } from '../ghl/ghl.module';
 import { EscalationService } from '../ai/escalation.service';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
+import { AbuseHandlerService } from './abuse-handler.service';
+import { AbuseDetectionService } from './abuse-detection.service';
 
 
 @Module({
@@ -25,7 +27,7 @@ import { ConversationsService } from './conversations.service';
     GhlModule,
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService, EscalationService],
+  providers: [ConversationsService, EscalationService, AbuseHandlerService, AbuseDetectionService],
   exports: [ConversationsService],
 })
 export class ConversationsModule {

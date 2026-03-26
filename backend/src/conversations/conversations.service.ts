@@ -16,6 +16,7 @@ import { UrgencyLevel } from '../ai/urgency-detector.types';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -65,6 +66,7 @@ export class ConversationsService {
     private readonly appointmentsService: AppointmentsService,
     private readonly urgencyPipeline: UrgencyPipeline,
     private readonly escalationService: EscalationService,
+    private readonly abuseHandler: AbuseHandlerService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -137,6 +139,17 @@ export class ConversationsService {
       level: urgencyAssessment.level, score: urgencyAssessment.score,
     });
 
+    await this.saveMessage(conversation, clinic, lead, 'lead', userMessage);
+
+    const abuseHandled = await this.abuseHandler.handle(
+      conversation, clinic, lead, userMessage,
+    );
+    if (abuseHandled) {
+      // If the lead accepted the human offer, signal to the caller so the
+      // US-20 escalation service can take over (phase change, GHL tags, etc.)
+      return abuseHandled;
+    }
+    
     const history: ChatMessage[] = [
       ...messages.map(m => ({
         role: m.sender === 'ai' ? 'assistant' as const : 'user' as const,
@@ -281,6 +294,7 @@ export class ConversationsService {
     await this.messageModel.deleteMany({ conversationId: conversation._id });
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       phase: 'greeting', messageCount: 0, offeredSlots: [],
+        directedHostilityCount: 0, abuseOfferPending: false, 
       lastMessageAt: null, lastMessageFrom: null,
     });
     await this.leadModel.findByIdAndUpdate(conversation.leadId, { urgency: 'unknown' });
