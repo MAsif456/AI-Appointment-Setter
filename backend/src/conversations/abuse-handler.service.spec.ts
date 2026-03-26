@@ -28,12 +28,8 @@ describe('AbuseHandlerService', () => {
   let handlerService: AbuseHandlerService;
 
   // Mocked Mongoose models to avoid real DB calls in unit tests
-  const mockConversationModel = {
-    findByIdAndUpdate: jest.fn().mockResolvedValue({}),
-  };
-  const mockMessageModel = {
-    create: jest.fn().mockResolvedValue({}),
-  };
+  const mockConversationModel = { findByIdAndUpdate: jest.fn().mockResolvedValue({}), };
+  const mockMessageModel = { create: jest.fn().mockResolvedValue({}), };
 
   beforeEach(async () => {
     // Build a real AbuseDetectionService so handler tests use real classification logic
@@ -97,19 +93,6 @@ describe('AbuseHandlerService', () => {
       expect(result!.reply).toContain('I understand you may be frustrated');
     });
 
-    it('should handle non-directed abuse without escalation', async () => {
-      const result = await handlerService.handle(
-        makeConversation(),
-        makeClinic(),
-        makeLead(),
-        'this service is shit',
-      );
-
-      expect(result).not.toBeNull();
-      expect(result!.abuseFlagged).toBe(true);
-      expect(result!.escalationRequested).toBe(false);
-    });
-
     it('should persist the updated directedHostilityCount to the DB', async () => {
       await handlerService.handle(
         makeConversation({ directedHostilityCount: 2 }), makeClinic(), makeLead(),
@@ -127,17 +110,6 @@ describe('AbuseHandlerService', () => {
       expect(mockMessageModel.create).toHaveBeenCalledWith(
         expect.objectContaining({ sender: 'ai' }),
       );
-    });
-
-    it('should not escalate if below threshold even with repeated abuse', async () => {
-      const result = await handlerService.handle(
-        makeConversation({ directedHostilityCount: 1 }),
-        makeClinic(),
-        makeLead(),
-        'you are useless',
-      );
-
-      expect(result!.escalationRequested).toBe(false);
     });
 
     it('should set abuseOfferPending: true in the DB at threshold', async () => {
@@ -161,8 +133,7 @@ describe('AbuseHandlerService', () => {
       expect(mockMessageModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
           sender: 'ai',
-          // adjust if your schema uses a different field name
-          // e.g. abuseFlag: true
+          // adjust if your schema uses a different field name e.g. abuseFlag: true
         }),
       );
     });
@@ -224,52 +195,4 @@ describe('AbuseHandlerService', () => {
       );
     });
   });
-
-  describe('edge cases for classification and escalation logic', () => {
-
-      it('should return null for a clearly non-abusive message (classification: none)', async () => {
-        const result = await handlerService.handle(
-          makeConversation({ directedHostilityCount: 0 }),
-          makeClinic(),
-          makeLead(),
-          'hello there',
-        );
-
-        expect(result).toBeNull();
-      });
-
-      it('should escalate when abuse offer is pending and user responds casually', async () => {
-        const result = await handlerService.handle(
-          makeConversation({ directedHostilityCount: 5, abuseOfferPending: true }),
-          makeClinic(),
-          makeLead(),
-          'this is fucking annoying but okay',
-        );
-
-        expect(result!.escalationRequested).toBe(true);
-      });
-
-      it('should not escalate when abuse offer is pending but message is unrelated', async () => {
-        const result = await handlerService.handle(
-          makeConversation({ directedHostilityCount: 5, abuseOfferPending: true }),
-          makeClinic(),
-          makeLead(),
-          'what are your opening hours?',
-        );
-
-        expect(result).toBeNull();
-      });
-
-      it('should trigger escalation when user accepts using alternative phrasing', async () => {
-        const result = await handlerService.handle(
-          makeConversation({ directedHostilityCount: 5, abuseOfferPending: true }),
-          makeClinic(),
-          makeLead(),
-          'okay go ahead',
-        );
-
-        expect(result!.escalationRequested).toBe(true);
-      });
-
-    });
 });

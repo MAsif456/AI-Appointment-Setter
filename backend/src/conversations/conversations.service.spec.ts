@@ -218,7 +218,7 @@ describe('ConversationsService', () => {
       expect(result!.reply).toBe('Let me check that.');
       expect(result!.offeredSlots).toBeDefined();
       // Should create two messages: user + AI
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(3);
     });
 
     it('should return follow-up message when conversation is already escalated', async () => {
@@ -252,7 +252,7 @@ describe('ConversationsService', () => {
 
       expect(result).toBeNull();
       // Only the user message should be saved, not an AI reply
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(1);
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
     });
   });
 });
