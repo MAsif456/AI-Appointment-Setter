@@ -6,6 +6,8 @@ import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import { AiModule } from '../ai/ai.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
+import { GhlModule } from '../ghl/ghl.module';
+import { EscalationService } from '../ai/escalation.service';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 import { AbuseHandlerService } from './abuse-handler.service';
@@ -22,9 +24,10 @@ import { AbuseDetectionService } from './abuse-detection.service';
     ]),
     AiModule,
     AppointmentsModule,
+    GhlModule,
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService, AbuseHandlerService, AbuseDetectionService],
+  providers: [ConversationsService, EscalationService, AbuseHandlerService, AbuseDetectionService],
   exports: [ConversationsService],
 })
 export class ConversationsModule {

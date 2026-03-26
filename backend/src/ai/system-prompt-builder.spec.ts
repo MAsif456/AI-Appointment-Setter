@@ -161,4 +161,38 @@ describe('buildSystemPrompt', () => {
       expect(prompt).toContain('When would work better');
     });
   });
+
+  // Urgency context injection
+  describe('urgencyContext injection', () => {
+    it('Stage 3 does NOT ask about urgency', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).not.toContain('Ask about urgency');
+      expect(prompt).toContain('Do NOT ask about urgency');
+    });
+
+    it('injects emergency guidance when urgencyContext is emergency', () => {
+      const prompt = buildSystemPrompt(lead, clinic, undefined, {
+        level: 'emergency',
+        isEmergency: true,
+      });
+      expect(prompt).toContain('=== URGENCY CONTEXT ===');
+      expect(prompt).toContain('EMERGENCY');
+      expect(prompt).toContain('999');
+    });
+
+    it('injects priority language when urgencyContext is urgent', () => {
+      const prompt = buildSystemPrompt(lead, clinic, undefined, {
+        level: 'urgent',
+        isEmergency: false,
+      });
+      expect(prompt).toContain('=== URGENCY CONTEXT ===');
+      expect(prompt).toContain('urgently');
+      expect(prompt).toContain('earliest available slot');
+    });
+
+    it('does not inject urgency section when urgencyContext is absent', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).not.toContain('=== URGENCY CONTEXT ===');
+    });
+  });
 });

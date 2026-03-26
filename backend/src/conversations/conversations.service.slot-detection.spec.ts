@@ -11,6 +11,8 @@ import { ConversationsService } from './conversations.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { UrgencyPipeline } from '../ai/urgency-pipeline';
+import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
 
 describe('ConversationsService – slot selection detection', () => {
@@ -74,12 +76,28 @@ describe('ConversationsService – slot selection detection', () => {
     create: jest.fn().mockResolvedValue({}),
   };
   const mockClinicModel = { findById: jest.fn().mockResolvedValue(mockClinic) };
-  const mockLeadModel = { findById: jest.fn().mockResolvedValue(mockLead) };
+  const mockLeadModel = { findById: jest.fn().mockResolvedValue(mockLead), findByIdAndUpdate: jest.fn().mockResolvedValue({}) };
   const mockChatService = { sendMessage: jest.fn().mockResolvedValue('AI reply') };
   const mockSlotProvider = { getAvailableSlots: jest.fn().mockResolvedValue(mockAvailableSlots) };
   const mockAbuseHandler = { handle: jest.fn().mockResolvedValue(null) };
   const mockAppointmentsService = {
     bookAppointment: jest.fn().mockResolvedValue({ success: true, confirmationMessage: 'Booked!' }),
+  };
+  const mockUrgencyPipeline = {
+    assessMessage: jest.fn().mockResolvedValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    }),
+    assessFormData: jest.fn().mockReturnValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    }),
+  };
+  const mockEscalationService = {
+    escalateEmergency: jest.fn(),
+    handleNoSlotsForUrgent: jest.fn(),
+    notifyClinicStaff: jest.fn(),
+    updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -94,6 +112,8 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: SlotProvider, useValue: mockSlotProvider },
         { provide: AbuseHandlerService, useValue: mockAbuseHandler },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
+        { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
+        { provide: EscalationService, useValue: mockEscalationService },
       ],
     }).compile();
 
@@ -108,6 +128,11 @@ describe('ConversationsService – slot selection detection', () => {
     mockLeadModel.findById.mockResolvedValue(mockLead);
     mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
     mockAppointmentsService.bookAppointment.mockResolvedValue({ success: true, confirmationMessage: 'Booked!' });
+    mockUrgencyPipeline.assessMessage.mockResolvedValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    });
+    mockEscalationService.updateGhlTags.mockResolvedValue(undefined);
   });
 
   /** Registers a conversation document to be returned by findById */

@@ -107,8 +107,16 @@ export class ConversationsController {
   ) {
     this.logger.log(`Message in conversation ${id}: "${body.message}"`);
     const result = await this.conversationsService.sendMessage(id, body.message);
-    if (!result) return { reply: null, offeredSlots: [], slotSelection: null };
-    return { reply: result.reply, offeredSlots: result.offeredSlots, slotSelection: result.slotSelection };
+    if (!result) return { reply: null, offeredSlots: [], slotSelection: null, phase: null };
+
+    // Include updated phase so the frontend can reflect changes immediately
+    const { conversation } = await this.conversationsService.getConversation(id);
+    return {
+      reply: result.reply,
+      offeredSlots: result.offeredSlots,
+      slotSelection: result.slotSelection,
+      phase: conversation.phase,
+    };
   }
 }
 
