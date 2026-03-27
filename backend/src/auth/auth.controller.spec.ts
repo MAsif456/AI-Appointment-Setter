@@ -6,11 +6,13 @@ describe('AuthController', () => {
   let controller: AuthController;
 
   const mockAuthService = {
-    register: jest.fn(),
+    createUser: jest.fn(),
     verifyEmail: jest.fn(),
+    resendVerificationLink: jest.fn(),
     login: jest.fn(),
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
+    changePassword: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -20,49 +22,69 @@ describe('AuthController', () => {
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
+    jest.clearAllMocks();
   });
 
-  describe('register', () => {
-    it('should register a new user', async () => {
-      const registerDto = {
+  // ✅ CREATE USER (replaces register)
+  describe('createUser', () => {
+    it('should create a new user (admin route)', async () => {
+      const dto = {
         name: 'Test User',
         email: 'test@example.com',
-        password: 'Test123!@#',
+        role: 'staff',
       };
 
-      mockAuthService.register.mockResolvedValue({
-        message: 'Account created',
-        email: registerDto.email,
+      mockAuthService.createUser.mockResolvedValue({
+        message: 'User created',
+        email: dto.email,
       });
 
-      const result = await controller.register(registerDto);
+      const result = await controller.createUser(dto);
 
-      expect(result.message).toContain('Account created');
-      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
+      expect(result.message).toContain('User created');
+      expect(mockAuthService.createUser).toHaveBeenCalledWith(dto);
     });
   });
 
+  // ✅ VERIFY EMAIL (now uses token, not DTO)
   describe('verifyEmail', () => {
-    it('should verify email', async () => {
-      const verifyDto = { email: 'test@example.com', code: '123456' };
+    it('should verify email using token', async () => {
+      const token = 'verification-token';
 
       mockAuthService.verifyEmail.mockResolvedValue({
         message: 'Email verified successfully',
       });
 
-      const result = await controller.verifyEmail(verifyDto);
+      const result = await controller.verifyEmail(token);
 
       expect(result.message).toContain('verified');
-      expect(mockAuthService.verifyEmail).toHaveBeenCalledWith(verifyDto);
+      expect(mockAuthService.verifyEmail).toHaveBeenCalledWith(token);
     });
   });
 
+  // ✅ RESEND VERIFICATION (new endpoint)
+  describe('resendVerification', () => {
+    it('should resend verification link', async () => {
+      const email = 'test@example.com';
+
+      mockAuthService.resendVerificationLink.mockResolvedValue({
+        message: 'Verification email sent',
+      });
+
+      const result = await controller.resendVerification(email);
+
+      expect(result.message).toContain('Verification');
+      expect(mockAuthService.resendVerificationLink).toHaveBeenCalledWith(email);
+    });
+  });
+
+  // ✅ LOGIN (unchanged)
   describe('login', () => {
     it('should login user', async () => {
       const loginDto = { email: 'test@example.com', password: 'password' };
 
       mockAuthService.login.mockResolvedValue({
-        user: { email: 'test@test.com' },
+        user: { email: 'test@example.com' },
         accessToken: 'token',
       });
 
@@ -73,40 +95,65 @@ describe('AuthController', () => {
     });
   });
 
+  // ✅ FORGOT PASSWORD (unchanged)
   describe('forgotPassword', () => {
-    it('should send password reset code', async () => {
-      const forgotDto = { email: 'test@example.com' };
+    it('should send password reset link', async () => {
+      const dto = { email: 'test@example.com' };
 
       mockAuthService.forgotPassword.mockResolvedValue({
-        message: 'If the email exists, a reset code has been sent.',
+        message: 'If the email exists, a reset link has been sent.',
       });
 
-      const result = await controller.forgotPassword(forgotDto);
+      const result = await controller.forgotPassword(dto);
 
-      expect(result.message).toContain('reset code');
-      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(forgotDto);
+      expect(result.message).toContain('reset');
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(dto);
     });
   });
 
+  // ✅ RESET PASSWORD (unchanged)
   describe('resetPassword', () => {
     it('should reset password', async () => {
-      const resetDto = {
-        email: 'test@example.com',
-        code: '123456',
-        newPassword: 'NewPass123!@#',
+      const dto = {
+        token: 'reset-token',
+        newPassword: 'NewPass123!',
       };
 
       mockAuthService.resetPassword.mockResolvedValue({
         message: 'Password reset successfully',
       });
 
-      const result = await controller.resetPassword(resetDto);
+      const result = await controller.resetPassword(dto);
 
       expect(result.message).toContain('reset successfully');
-      expect(mockAuthService.resetPassword).toHaveBeenCalledWith(resetDto);
+      expect(mockAuthService.resetPassword).toHaveBeenCalledWith(dto);
     });
   });
 
+  // ✅ CHANGE PASSWORD (new)
+  describe('changePassword', () => {
+    it('should change password for authenticated user', async () => {
+      const req = { user: { _id: 'user123' } };
+      const dto = {
+        currentPassword: 'oldPass',
+        newPassword: 'newPass',
+      };
+
+      mockAuthService.changePassword.mockResolvedValue({
+        message: 'Password changed successfully',
+      });
+
+      const result = await controller.changePassword(req, dto);
+
+      expect(result.message).toContain('changed');
+      expect(mockAuthService.changePassword).toHaveBeenCalledWith(
+        'user123',
+        dto,
+      );
+    });
+  });
+
+  // ✅ LOGOUT (unchanged but now guarded)
   describe('logout', () => {
     it('should logout', async () => {
       const result = await controller.logout();
@@ -114,10 +161,13 @@ describe('AuthController', () => {
     });
   });
 
+  // ✅ GET CURRENT USER (renamed route: /me)
   describe('getCurrentUser', () => {
     it('should return current user', async () => {
       const req = { user: { email: 'test@example.com' } };
+
       const result = await controller.getCurrentUser(req);
+
       expect(result.email).toBe('test@example.com');
     });
   });

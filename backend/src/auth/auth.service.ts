@@ -1,201 +1,184 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException, ConflictException, Injectable,
+  UnauthorizedException, ForbiddenException, Logger,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User, UserDocument } from '../database/schemas/user.schema';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto } from './dto/register.dto';
+import { LoginDto } from './dto/auth.dto';
+import {
+  CreateUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto,
+} from './dto/auth.dto';
 import { EmailService } from './email.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 
+/** Generates a cryptographically secure URL-safe token */
+function generateToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Core authentication service.
+ * Staff accounts are created by admins only — there is no public registration.
+ * Email verification and password reset use token-based links, not numeric codes.
+ */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
     private emailService: EmailService,
   ) {}
 
-  private generateCode(): string {
-    return crypto.randomInt(100000, 999999).toString();
-  }
+  /**
+   * Creates a new user account (admin-only action).
+   * Sends a verification link to the new user's email.
+   * Staff members must have at least one assigned clinic.
+   */
+  async createUser(dto: CreateUserDto): Promise<{ message: string }> {
+    const existing = await this.userModel.findOne({ email: dto.email.toLowerCase() });
+    if (existing) throw new ConflictException('Email is already in use');
 
-  async register(registerDto: RegisterDto) {
-    const { name, email, password } = registerDto;
-
-    // Check if user exists
-    const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      throw new ConflictException('Email is already in use');
+    if (dto.role === 'staff' && (!dto.assignedClinics || dto.assignedClinics.length === 0)) {
+      throw new BadRequestException('Staff members must have at least one clinic assigned');
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const verificationToken = generateToken();
 
-    // Generate verification code
-    const verificationCode = this.generateCode();
-    const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-    // Create user
-    const user = await this.userModel.create({
-      name,
-      email: email.toLowerCase(),
+    await this.userModel.create({
+      name: dto.name,
+      email: dto.email.toLowerCase(),
       passwordHash,
-      role: 'staff',
+      role: dto.role,
+      assignedClinics: dto.assignedClinics?.map(id => new Types.ObjectId(id)) || [],
       isActive: false,
       isVerified: false,
-      verificationCode,
-      verificationCodeExpires,
+      verificationToken,
+      verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
     });
 
-    // Send verification email
-    await this.emailService.sendVerificationEmail(email, verificationCode);
-
-    return {
-      message: 'Account created. Please check your email for verification code.',
-      email: user.email,
-    };
+    await this.emailService.sendVerificationEmail(dto.email, verificationToken);
+    this.logger.log(`Admin created user account for ${dto.email}`);
+    return { message: 'Account created. A verification link has been sent to the user.' };
   }
 
-  async verifyEmail(verifyDto: VerifyEmailDto) {
-    const { email, code } = verifyDto;
-    const user = await this.userModel.findOne({ email: email.toLowerCase() });
+  /**
+   * Verifies a user's email using the token from the link sent to their inbox.
+   * Activates the account on success.
+   */
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const user = await this.userModel.findOne({ verificationToken: token });
 
-    if (!user || user.verificationCode !== code) {
-      throw new BadRequestException('Invalid or expired verification code');
-    }
-    if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
-      throw new BadRequestException('Invalid or expired verification code');
+    if (!user || !user.verificationTokenExpires || user.verificationTokenExpires < new Date()) {
+      throw new BadRequestException('Verification link is invalid or has expired. Please contact an admin.');
     }
 
     user.isVerified = true;
     user.isActive = true;
-    user.verificationCode = undefined;
-    user.verificationCodeExpires = undefined;
+    user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
     await user.save();
 
     return { message: 'Email verified successfully. You can now log in.' };
   }
 
-  async resendVerificationCode(email: string) {
+  /**
+   * Resends a verification link. Only works if the account is not yet verified.
+   * Does not reveal whether the email exists in the system.
+   */
+  async resendVerificationLink(email: string): Promise<{ message: string }> {
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
+    const safe = { message: 'If the account exists and is unverified, a new link has been sent.' };
 
-    if (!user) {
-      // Don't reveal if email exists
-      return { message: 'If the email exists, a new code has been sent.' };
-    }    if (user.isVerified) {
-      throw new BadRequestException('Email is already verified');
-    }
+    if (!user || user.isVerified) return safe;
 
-    const verificationCode = this.generateCode();
-    user.verificationCode = verificationCode;
-    user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
+    user.verificationToken = generateToken();
+    user.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await user.save();
-    await this.emailService.sendVerificationEmail(email, verificationCode);
-
-    return { message: 'Verification code resent. Please check your email.' };
+    await this.emailService.sendVerificationEmail(email, user.verificationToken);
+    return safe;
   }
 
-  // Login method returns user info and JWT token
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const { email, password } = loginDto;
+  /** Authenticates a user and returns a JWT token. */
+  async login(dto: LoginDto): Promise<AuthResponseDto> {
+    const user = await this.userModel.findOne({ email: dto.email.toLowerCase() });
 
-    // Find user by email
-    const user = await this.userModel.findOne({ 
-      email: email.toLowerCase() 
-    });
+    if (!user || !user.isActive) throw new UnauthorizedException('Invalid email or password');
 
-    // Check if user exists and is active
-    if (!user || !user.isActive) {
-      console.log('❌ Login failed: User not found or inactive');
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    // Check if email is verified
     if (!user.isVerified) {
-      console.log('❌ Login failed: Email not verified');
-      throw new UnauthorizedException('Please verify your email before logging in. Check your email for the verification code.');
+      throw new UnauthorizedException('Please verify your email before logging in.');
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isPasswordValid) throw new UnauthorizedException('Invalid email or password');
 
-    // Update last login
     user.lastLoginAt = new Date();
     await user.save();
 
-    // Generate JWT token
-    const payload = { 
-      sub: user._id.toString(), 
-      email: user.email, 
-      role: user.role 
-    };
+    const payload = { sub: user._id.toString(), email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
-    // Return response
     return {
-      user: {
-        _id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: { _id: user._id.toString(), name: user.name, email: user.email, role: user.role },
       accessToken,
     };
   }
 
+  /** Validates a user by ID — used by the JWT strategy. */
   async validateUser(userId: string): Promise<UserDocument> {
-    const user = await this.userModel
-      .findById(userId)
-      .select('-passwordHash');
-
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Session expired');
-    }
-
+    const user = await this.userModel.findById(userId).select('-passwordHash');
+    if (!user || !user.isActive) throw new UnauthorizedException('Session expired');
     return user;
   }
 
-  // Password forgot methods
-  async forgotPassword(forgotDto: ForgotPasswordDto) {
-    const { email } = forgotDto;
-    const user = await this.userModel.findOne({ email: email.toLowerCase() });
+  /**
+   * Sends a password reset link. Always returns a generic message
+   * to prevent email enumeration attacks.
+   */
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const user = await this.userModel.findOne({ email: dto.email.toLowerCase() });
+    const safe = { message: 'If the email exists, a reset link has been sent.' };
 
-    // Always return success to prevent email enumeration
-    if (!user) {
-      return { message: 'If the email exists, a reset code has been sent.' };
-    }
+    if (!user) return safe;
 
-    const resetCode = this.generateCode();
-    user.passwordResetCode = resetCode;
-    user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
+    user.passwordResetToken = generateToken();
+    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
-    await this.emailService.sendPasswordResetEmail(email, resetCode);
-
-    return { message: 'If the email exists, a reset code has been sent.' };
+    await this.emailService.sendPasswordResetEmail(dto.email, user.passwordResetToken);
+    return safe;
   }
 
-  // Reset password method
-  async resetPassword(resetDto: ResetPasswordDto) {
-    const { email, code, newPassword } = resetDto;
-    const user = await this.userModel.findOne({ email: email.toLowerCase() });
+  /** Resets a password using the token from the link sent to the user's email. */
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const user = await this.userModel.findOne({ passwordResetToken: dto.token });
 
-    if (!user || user.passwordResetCode !== code) {
-      throw new BadRequestException('Invalid or expired reset code');
-    }
-    if (!user.passwordResetExpires || user.passwordResetExpires < new Date()) {
-      throw new BadRequestException('Invalid or expired reset code');
+    if (!user || !user.passwordResetExpires || user.passwordResetExpires < new Date()) {
+      throw new BadRequestException('Reset link is invalid or has expired.');
     }
 
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
-    user.passwordResetCode = undefined;
+    user.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
     return { message: 'Password reset successfully. You can now log in.' };
+  }
+
+  /** Allows a logged-in user to change their own password from Account Settings. */
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const isCurrentValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isCurrentValid) throw new BadRequestException('Current password is incorrect');
+
+    user.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await user.save();
+    return { message: 'Password updated successfully.' };
   }
 }

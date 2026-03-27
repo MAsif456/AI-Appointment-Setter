@@ -1,72 +1,99 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Req,
+  Controller, Post, Get, Body, Query,
+  HttpCode, HttpStatus, UseGuards, Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-export class AuthResponseDto {
-  user: {
-    _id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
-  accessToken: string;
-}
-import {
-  RegisterDto,
-  VerifyEmailDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
-} from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminGuard } from './guards/admin.guard';
+import {
+  LoginDto, ForgotPasswordDto, ResetPasswordDto,
+  ChangePasswordDto, CreateUserDto,
+} from './dto/auth.dto';
 
+/**
+ * Handles all authentication endpoints.
+ * Public routes: login, verify-email, forgot-password, reset-password.
+ * Admin-only: create-user, resend-verification.
+ * Authenticated: logout, me, change-password.
+ *
+ * Note: There is no public /register endpoint.
+ * Staff accounts are created by admins via POST /auth/create-user.
+ */
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // Registration endpoint
-  @Post('register')
+  /**
+   * Admin creates a new staff or admin account.
+   * Sends a verification link to the new user's email.
+   */
+  @Post('create-user')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async createUser(@Body() dto: CreateUserDto) {
+    return this.authService.createUser(dto);
   }
 
-  // Email verification endpoint
-  @Post('verify-email')
+  /**
+   * Verifies a user's email address using the token from the link email.
+   * Called by the frontend when the user clicks the verification link.
+   */
+  @Get('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    return this.authService.verifyEmail(verifyEmailDto);
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
   }
 
-  // Login endpoint
+  /**
+   * Resends a verification link to an unverified email address.
+   * Admin-only since staff accounts are admin-managed.
+   */
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async resendVerification(@Body('email') email: string) {
+    return this.authService.resendVerificationLink(email);
+  }
+
+  /** Authenticates a verified user and returns a JWT access token. */
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
-  //Forgot password endpoint
+  /**
+   * Sends a password reset link to the provided email.
+   * Always returns the same response to prevent email enumeration.
+   */
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
-  // Reset password endpoint
+  /**
+   * Resets the user's password using the token from the reset link email.
+   * Called by the frontend /reset-password page after the user submits the form.
+   */
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto);
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
-  // Logout endpoint 
+  /**
+   * Allows a logged-in user to change their own password from Account Settings.
+   * Requires the current password to be provided for verification.
+   */
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async changePassword(@Req() req, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user._id.toString(), dto);
+  }
+
+  /** Invalidates the session — handled client-side, this confirms the action. */
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -74,7 +101,7 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
-  // Current user endpoint
+  /** Returns the currently authenticated user's profile. */
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getCurrentUser(@Req() req) {

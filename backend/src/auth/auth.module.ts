@@ -3,9 +3,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth/auth.service';
-import { AuthController } from '../auth/auth.controller';
-import { JwtStrategy } from '../auth/strategies/jwt.strategy';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { AdminGuard } from './guards/admin.guard';
 import { EmailService } from './email.service';
 import { User, UserSchema } from '../database/schemas/user.schema';
 
@@ -18,14 +21,12 @@ import { User, UserSchema } from '../database/schemas/user.schema';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get('JWT_SECRET'),
-        signOptions: {
-          expiresIn: config.get('JWT_EXPIRES_IN') || '7d',
-        },
+        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '7d' },
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, EmailService],
-  exports: [AuthService, JwtStrategy, PassportModule],
+  controllers: [AuthController, UsersController],
+  providers: [AuthService, UsersService, JwtStrategy, AdminGuard, EmailService],
+  exports: [AuthService, UsersService, JwtStrategy, PassportModule],
 })
 export class AuthModule {}
