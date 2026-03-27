@@ -17,6 +17,7 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { FALLBACK_AI_UNAVAILABLE, FALLBACK_APPOINTMENT_FAILED, FALLBACK_CALENDAR_UNAVAILABLE } from '../orchestrator/orchestrator.types';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -109,10 +110,11 @@ export class ConversationsService {
 
     const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
     const greeting = await this.chatService.startConversation(leadInfo, clinicConfig);
-    if (!greeting) return null;
-    await this.saveMessage(conversation, clinic, lead, 'ai', greeting);
+    const finalGreeting = greeting ?? FALLBACK_AI_UNAVAILABLE;
+    if (!greeting) this.logger.warn('Greeting generation failed — using fallback');
+    await this.saveMessage(conversation, clinic, lead, 'ai', finalGreeting);
     await this.updateConversationMeta(conversation, 'ai', 'greeting');
-    return greeting;
+    return finalGreeting;
   }
 
   /**
@@ -207,9 +209,16 @@ export class ConversationsService {
       );
     }
 
-    const { selected, slotSection } = await buildSlotContext(
-      this.slotProvider, clinicConfig.clinicId, urgency, selectionResult,
-    );
+    let selected: Slot[] = [];
+    let slotSection = '';
+    try {
+      ({ selected, slotSection } = await buildSlotContext(
+        this.slotProvider, clinicConfig.clinicId, urgency, selectionResult,
+      ));
+    } catch (error) {
+      this.logger.warn(`Slot fetching failed: ${(error as Error).message}`);
+      return { reply: FALLBACK_CALENDAR_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
 
     // No slots available for urgent patient
     if (urgency === 'urgent' && selected.length === 0) {
@@ -226,12 +235,20 @@ export class ConversationsService {
         urgencyContext: { level: resolvedUrgency as UrgencyLevel | 'unknown', isEmergency: false },
       },
     );
-    if (!reply) return null;
+    if (!reply) {
+      this.logger.warn('AI response failed — using fallback message');
+      return { reply: FALLBACK_AI_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
 
-    // Use confirmation message as the AI reply when booking succeeded
-    const finalReply = bookingResult?.success && bookingResult.confirmationMessage
-      ? bookingResult.confirmationMessage
-      : reply;
+    // Use appropriate reply based on booking outcome
+    let finalReply: string;
+    if (bookingResult?.success && bookingResult.confirmationMessage) {
+      finalReply = bookingResult.confirmationMessage;
+    } else if (bookingResult && !bookingResult.success && bookingResult.error) {
+      finalReply = FALLBACK_APPOINTMENT_FAILED;
+    } else {
+      finalReply = reply;
+    }
 
     await this.storeOfferedSlots(conversation, selected);
     await this.saveMessage(conversation, clinic, lead, 'ai', finalReply);
