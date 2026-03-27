@@ -176,7 +176,7 @@ export function buildSlotPromptSection(
       'No slots are currently available for the requested date.',
       'Tell the lead we are fully booked on that date.',
       'Ask if they would like to try a different day, a different week, or a specific month.',
-      'We can book appointments up to 6 months in advance.',
+      'We can book appointments up to 4 months in advance.',
     ].join('\n');
   }
 

@@ -1123,3 +1123,221 @@ describe('NONE_SUITABLE with informal rejections', () => {
     expect(result.requestedStartDate!.getMonth()).toBe(7);
   });
 });
+
+// ---------------------------------------------------------------------------
+// "in N weeks" date range detection (covers lines 427-436)
+// ---------------------------------------------------------------------------
+describe('"in N weeks" date range detection', () => {
+  it('detects "in 3 weeks" as DIFFERENT_DATE with range ~21 days ahead', () => {
+    const result = detectSlotSelection('in 3 weeks', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expectedStart = new Date(today);
+    expectedStart.setDate(today.getDate() + 21);
+    // Start should be roughly 21 days from now
+    const diffDays = Math.round(
+      (result.requestedStartDate!.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    expect(diffDays).toBe(21);
+  });
+
+  it('detects "4 weeks from now" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('4 weeks from now', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('detects "in 1 week later" as DIFFERENT_DATE', () => {
+    const result = detectSlotSelection('in 1 week later', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Confirmation phrases when only 1 slot offered (covers lines 978-987)
+// ---------------------------------------------------------------------------
+describe('confirmation phrases with single slot', () => {
+  const singleSlot: OfferedSlotRef[] = [
+    { dateTime: '2026-03-24T14:00:00', displayText: 'Tuesday 24th March at 2pm' },
+  ];
+
+  it('selects single slot when lead says "yes"', () => {
+    const result = detectSlotSelection('yes', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+
+  it('selects single slot when lead says "sounds good"', () => {
+    const result = detectSlotSelection('sounds good', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('selects single slot when lead says "book me in"', () => {
+    const result = detectSlotSelection('book me in', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('selects single slot when lead says "that works for me"', () => {
+    const result = detectSlotSelection('that works for me', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('selects single slot when lead says "perfect"', () => {
+    const result = detectSlotSelection('perfect', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('selects single slot when lead says "go ahead"', () => {
+    const result = detectSlotSelection('go ahead', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('selects single slot when lead says "confirm"', () => {
+    const result = detectSlotSelection('confirm', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('selects single slot when lead says "lets do it"', () => {
+    const result = detectSlotSelection('lets do it', singleSlot);
+    expect(result.intent).toBe('SLOT_SELECTED');
+  });
+
+  it('does NOT auto-confirm when multiple slots are offered', () => {
+    const result = detectSlotSelection('sounds good', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('AMBIGUOUS');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4-month GHL booking limit on month offsets (covers n <= 4 cap)
+// ---------------------------------------------------------------------------
+describe('4-month GHL booking limit', () => {
+  it('rejects "in 5 months" — beyond 4-month GHL limit', () => {
+    const result = detectSlotSelection('in 5 months time', THREE_DISTINCT_DAYS);
+    // Should NOT detect as DIFFERENT_DATE since 5 > 4
+    expect(result.intent).not.toBe('DIFFERENT_DATE');
+  });
+
+  it('accepts "in 4 months" — within the GHL limit', () => {
+    const result = detectSlotSelection('in 4 months time', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+  });
+
+  it('rejects "in 6 months" — beyond 4-month GHL limit', () => {
+    const result = detectSlotSelection('in 6 months time', THREE_DISTINCT_DAYS);
+    expect(result.intent).not.toBe('DIFFERENT_DATE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// "other options" with DIFFERENT_TIME fallback (covers line 816)
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// "all the times" triggers other-options flow instead of auto-confirming
+// ---------------------------------------------------------------------------
+describe('"all the times" detection as other options', () => {
+  it('returns DIFFERENT_DATE when "all the available times on that Tuesday" with one Tuesday slot', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-06-09T10:00:00', displayText: 'Tuesday 9th June at 10am' },
+      { dateTime: '2026-06-08T10:00:00', displayText: 'Monday 8th June at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'Can i have all the available times on that Tuesday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Tuesday');
+    expect(result.requestedStartDate).toBeDefined();
+    // Should resolve to June 9th from the offered slot, not March
+    expect(result.requestedStartDate!.getMonth()).toBe(5); // June = 5
+    expect(result.requestedStartDate!.getDate()).toBe(9);
+  });
+
+  it('returns DIFFERENT_DATE when "all the times on Friday"', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-27T10:00:00', displayText: 'Friday 27th March at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'What are all the times on Friday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Friday');
+  });
+
+  it('returns DIFFERENT_DATE when "what times are available on Tuesday"', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-06-09T10:00:00', displayText: 'Tuesday 9th June at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'what times are available on Tuesday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Tuesday');
+  });
+
+  it('returns DIFFERENT_DATE when "show me the times for Wednesday"', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-06-10T10:00:00', displayText: 'Wednesday 10th June at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'show me the times for Wednesday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Wednesday');
+  });
+
+  it('returns DIFFERENT_DATE when "which slots do you have on Monday"', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-06-08T10:00:00', displayText: 'Monday 8th June at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'which slots do you have on Monday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Monday');
+  });
+
+  it('returns DIFFERENT_DATE when "can I see the times on Thursday"', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-06-11T10:00:00', displayText: 'Thursday 11th June at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'can I see the times on Thursday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Thursday');
+  });
+
+  it('returns DIFFERENT_DATE when "what are the available times on Friday"', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-06-12T10:00:00', displayText: 'Friday 12th June at 10am' },
+    ];
+    const result = detectSlotSelection(
+      'what are the available times on Friday',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedDate).toBe('Friday');
+  });
+});
+
+describe('"other options" with time preference and multiple days', () => {
+  it('returns DIFFERENT_TIME when "any other morning times" with multiple days offered', () => {
+    const multiDaySlots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T14:00:00', displayText: 'Tuesday 24th March at 2pm' },
+      { dateTime: '2026-03-25T10:00:00', displayText: 'Wednesday 25th March at 10am' },
+    ];
+    const result = detectSlotSelection('any other morning times?', multiDaySlots);
+    expect(result.intent).toBe('DIFFERENT_TIME');
+    expect(result.timePreference).toBe('morning');
+  });
+});

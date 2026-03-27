@@ -10,7 +10,7 @@ import { SlotProvider } from '../ai/slot-provider';
 import { Slot } from '../ai/interfaces/slot.interface';
 import { selectSlots, selectLatestSlots, buildSlotPromptSection, buildDayAvailabilitySection, formatSlotDisplay } from '../ai/slot-formatter';
 import { buildContextFromDb } from './context-builder';
-import { detectSlotSelection, detectDateRangePreference, SlotSelectionResult } from '../ai/slot-selector';
+import { detectSlotSelection, detectDateRangePreference, normaliseTime, SlotSelectionResult } from '../ai/slot-selector';
 import { AppointmentsService, BookingResult } from '../appointments/appointments.service';
 
 /** Day names indexed by Date.getDay() */
@@ -32,14 +32,14 @@ async function buildSlotContext(
     ? new Date(selectionResult.requestedEndDate)
     : undefined;
 
-  // For FURTHER_DATE, search backwards from the 6-month booking window until
-  // we find a month with actual GHL availability. GHL only allows ~31-day query
+  // For FURTHER_DATE, search backwards from the 4-month GHL booking limit until
+  // we find a month with actual availability. GHL only allows ~31-day query
   // windows, so we check month-by-month starting from the furthest out.
   if (selectionResult?.intent === 'FURTHER_DATE' && !requestedStart) {
     const now = new Date();
     let furthestSlots: Slot[] = [];
-    // Try months 5, 4, 3, 2, 1 ahead — stop as soon as we find slots
-    for (let offset = 5; offset >= 1; offset--) {
+    // Try months 3, 2, 1 ahead (4-month GHL limit) — stop as soon as we find slots
+    for (let offset = 3; offset >= 1; offset--) {
       const monthStart = new Date(now.getFullYear(), now.getMonth() + offset, 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
       const found = await provider.getAvailableSlots(clinicId, monthStart, monthEnd);
@@ -99,12 +99,29 @@ async function buildSlotContext(
     // Pick up to 3 slots
     slots = slots.slice(0, 3);
   } else if (selectionResult?.intent === 'DIFFERENT_DATE' && selectionResult.requestedStartDate) {
-    // Lead asked for a date range (e.g. "this week") — spread across the range
-    slots = selectSlots(allSlots, urgency);
-    // Apply time-of-day preference if present
-    if (selectionResult.timePreference) {
-      const timePrefSlots = applyTimePref(slots, selectionResult.timePreference);
-      if (timePrefSlots.length > 0) slots = timePrefSlots;
+    // Check if this is a single-day request (start and end are 1 day apart)
+    const rangeMs = selectionResult.requestedEndDate
+      ? new Date(selectionResult.requestedEndDate).getTime() - new Date(selectionResult.requestedStartDate).getTime()
+      : 0;
+    const isSingleDay = rangeMs > 0 && rangeMs <= 24 * 60 * 60 * 1000;
+
+    if (isSingleDay) {
+      // Specific day request (e.g. "Monday 6th July") — return multiple slots
+      // for that exact day rather than spreading across different days
+      let daySlots = allSlots;
+      if (selectionResult.timePreference) {
+        const timePrefSlots = applyTimePref(daySlots, selectionResult.timePreference);
+        if (timePrefSlots.length > 0) daySlots = timePrefSlots;
+      }
+      slots = daySlots.slice(0, 3);
+    } else {
+      // Multi-day range (e.g. "this week") — spread across the range
+      slots = selectSlots(allSlots, urgency);
+      // Apply time-of-day preference if present
+      if (selectionResult.timePreference) {
+        const timePrefSlots = applyTimePref(slots, selectionResult.timePreference);
+        if (timePrefSlots.length > 0) slots = timePrefSlots;
+      }
     }
   } else if (selectionResult?.intent === 'DIFFERENT_TIME' && selectionResult.timePreference) {
     let base = allSlots;
@@ -260,10 +277,21 @@ export class ConversationsService {
       // Week-range request — always use day-overview flow
       const dateRange = detectDateRangePreference(userMessage);
       if (dateRange) {
+        // Check if the lead also mentioned a specific time (e.g. "12pm slot next week")
+        const weekTimeMatch = lowerMsg.match(
+          /\b(\d{1,2}(?:[.:]\d{2})?\s*(?:am|pm))\b/i,
+        ) || lowerMsg.match(
+          /\b(\d{1,2}[.:]\d{2})\b/,
+        ) || lowerMsg.match(
+          /(?:at|around|for)\s+(\d{1,2}(?:[.:]\d{2})?(?:\s*(?:am|pm))?)\b/i,
+        );
+        const weekTimePref = weekTimeMatch ? normaliseTime(weekTimeMatch[1].trim()) : undefined;
+
         selectionResult = {
           intent: 'DAY_OVERVIEW',
           requestedStartDate: dateRange.startDate,
           requestedEndDate: dateRange.endDate,
+          ...(weekTimePref ? { timePreference: weekTimePref } : {}),
         };
       }
     } else if (conversation.awaitingDaySelection) {
@@ -271,7 +299,16 @@ export class ConversationsService {
       const dayNames = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
       const pickedDay = dayNames.find(d => lowerMsg.includes(d));
       if (pickedDay) {
-        const dateRange = detectDateRangePreference(userMessage) ?? detectDateRangePreference('this week');
+        // Prefer the saved date range from the DAY_OVERVIEW that triggered this state,
+        // since the lead may have asked about "next week" but now just says "Wednesday"
+        // — detectDateRangePreference("Wednesday") would not know about "next week".
+        const savedStart = conversation.lastRequestedDateStart
+          ? new Date(conversation.lastRequestedDateStart) : undefined;
+        const savedEnd = conversation.lastRequestedDateEnd
+          ? new Date(conversation.lastRequestedDateEnd) : undefined;
+        const dateRange = savedStart
+          ? { startDate: savedStart, endDate: savedEnd! }
+          : (detectDateRangePreference(userMessage) ?? detectDateRangePreference('this week'));
         selectionResult = {
           intent: 'DIFFERENT_DATE',
           requestedDate: pickedDay.charAt(0).toUpperCase() + pickedDay.slice(1),
@@ -282,6 +319,64 @@ export class ConversationsService {
           awaitingDaySelection: false,
           lastRequestedDay: pickedDay,
         });
+      } else {
+        // No day name picked — check if the lead is asking about a specific time
+        // across the current date range (e.g. "what days have 12pm free?",
+        // "any slots at 2pm?", "which days have a 9am appointment?").
+        // Detect a time reference and re-run the day overview filtered by that time.
+        const timeInMsg = lowerMsg.match(
+          /\b(\d{1,2}(?:[.:]\d{2})?\s*(?:am|pm))\b/i,                       // "12pm", "2:30pm", "9am"
+        ) || lowerMsg.match(
+          /\b(\d{1,2}[.:]\d{2})\b/,                                          // "14:00", "9.30" (24h or dot-separated)
+        ) || lowerMsg.match(
+          /\b(\d{1,2}(?:[.:]\d{2})?)\s*(?:o'?clock|slots?|free|available|appointment)/i, // "12 o'clock", "2 free"
+        ) || lowerMsg.match(
+          /(?:at|around|for|have)\s+(\d{1,2}(?:[.:]\d{2})?(?:\s*(?:am|pm))?)\b/i, // "at 2", "around 3pm", "have 12"
+        );
+        if (timeInMsg && conversation.lastRequestedDateStart) {
+          // The lead is asking about a specific time across the current range
+          const normTime = normaliseTime(timeInMsg[1].trim());
+          selectionResult = {
+            intent: 'DAY_OVERVIEW',
+            requestedStartDate: new Date(conversation.lastRequestedDateStart),
+            requestedEndDate: conversation.lastRequestedDateEnd
+              ? new Date(conversation.lastRequestedDateEnd)
+              : undefined,
+            timePreference: normTime,
+          };
+        } else {
+          // The lead may have changed their mind entirely
+          // (e.g. "first week of June", "in April", "tomorrow"). Detect the new
+          // date preference so it doesn't fall through to the default 31-day fetch.
+          const dateRange = detectDateRangePreference(userMessage);
+          if (dateRange) {
+            selectionResult = {
+              intent: 'DIFFERENT_DATE',
+              requestedStartDate: dateRange.startDate,
+              requestedEndDate: dateRange.endDate,
+            };
+            await this.conversationModel.findByIdAndUpdate(conversation._id, {
+              awaitingDaySelection: false,
+            });
+          } else if (conversation.lastRequestedDateStart) {
+            // No day name, no time, no date range detected — the user may be
+            // giving an affirmative reply (e.g. "yes", "yes please", "ok") or
+            // any other response to the AI's question. Transition OUT of the
+            // day-overview by offering concrete slots from the saved date range
+            // so the booking flow can proceed. This prevents the conversation
+            // from getting stuck in the day-overview loop with no bookable slots.
+            selectionResult = {
+              intent: 'DIFFERENT_DATE',
+              requestedStartDate: new Date(conversation.lastRequestedDateStart),
+              requestedEndDate: conversation.lastRequestedDateEnd
+                ? new Date(conversation.lastRequestedDateEnd)
+                : undefined,
+            };
+            await this.conversationModel.findByIdAndUpdate(conversation._id, {
+              awaitingDaySelection: false,
+            });
+          }
+        }
       }
     } else if (conversation.offeredSlots?.length > 0) {
       try {
@@ -336,6 +431,21 @@ export class ConversationsService {
         selectionResult.timePreference = detectedTimePref;
       }
 
+      // If DIFFERENT_DATE has only a day name but no date range (e.g. "that Tuesday",
+      // "times on Tuesday"), carry forward the saved date context from the previous
+      // turn so slots are fetched from the correct month — not the default 31-day window.
+      if (
+        selectionResult?.intent === 'DIFFERENT_DATE' &&
+        selectionResult.requestedDate &&
+        !selectionResult.requestedStartDate &&
+        conversation.lastRequestedDateStart
+      ) {
+        selectionResult.requestedStartDate = new Date(conversation.lastRequestedDateStart);
+        selectionResult.requestedEndDate = conversation.lastRequestedDateEnd
+          ? new Date(conversation.lastRequestedDateEnd)
+          : undefined;
+      }
+
       // If the lead asks for a different time, scope the fetch to the correct
       // day and/or date range from the previous turn
       if (selectionResult?.intent === 'DIFFERENT_TIME') {
@@ -385,14 +495,30 @@ export class ConversationsService {
     if (selectionResult?.intent === 'DAY_OVERVIEW') {
       const rangeStart = selectionResult.requestedStartDate!;
       const rangeEnd = selectionResult.requestedEndDate!;
-      const allSlots = await this.slotProvider.getAvailableSlots(
+      let allSlots = await this.slotProvider.getAvailableSlots(
         clinicConfig.clinicId, rangeStart, rangeEnd,
       );
+
+      // If the lead asked about a specific time (e.g. "what days have 12pm free?"),
+      // filter slots to only those matching that time before building the day overview.
+      const timeFilter = selectionResult.timePreference;
+      if (timeFilter && /\d/.test(timeFilter)) {
+        // timePreference contains a normalised time like "12pm", "2:30pm", "9am"
+        // Match slots whose startTime converts to the same normalised value
+        allSlots = allSlots.filter(s => {
+          const slotNorm = normaliseTime(s.startTime);
+          return slotNorm === timeFilter;
+        });
+      }
+
       const daySection = buildDayAvailabilitySection(allSlots, rangeStart, rangeEnd);
 
-      // Mark conversation as awaiting day selection
+      // Mark conversation as awaiting day selection and save the date range
+      // so follow-up queries (e.g. "what days have 3pm free?") can use it
       await this.conversationModel.findByIdAndUpdate(conversation._id, {
         awaitingDaySelection: true,
+        lastRequestedDateStart: rangeStart,
+        lastRequestedDateEnd: rangeEnd,
       });
 
       const reply = await this.chatService.sendMessage(

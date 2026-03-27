@@ -87,11 +87,12 @@ export function buildSystemPrompt(
     '- IMPORTANT: You MUST complete this stage before offering any appointment slots. Even if AVAILABLE SLOTS are shown below, do NOT offer them until the lead has told you their preferred timeframe.',
     '- EXCEPTION: If the lead has already stated when they want to come in (e.g. "same day", "this week", "next week", "tomorrow"),',
     '  do NOT ask about urgency again. Skip straight to STAGE 4.',
+    '- Once urgency is known, move IMMEDIATELY to Stage 4 — do NOT ask vague questions like "which day would you prefer?" or "what day works for you?". Instead, present concrete available slot options right away.',
     '',
     'STAGE 4 - OFFER SLOT:',
     '- IMPORTANT: Do NOT enter this stage until Stages 1–3 are fully complete (greeting done, postcode checked, urgency/preference asked).',
     '- If a DAY AVAILABILITY section is shown below, present available days (Mon–Fri) and mention any fully booked days. Ask the lead to pick a day. Do NOT offer specific times yet.',
-    '- If an AVAILABLE SLOTS section is shown below, use it to offer real times.',
+    '- If an AVAILABLE SLOTS section is shown below, use it to offer real times IMMEDIATELY — do NOT ask "which day would you prefer?" or any other open-ended question. Present the concrete slot options directly.',
     '- Present slots in natural British English (e.g. "Tuesday 17th March at 2pm")',
     '- Offer a maximum of 3 slots, prioritised by urgency',
     '- If no slots available, ask the lead for an alternative date',
@@ -200,7 +201,7 @@ function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
         'when slots are listed — that would be incorrect.',
         'Do NOT re-offer any previously offered slots that are not in the current AVAILABLE SLOTS section.',
         'If the AVAILABLE SLOTS section says "No slots are currently available", tell the lead:',
-        '"Our availability currently only extends to [approximate range]. I can ask my team to check further ahead — would you like me to do that?"',
+        '"Our availability only extends about 4 months ahead. I don\'t have any slots for that date yet — would you like to try a closer date, or I can ask my team to check?"',
         'Do NOT fall back to previously offered slots when no new slots are available.',
       ];
     }
@@ -220,16 +221,31 @@ function buildSelectionStatusLines(ctx: SlotSelectionContext): string[] {
     case 'NONE_SUITABLE':
       return [
         "None of the offered slots work for the lead.",
-        'Ask what dates or times would work better before suggesting alternatives.',
+        'Ask what dates or times would work better so you can fetch new availability.',
         'Respond: "No problem! What dates or times would work better for you?"',
         'Do NOT re-offer the same slots. Wait for the lead to provide new preferences.',
+        'Once they provide a preference, present concrete slot options directly — do NOT ask vague follow-up questions.',
       ];
-    case 'DAY_OVERVIEW':
-      return [
+    case 'DAY_OVERVIEW': {
+      const lines = [
         'The lead has asked about availability for a week range.',
-        'The DAY AVAILABILITY section above shows which weekdays have openings and which are fully booked.',
+      ];
+      if (ctx.timePreference && /\d/.test(ctx.timePreference)) {
+        lines.push(
+          `The lead specifically asked about ${ctx.timePreference} slots.`,
+          `The DAY AVAILABILITY section above shows ONLY days that have a ${ctx.timePreference} slot available.`,
+          `If no days are available, tell the lead: "I don't have any ${ctx.timePreference} slots available that week, but I can check other times or a different week if you'd like."`,
+        );
+      } else {
+        lines.push(
+          'The DAY AVAILABILITY section above shows which weekdays have openings and which are fully booked.',
+        );
+      }
+      lines.push(
         'Present this information naturally and ask the lead to pick a day.',
         'Do NOT offer specific time slots yet — wait for the lead to choose a day first.',
-      ];
+      );
+      return lines;
+    }
   }
 }

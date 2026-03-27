@@ -1,4 +1,4 @@
-import { formatSlotDisplay, selectSlots, buildSlotPromptSection } from './slot-formatter';
+import { formatSlotDisplay, selectSlots, selectLatestSlots, buildSlotPromptSection, buildDayAvailabilitySection } from './slot-formatter';
 import { Slot } from './interfaces/slot.interface';
 
 describe('formatSlotDisplay', () => {
@@ -192,5 +192,105 @@ describe('buildSlotPromptSection', () => {
   it('should include slot storage instruction', () => {
     const result = buildSlotPromptSection(threeSlots, 'routine');
     expect(result).toContain('Store the offered slots');
+  });
+
+  it('should mention 4-month booking limit when no slots available', () => {
+    const result = buildSlotPromptSection([], 'routine');
+    expect(result).toContain('4 months');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectLatestSlots — returns up to 3 slots from the latest available days
+// ---------------------------------------------------------------------------
+describe('selectLatestSlots', () => {
+  const slotsAcrossDays: Slot[] = [
+    { date: '2026-03-23', startTime: '09:00', endTime: '09:30' },
+    { date: '2026-03-24', startTime: '10:00', endTime: '10:30' },
+    { date: '2026-03-24', startTime: '14:00', endTime: '14:30' },
+    { date: '2026-03-25', startTime: '11:00', endTime: '11:30' },
+    { date: '2026-03-26', startTime: '15:00', endTime: '15:30' },
+  ];
+
+  it('should return empty array when no slots provided', () => {
+    expect(selectLatestSlots([])).toEqual([]);
+  });
+
+  it('should return up to 3 slots from the latest days', () => {
+    const result = selectLatestSlots(slotsAcrossDays);
+    expect(result.length).toBeLessThanOrEqual(3);
+    // The latest days are 26th, 25th, 24th
+    expect(result[result.length - 1].date).toBe('2026-03-26');
+  });
+
+  it('should return slots in chronological order', () => {
+    const result = selectLatestSlots(slotsAcrossDays);
+    for (let i = 1; i < result.length; i++) {
+      const prev = `${result[i - 1].date}T${result[i - 1].startTime}`;
+      const curr = `${result[i].date}T${result[i].startTime}`;
+      expect(prev.localeCompare(curr)).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it('should pick one slot per day from the latest days', () => {
+    const result = selectLatestSlots(slotsAcrossDays);
+    const dates = result.map(s => s.date);
+    expect(new Set(dates).size).toBe(dates.length);
+  });
+
+  it('should handle a single slot', () => {
+    const result = selectLatestSlots([slotsAcrossDays[0]]);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-03-23');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildDayAvailabilitySection — weekday availability overview
+// ---------------------------------------------------------------------------
+describe('buildDayAvailabilitySection', () => {
+  // Use a fixed week range: Monday 23 March to Friday 27 March 2026
+  const rangeStart = new Date('2026-03-23T00:00:00');
+  const rangeEnd = new Date('2026-03-27T23:59:59');
+
+  const weekSlots: Slot[] = [
+    { date: '2026-03-23', startTime: '09:00', endTime: '09:30' }, // Monday
+    { date: '2026-03-24', startTime: '10:00', endTime: '10:30' }, // Tuesday
+    { date: '2026-03-25', startTime: '11:00', endTime: '11:30' }, // Wednesday
+    // Thursday 26th and Friday 27th have no slots
+  ];
+
+  it('should show available days when slots exist', () => {
+    const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
+    expect(result).toContain('DAY AVAILABILITY');
+    expect(result).toContain('Monday');
+    expect(result).toContain('Tuesday');
+    expect(result).toContain('Wednesday');
+  });
+
+  it('should mention fully booked days', () => {
+    const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
+    expect(result).toContain('Fully booked');
+    expect(result).toContain('Thursday');
+    expect(result).toContain('Friday');
+  });
+
+  it('should instruct AI not to offer specific times yet', () => {
+    const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
+    expect(result).toContain('Do NOT offer specific times yet');
+  });
+
+  it('should return fully booked message when no slots available', () => {
+    const result = buildDayAvailabilitySection([], rangeStart, rangeEnd);
+    expect(result).toContain('No slots are currently available');
+    expect(result).toContain('fully booked this week');
+  });
+
+  it('should not mention weekend days', () => {
+    // Extend range to include Saturday/Sunday
+    const extendedEnd = new Date('2026-03-29T23:59:59');
+    const result = buildDayAvailabilitySection(weekSlots, rangeStart, extendedEnd);
+    expect(result).not.toContain('Saturday');
+    expect(result).not.toContain('Sunday');
   });
 });

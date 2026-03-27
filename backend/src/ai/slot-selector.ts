@@ -55,7 +55,7 @@ function extractTimeFromDisplay(displayText: string): string | null {
  * Normalises a raw time string so it can be compared with display-text times.
  * Converts 24-hour strings (e.g. "14:00") to 12-hour format (e.g. "2pm").
  */
-function normaliseTime(raw: string): string {
+export function normaliseTime(raw: string): string {
   // Normalise dot separators to colons (e.g. "9.20" → "9:20")
   const lower = raw.toLowerCase().trim().replace('.', ':');
   if (/^\d{1,2}(?::\d{2})?(?:am|pm)$/.test(lower)) return lower.replace(/^0/, '');
@@ -410,7 +410,7 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
     // Exclude "from that/the/this" — those need pronoun resolution from offered slots
     if (!/months?\s+from\s+(?:that|the|this)/i.test(msg)) {
       const n = WORD_TO_NUM[inMonthsMatch[1].toLowerCase()] ?? parseInt(inMonthsMatch[1], 10);
-      if (n > 0 && n <= 6) {
+      if (n > 0 && n <= 4) {
         const today = new Date();
         const start = new Date(today.getFullYear(), today.getMonth() + n, 1);
         const end = new Date(today.getFullYear(), today.getMonth() + n + 1, 1);
@@ -509,8 +509,8 @@ function detectDifferentDate(message: string): DateDetectionResult | null {
       }
       // Final validity check — if the day still doesn't exist (e.g. 31st Feb → 3rd Mar)
       if (candidate.getDate() !== day) {
-        // Skip to the next month where this day exists (within 6 months)
-        for (let i = 0; i < 6; i++) {
+        // Skip to the next month where this day exists (within 4 months — GHL limit)
+        for (let i = 0; i < 4; i++) {
           candidate.setMonth(candidate.getMonth() + 1);
           candidate.setDate(day);
           if (candidate.getDate() === day) break;
@@ -585,12 +585,26 @@ function detectDifferentTime(message: string): string | null {
  * not "I want to book that day".
  */
 const OTHER_OPTIONS_PHRASES = [
+  // "other / more / different / alternative" variants
   'what other', 'any other', 'other times', 'other time',
   'other options', 'other availability', 'other slots',
   'what else', 'anything else available',
   'more options', 'more times', 'more availability',
   'different times', 'different time', 'different options',
   'alternative times', 'alternative time', 'alternatives',
+  // "all / every / full list" variants — user wants to see everything, not confirm
+  'all the times', 'all the available times', 'all available times',
+  'all times available', 'all the slots', 'all available slots',
+  'all the options', 'all available options', 'every time available',
+  'every available time', 'every slot', 'every available slot',
+  'full list', 'list of times', 'list of slots',
+  // "what / which / show / give me" + times/slots — asking to browse, not confirm
+  'what times', 'which times', 'what slots', 'which slots',
+  'show me the times', 'show me the slots', 'show me times',
+  'give me the times', 'give me all', 'tell me the times',
+  'can i see the times', 'can i see the slots', 'can i see all',
+  'what are the times', 'what are the available times',
+  'what are the slots', 'what are the available slots',
 ];
 
 /** Phrases indicating the lead wants later/furthest available dates */
