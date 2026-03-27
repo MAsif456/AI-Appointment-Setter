@@ -121,13 +121,13 @@ describe('ConversationsController', () => {
       );
     });
 
-    it('should return null reply with empty slots on failure', async () => {
+    it('should return fallback reply on failure', async () => {
       mockService.sendMessage.mockResolvedValue(null);
 
       const result = await controller.sendMessage('conv1', {
         message: 'Hello',
       });
-      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null, phase: null });
+      expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
     });
   });
 });

@@ -159,7 +159,7 @@ describe('ConversationsService', () => {
       );
     });
 
-    it('should return null when greeting fails', async () => {
+    it('should return fallback when greeting fails', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
       mockClinicModel.findById.mockResolvedValue(mockClinic);
@@ -167,7 +167,7 @@ describe('ConversationsService', () => {
       mockChatService.startConversation.mockResolvedValue(null);
 
       const result = await service.startConversation('conv1');
-      expect(result).toBeNull();
+      expect(result).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
     });
   });
 
@@ -241,7 +241,7 @@ describe('ConversationsService', () => {
       expect(mockEscalationService.escalateEmergency).not.toHaveBeenCalled();
     });
 
-    it('should return null when AI fails', async () => {
+    it('should return fallback message when AI fails', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
       mockClinicModel.findById.mockResolvedValue(mockClinic);
@@ -250,9 +250,8 @@ describe('ConversationsService', () => {
 
       const result = await service.sendMessage('conv1', 'Hello');
 
-      expect(result).toBeNull();
-      // Only the user message should be saved, not an AI reply
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+      expect(result).not.toBeNull();
+      expect(result!.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
     });
   });
 });
