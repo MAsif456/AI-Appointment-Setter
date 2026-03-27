@@ -98,13 +98,24 @@ describe('ConversationsController', () => {
       mockService.sendMessage.mockResolvedValue({
         reply: 'Let me check.',
         offeredSlots: mockOfferedSlots,
+        slotSelection: null,
+      });
+      mockService.getConversation.mockResolvedValue({
+        conversation: { phase: 'greeting' },
+        messages: [], clinic: null, lead: null,
       });
 
       const result = await controller.sendMessage('conv1', {
         message: 'My postcode is CF10 3AB',
       });
 
-      expect(result).toMatchObject({ reply: 'Let me check.', offeredSlots: mockOfferedSlots });
+      expect(result).toEqual({
+        reply: 'Let me check.',
+        offeredSlots: mockOfferedSlots,
+        slotSelection: null,
+        bookingResult: null,
+        phase: 'greeting',
+      });
       expect(mockService.sendMessage).toHaveBeenCalledWith(
         'conv1',
         'My postcode is CF10 3AB',
@@ -117,7 +128,7 @@ describe('ConversationsController', () => {
       const result = await controller.sendMessage('conv1', {
         message: 'Hello',
       });
-      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null, bookingResult: null });
+      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null });
     });
   });
 });

@@ -12,6 +12,11 @@ import { selectSlots, selectLatestSlots, buildSlotPromptSection, buildDayAvailab
 import { buildContextFromDb } from './context-builder';
 import { detectSlotSelection, detectDateRangePreference, normaliseTime, SlotSelectionResult } from '../ai/slot-selector';
 import { AppointmentsService, BookingResult } from '../appointments/appointments.service';
+import { UrgencyLevel } from '../ai/urgency-detector.types';
+import { UrgencyPipeline } from '../ai/urgency-pipeline';
+import { EscalationService } from '../ai/escalation.service';
+import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -183,6 +188,9 @@ export class ConversationsService {
     private readonly chatService: ChatService,
     private readonly slotProvider: SlotProvider,
     private readonly appointmentsService: AppointmentsService,
+    private readonly urgencyPipeline: UrgencyPipeline,
+    private readonly escalationService: EscalationService,
+    private readonly abuseHandler: AbuseHandlerService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -213,6 +221,16 @@ export class ConversationsService {
   async startConversation(conversationId: string): Promise<string | null> {
     const { conversation, clinic, lead } = await this.getConversation(conversationId);
     if (!clinic || !lead) throw new NotFoundException('Clinic or lead not found');
+
+    // Pre-detect urgency from the lead's form submission issue field
+    if (lead.issue && lead.urgency === 'unknown') {
+      const { resolved } = this.urgencyPipeline.assessFormData(lead.issue);
+      if (resolved !== 'routine') {
+        await this.leadModel.findByIdAndUpdate(lead._id, { urgency: resolved });
+        (lead as any).urgency = resolved;
+      }
+    }
+
     const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
     const greeting = await this.chatService.startConversation(leadInfo, clinicConfig);
     if (!greeting) return null;
@@ -232,8 +250,30 @@ export class ConversationsService {
     const { conversation, messages, clinic, lead } = await this.getConversation(conversationId);
     if (!clinic || !lead) throw new NotFoundException('Clinic or lead not found');
 
+    // ── Urgency detection (delegated to UrgencyPipeline) ──
+    const { resolved: resolvedUrgency, assessment: urgencyAssessment } =
+      await this.urgencyPipeline.assessMessage(
+        userMessage,
+        (lead.urgency as UrgencyLevel | 'unknown') ?? 'unknown',
+        lead.issue,
+      );
+
+    // Save lead message with urgency audit trail
+    await this.saveMessage(conversation, clinic, lead, 'lead', userMessage, {
+      level: urgencyAssessment.level, score: urgencyAssessment.score,
+    });
+
     await this.saveMessage(conversation, clinic, lead, 'lead', userMessage);
 
+    const abuseHandled = await this.abuseHandler.handle(
+      conversation, clinic, lead, userMessage,
+    );
+    if (abuseHandled) {
+      // If the lead accepted the human offer, signal to the caller so the
+      // US-20 escalation service can take over (phase change, GHL tags, etc.)
+      return abuseHandled;
+    }
+    
     const history: ChatMessage[] = [
       ...messages.map(m => ({
         role: m.sender === 'ai' ? 'assistant' as const : 'user' as const,
@@ -243,12 +283,35 @@ export class ConversationsService {
     ];
 
     const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
-    const URGENCY_MAP: Record<string, 'urgent' | 'routine' | 'flexible'> = {
-      urgent: 'urgent',
-      routine: 'routine',
-      unknown: 'flexible',
-    };
-    const urgency = URGENCY_MAP[lead.urgency] ?? 'flexible';
+
+    // Update lead urgency if it changed
+    if (resolvedUrgency !== lead.urgency) {
+      await this.leadModel.findByIdAndUpdate(lead._id, { urgency: resolvedUrgency });
+      this.escalationService.updateGhlTags(lead, resolvedUrgency).catch(
+        (err) => this.logger.warn(`GHL tag update failed: ${err.message}`),
+      );
+    }
+
+    // Emergency: escalate and return early
+    if (resolvedUrgency === 'emergency') {
+      // Already escalated — send a softer follow-up instead of repeating the full escalation
+      if (conversation.phase === 'escalated') {
+        await this.saveMessage(conversation, clinic, lead, 'ai', PATIENT_EMERGENCY_FOLLOWUP);
+        await this.updateConversationMeta(conversation, 'ai', undefined);
+        return { reply: PATIENT_EMERGENCY_FOLLOWUP, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      const result = await this.escalationService.escalateEmergency(
+        conversation, lead, clinic, urgencyAssessment,
+      );
+      await this.saveMessage(conversation, clinic, lead, 'ai', result.aiMessage);
+      await this.updateConversationMeta(conversation, 'ai', 'escalated');
+      return { reply: result.aiMessage, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
+
+    const urgency: 'urgent' | 'routine' | 'flexible' =
+      resolvedUrgency === 'urgent' ? 'urgent'
+        : resolvedUrgency === 'routine' ? 'routine'
+          : 'flexible';
 
     // Detect what the lead meant — week-range phrases like "this week" always
     // trigger the day-overview flow regardless of whether slots were previously offered.
@@ -481,8 +544,6 @@ export class ConversationsService {
       }
     }
 
-    this.logger.debug(`[DAY_OVERVIEW DEBUG] userMessage="${userMessage}", offeredSlots=${conversation.offeredSlots?.length ?? 0}, awaitingDaySelection=${conversation.awaitingDaySelection}, resolved intent=${selectionResult?.intent ?? 'null'}`);
-
     // If the lead confirmed a slot, book the appointment automatically
     let bookingResult: BookingResult | null = null;
     if (selectionResult?.intent === 'SLOT_SELECTED' && selectionResult.selectedSlot) {
@@ -570,9 +631,20 @@ export class ConversationsService {
       ? [...new Set(allSlotTexts)]
       : undefined;
 
+    // No slots available for urgent patient
+    if (urgency === 'urgent' && selected.length === 0) {
+      const msg = await this.escalationService.handleNoSlotsForUrgent(conversation, clinic, lead);
+      await this.saveMessage(conversation, clinic, lead, 'ai', msg);
+      await this.updateConversationMeta(conversation, 'ai', undefined);
+      return { reply: msg, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
+
     const reply = await this.chatService.sendMessage(
       leadInfo, clinicConfig, history, userMessage,
-      { slotOptions: { slotSection, selectionContext: selectionResult ?? undefined, previouslyOfferedSlots } },
+      {
+        slotOptions: { slotSection, selectionContext: selectionResult ?? undefined, previouslyOfferedSlots },
+        urgencyContext: { level: resolvedUrgency as UrgencyLevel | 'unknown', isEmergency: false },
+      },
     );
     if (!reply) return null;
 
@@ -660,27 +732,37 @@ export class ConversationsService {
     await this.messageModel.deleteMany({ conversationId: conversation._id });
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       phase: 'greeting', messageCount: 0, offeredSlots: [], slotHistory: [],
+      directedHostilityCount: 0, abuseOfferPending: false,
       lastMessageAt: null, lastMessageFrom: null, awaitingDaySelection: false,
       lastRequestedDay: null, lastRequestedDateStart: null, lastRequestedDateEnd: null,
     });
+    await this.leadModel.findByIdAndUpdate(conversation.leadId, { urgency: 'unknown' });
   }
 
-  /** Creates a message document in MongoDB */
+  /** Creates a message document in MongoDB, optionally with urgency audit data. */
   private async saveMessage(
     conversation: ConversationDocument,
     clinic: ClinicDocument,
     lead: LeadDocument,
     sender: 'ai' | 'lead',
     content: string,
+    urgencyData?: { level: string; score: number },
   ) {
-    return this.messageModel.create({
+    const doc: Record<string, any> = {
       conversationId: conversation._id,
       clinicId: clinic._id,
       leadId: lead._id,
       sender,
       content,
       channel: conversation.channel,
-    });
+    };
+    if (urgencyData) {
+      doc.extractedData = new Map([
+        ['urgency', urgencyData.level],
+        ['urgencyScore', urgencyData.score.toString()],
+      ]);
+    }
+    return this.messageModel.create(doc);
   }
 
   /** Updates conversation metadata after a new message */

@@ -124,6 +124,15 @@ export class Conversation {
   @Prop({ type: Map, of: String, default: {} })
   context: Map<string, string>; 
 
+  // Abuse tracking (US-19)
+  // Incremented for each directed-hostile message to track escalation thresholds
+  @Prop({ default: 0 })
+  directedHostilityCount: number;
+
+  // True when the human offer has been made and awaiting a response
+  @Prop({ default: false })
+  abuseOfferPending: boolean;
+
   // for closure tracking
   @Prop()
   closedAt?: Date;

@@ -4,6 +4,7 @@ import { GreetingService } from './greeting.service';
 import { LeadInfo } from './interfaces/lead-info.interface';
 import { ClinicConfig } from './interfaces/clinic-config.interface';
 import { buildSystemPrompt, SlotPromptOptions } from './system-prompt-builder';
+import { UrgencyContext } from './urgency-detector.types';
 
 /** Represents a single message in the chat history */
 export interface ChatMessage {
@@ -11,9 +12,10 @@ export interface ChatMessage {
   content: string;
 }
 
-/** Optional context passed alongside a message for slot offering */
+/** Optional context passed alongside a message for slot offering and urgency */
 export interface SendMessageOptions {
   slotOptions?: SlotPromptOptions;
+  urgencyContext?: UrgencyContext;
 }
 
 /**
@@ -62,6 +64,7 @@ export class ChatService {
       leadInfo,
       clinicConfig,
       options?.slotOptions,
+      options?.urgencyContext,
     );
 
     // Build the full message array for Groq.
