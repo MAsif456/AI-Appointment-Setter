@@ -111,12 +111,14 @@ export class FollowUpSettings {
 export class CancellationPolicy {
   @Prop({ default: false })
   feeEnabled: boolean;
-
   @Prop()
   feeAmount?: number;
-
+  @Prop()
+  feeDescription?: string; // Human-readable fee, e.g. "£50" or "50%"
   @Prop({ default: 24 })
-  noticeHours: number; 
+  noticeHours: number;
+  @Prop({ maxlength: 500 })
+  cancellationMessage?: string; // Optional warning template with {{placeholders}}
 }
 
 @Schema({ timestamps: true })
