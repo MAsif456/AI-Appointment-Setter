@@ -13,6 +13,22 @@ export const POSTCODE_REGEX = /[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}/i;
 /** Keywords that indicate a lead wants to book an appointment. */
 export const BOOKING_KEYWORDS = ['book', 'appointment', 'schedule', 'sign me up', 'yes please'];
 
+/** Keywords that indicate a lead wants to cancel their appointment. */
+export const CANCEL_KEYWORDS = [
+  'cancel', "can't come", "can't make it", "won't be able",
+  'cancel my booking', 'cancel my appointment',
+];
+
+/** Keywords that confirm a pending action (cancellation confirmation). */
+export const CONFIRM_KEYWORDS = [
+  'yes', 'correct', 'confirm', 'go ahead', 'please cancel', 'yeah', 'yep', 'sure',
+];
+
+/** Keywords that decline a pending cancellation or indicate rescheduling preference. */
+export const DECLINE_CANCEL_KEYWORDS = [
+  'no', 'never mind', 'keep it', "don't cancel", 'reschedule', 'rebook', "i'll reschedule",
+];
+
 /** Default SMS message type used for ContactCreate events where no channel is known. */
 export const DEFAULT_MESSAGE_TYPE = 'SMS';
 
@@ -45,4 +61,7 @@ export interface OrchestratorContext {
 export type IntentResult =
   | { intent: 'PROVIDE_POSTCODE'; data: { postcode: string } }
   | { intent: 'WANT_TO_BOOK' }
+  | { intent: 'CANCEL' }
+  | { intent: 'CONFIRM_CANCEL' }
+  | { intent: 'DECLINE_CANCEL' }
   | { intent: 'UNKNOWN' };

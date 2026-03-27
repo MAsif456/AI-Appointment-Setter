@@ -144,4 +144,88 @@ describe('OrchestratorService — detectIntent', () => {
       expect(service.detectIntent('Hi there!', 'qualifying').intent).toBe('UNKNOWN');
     });
   });
+
+  describe('CANCEL', () => {
+    it('should detect "cancel" in the booked phase', () => {
+      expect(service.detectIntent('I need to cancel my appointment', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should detect "cancel my booking" in the booked phase', () => {
+      expect(service.detectIntent('Please cancel my booking', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should detect "can\'t come" in the booked phase', () => {
+      expect(service.detectIntent("I can't come anymore", 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should detect "I want to cancel" in the booked phase', () => {
+      expect(service.detectIntent('I want to cancel', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should be case-insensitive for cancel keywords', () => {
+      expect(service.detectIntent('CANCEL MY APPOINTMENT', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should NOT detect CANCEL in the qualifying phase', () => {
+      expect(service.detectIntent('cancel my appointment', 'qualifying').intent).toBe('UNKNOWN');
+    });
+
+    it('should NOT detect CANCEL in the booking phase', () => {
+      expect(service.detectIntent('cancel my appointment', 'booking').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('CONFIRM_CANCEL', () => {
+    it('should detect "yes" in the cancelling phase', () => {
+      expect(service.detectIntent('Yes', 'cancelling').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should detect "please cancel" in the cancelling phase', () => {
+      expect(service.detectIntent('Yes, please cancel', 'cancelling').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should detect "go ahead" in the cancelling_warned phase', () => {
+      expect(service.detectIntent('Go ahead', 'cancelling_warned').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should detect "sure" in the cancelling_warned phase', () => {
+      expect(service.detectIntent('Sure, cancel it', 'cancelling_warned').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should NOT detect CONFIRM_CANCEL in the booked phase', () => {
+      expect(service.detectIntent('yes', 'booked').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('DECLINE_CANCEL', () => {
+    it('should detect "no" in the cancelling phase', () => {
+      expect(service.detectIntent('No, keep it', 'cancelling').intent).toBe('DECLINE_CANCEL');
+    });
+
+    it('should detect "reschedule" in the cancelling_warned phase', () => {
+      expect(service.detectIntent("I'll reschedule instead", 'cancelling_warned').intent).toBe('DECLINE_CANCEL');
+    });
+
+    it('should detect "never mind" in the cancelling phase', () => {
+      expect(service.detectIntent('Never mind, keep it', 'cancelling').intent).toBe('DECLINE_CANCEL');
+    });
+
+    it('should NOT detect DECLINE_CANCEL in the booked phase', () => {
+      expect(service.detectIntent('no', 'booked').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('Graceful re-entry from cancelled', () => {
+    it('should detect WANT_TO_BOOK when lead in cancelled phase says "book"', () => {
+      expect(service.detectIntent('I want to book again', 'cancelled').intent).toBe('WANT_TO_BOOK');
+    });
+
+    it('should detect WANT_TO_BOOK when lead in cancelled phase says "appointment"', () => {
+      expect(service.detectIntent('Can I make another appointment?', 'cancelled').intent).toBe('WANT_TO_BOOK');
+    });
+
+    it('should return UNKNOWN for non-booking message in cancelled phase', () => {
+      expect(service.detectIntent('Hello', 'cancelled').intent).toBe('UNKNOWN');
+    });
+  });
 });

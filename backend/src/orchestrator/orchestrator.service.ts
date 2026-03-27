@@ -19,6 +19,9 @@ import {
   FALLBACK_MESSAGE,
   POSTCODE_REGEX,
   BOOKING_KEYWORDS,
+  CANCEL_KEYWORDS,
+  CONFIRM_KEYWORDS,
+  DECLINE_CANCEL_KEYWORDS,
   OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
@@ -65,9 +68,11 @@ export class OrchestratorService {
 
   /**
    * Detects the intent of an inbound message based on its content and the current phase.
-   * Phase-gating: PROVIDE_POSTCODE only in 'qualifying', WANT_TO_BOOK only in 'qualified'.
+   * Phase-gated: each intent is only recognised in the appropriate conversation phase.
    */
   detectIntent(messageContent: string, currentPhase: string): IntentResult {
+    const lower = messageContent.toLowerCase();
+
     if (currentPhase === 'qualifying') {
       const postcodeMatch = messageContent.match(POSTCODE_REGEX);
       if (postcodeMatch) {
@@ -76,7 +81,30 @@ export class OrchestratorService {
     }
 
     if (currentPhase === 'qualified') {
-      const lower = messageContent.toLowerCase();
+      if (BOOKING_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'WANT_TO_BOOK' };
+      }
+    }
+
+    // Cancellation intents — only in 'booked' phase
+    if (currentPhase === 'booked') {
+      if (CANCEL_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'CANCEL' };
+      }
+    }
+
+    // Cancellation confirmation/decline — in 'cancelling' or 'cancelling_warned' phases
+    if (currentPhase === 'cancelling' || currentPhase === 'cancelling_warned') {
+      if (CONFIRM_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'CONFIRM_CANCEL' };
+      }
+      if (DECLINE_CANCEL_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'DECLINE_CANCEL' };
+      }
+    }
+
+    // Graceful re-entry: lead in 'cancelled' phase wants to rebook
+    if (currentPhase === 'cancelled') {
       if (BOOKING_KEYWORDS.some((kw) => lower.includes(kw))) {
         return { intent: 'WANT_TO_BOOK' };
       }
