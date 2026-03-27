@@ -1,7 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
+
+/**
+ * User schema for Lunax Digital staff accounts.
+ * Supports two roles: 'admin' (full access) and 'staff' (assigned clinics only).
+ */
 
 @Schema({ timestamps: true })
 export class User {
@@ -17,11 +22,11 @@ export class User {
   @Prop({ type: String, enum: ['admin', 'staff'], default: 'staff' })
   role: string;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Clinic' }], default: [] })
+  assignedClinics: Types.ObjectId[];
+
   @Prop({ default: true })
   isActive: boolean;
-
-  @Prop()
-  lastLoginAt: Date;
 
   // Notification preferences (for Settings page)
   @Prop({ 
@@ -35,33 +40,34 @@ export class User {
     dailySummary: true,
     stalled: true
   }
-})
-notificationPreferences: {
-  emailNotifications: boolean;
-  dailySummary: boolean;
-  stalled: boolean;
-};
+  })
+  notificationPreferences: {
+    emailNotifications: boolean;
+    dailySummary: boolean;
+    stalled: boolean;
+  };
 
-@Prop({ default: false })
-isVerified: boolean;
+  @Prop({ default: false })
+  isVerified: boolean;
 
-@Prop()
-verificationCode?: string;
-
-@Prop()
-verificationCodeExpires?: Date;
-
-@Prop()
-passwordResetCode?: string;
-
-@Prop()
-passwordResetExpires?: Date;
-
-  // Timestamps: createdAt, updatedAt (auto-generated)
+  @Prop()
+  verificationToken?: string;
+  
+  @Prop()
+  verificationTokenExpires?: Date;
+ 
+  @Prop()
+  passwordResetToken?: string;
+ 
+  @Prop()
+  passwordResetExpires?: Date;
+ 
+  @Prop()
+  lastLoginAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Indexes
-UserSchema.index({ email: 1 });
-UserSchema.index({ isActive: 1 });
+UserSchema.index({ verificationToken: 1 }, { sparse: true });
+UserSchema.index({ passwordResetToken: 1 }, { sparse: true });

@@ -1,5 +1,5 @@
 import { validate } from 'class-validator';
-import { RegisterDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto } from './register.dto';
+import { RegisterDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto } from './auth.dto';
 
 describe('RegisterDto', () => {
   it('should pass validation with valid data', async () => {
