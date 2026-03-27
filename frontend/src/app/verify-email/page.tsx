@@ -1,63 +1,46 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/apiAxios';
 import styles from './verify.module.css';
 
+/**
+ * Handles email verification via the link sent to the user's inbox.
+ * The token is extracted from the URL query param and sent to the backend automatically.
+ * No form entry needed — the user just clicks the link.
+ */
 function VerifyEmailContent() {
-  const [code, setCode] = useState('');
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [message, setMessage] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const emailParam = searchParams.get('email');
-    if (emailParam) {
-      setEmail(emailParam);
-    }
-  }, [searchParams]);
+    const token = searchParams.get('token');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (code.length !== 6) {
-      setError('Verification code must be 6 digits');
+    if (!token) {
+      setStatus('error');
+      setMessage('Invalid verification link. Please contact an admin to resend the link.');
       return;
     }
-    
-    setLoading(true);
 
-    try {
-      await api.post('/auth/verify-email', { email, code });
-      router.push('/login?verified=true');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid or expired verification code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    setResending(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await api.post('/auth/resend-code', { email });
-      setSuccess('Verification code resent. Please check your email.');
-    } catch (err: any) {
-      setError('Failed to resend code');
-    } finally {
-      setResending(false);
-    }
-  };
+    // Automatically verify using the token from the link
+    api.get(`/auth/verify-email?token=${token}`)
+      .then(() => {
+        setStatus('success');
+        setMessage('Email verified successfully. You can now log in.');
+        // Redirect to login after 3 seconds
+        setTimeout(() => router.push('/login?verified=true'), 3000);
+      })
+      .catch((err) => {
+        setStatus('error');
+        setMessage(
+          err.response?.data?.message ||
+          'Verification link is invalid or has expired. Please contact an admin.',
+        );
+      });
+  }, [searchParams, router]);
 
   return (
     <div className={styles.container}>
@@ -66,53 +49,33 @@ function VerifyEmailContent() {
           <h1 className={styles.title}>
             AppointHealth <span className={styles.titleHighlight}>AI</span>
           </h1>
-          <p className={styles.subtitle}>Verify your email</p>
-          <p className={styles.description}>
-            Enter the verification code sent to {email}
-          </p>
+          <p className={styles.subtitle}>Email Verification</p>
         </div>
 
-        {error && <div className={styles.error}>{error}</div>}
-        {success && <div className={styles.success}>{success}</div>}
-
-
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGroup}>
-            <label htmlFor="code" className={styles.label}>
-              Verification Code
-            </label>
-            <input
-              id="code"
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} // Only allow digits
-              placeholder="123456"
-              required
-              maxLength={6}
-              className={styles.codeInput}
-            />
+        {status === 'loading' && (
+          <div className={styles.statusBox}>
+            <div className={styles.spinner} />
+            <p className={styles.statusText}>Verifying your email...</p>
           </div>
+        )}
 
-          <button
-            type="submit"
-            disabled={loading || code.length !== 6}
-            className={styles.submitButton}
-          >
-            {loading ? 'Verifying...' : 'Verify'}
-          </button>
-        </form>
+        {status === 'success' && (
+          <div className={`${styles.statusBox} ${styles.success}`}>
+            <div className={styles.checkIcon}>✓</div>
+            <p className={styles.statusText}>{message}</p>
+            <p className={styles.redirect}>Redirecting you to login...</p>
+          </div>
+        )}
 
-        <div className={styles.footer}>
-          Didn't receive the code?{' '}
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={resending}
-            className={styles.linkButton}
-          >
-            {resending ? 'Sending...' : 'Resend Code'}
-          </button>
-        </div>
+        {status === 'error' && (
+          <div className={`${styles.statusBox} ${styles.error}`}>
+            <div className={styles.errorIcon}>✕</div>
+            <p className={styles.statusText}>{message}</p>
+            <button className={styles.button} onClick={() => router.push('/login')}>
+              Back to Login
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -120,7 +83,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className="loading">Loading...</div>}>
       <VerifyEmailContent />
     </Suspense>
   );

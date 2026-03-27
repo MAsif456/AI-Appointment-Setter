@@ -3,152 +3,95 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
-  padding: 1rem;
+  background: #f8fafc;
 }
 
 .card {
-  background: white;
-  border-radius: 1.5rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 12px;
+  padding: 48px;
   width: 100%;
-  max-width: 450px;
-  padding: 3rem 2.5rem;
+  max-width: 420px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+  text-align: center;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
+.header { margin-bottom: 32px; }
 
 .title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.75rem;
-}
-
-.titleHighlight {
-  color: #2563eb;
-}
-
-.subtitle {
-  font-size: 1.25rem;
-  color: #374151;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.description {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.error {
-  margin-bottom: 1.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 0.5rem;
-  color: #dc2626;
-  font-size: 0.875rem;
-}
-
-.success {
-  margin-bottom: 1.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #f0fdf4;
-  border: 1px solid #86efac;
-  border-radius: 0.5rem;
-  color: #16a34a;
-  font-size: 0.875rem;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.formGroup {
-  display: flex;
-  flex-direction: column;
-}
-
-.label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 0.5rem;
-}
-
-.codeInput {
-  width: 100%;
-  padding: 0.875rem 1rem;
   font-size: 1.5rem;
-  letter-spacing: 0.5rem;
-  text-align: center;
-  color: #1f2937;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  outline: none;
-  transition: all 0.2s ease;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
 }
 
-.codeInput:focus {
-  background-color: white;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+.titleHighlight { color: #2563eb; }
+.subtitle { color: #64748b; font-size: 0.95rem; }
+
+.statusBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
-.submitButton {
-  width: 100%;
-  padding: 0.875rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: white;
-  background-color: #2563eb;
+.statusBox.success { background: #f0fdf4; }
+.statusBox.error { background: #fef2f2; }
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.checkIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.errorIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.statusText { color: #374151; font-size: 0.95rem; line-height: 1.5; }
+.redirect { color: #6b7280; font-size: 0.85rem; }
+
+.button {
+  margin-top: 8px;
+  padding: 10px 24px;
+  background: #2563eb;
+  color: #fff;
   border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.submitButton:hover:not(:disabled) {
-  background-color: #1d4ed8;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.submitButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.footer {
-  text-align: center;
-  margin-top: 1.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.linkButton {
-  background: none;
-  border: none;
-  color: #2563eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  text-decoration: none;
-  padding: 0;
+  transition: background 0.2s;
 }
 
-.linkButton:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.linkButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.button:hover { background: #1d4ed8; }
