@@ -681,11 +681,21 @@ function detectRelativeWeekShift(
 }
 
 /**
- * Detects ordinal position words ("first", "second", "last") in the message.
+ * Detects ordinal position words ("first", "second", "last") or numbered
+ * references ("day 1", "option 2", "slot 3") in the message.
  * @returns 0-based index into the offered slots array, or null if not found
  */
 function detectPosition(message: string, totalSlots: number): number | null {
   const lower = message.toLowerCase();
+
+  // Check for numbered references: "day 1", "option 2", "slot 3", "number 1", "choice 2"
+  const numberedMatch = lower.match(/\b(?:day|option|number|slot|choice)\s*(\d+)\b/);
+  if (numberedMatch) {
+    const num = parseInt(numberedMatch[1], 10);
+    const idx = num - 1; // Convert 1-based to 0-based
+    if (idx >= 0 && idx < totalSlots) return idx;
+  }
+
   for (const [word, idx] of Object.entries(POSITIONAL_MAP)) {
     if (!lower.includes(word)) continue;
     const pos = lower.indexOf(word);

@@ -206,13 +206,14 @@ export function buildSlotPromptSection(
     lines.push(
       '',
       `Only ONE slot available: "${formatted[0]}"`,
-      '- Say something like: "I have [slot] available. Does that work for you?"',
+      '- Say something like: "I have [slot] available — does that work, or would you prefer a different time?"',
     );
   } else {
     lines.push(
       '',
       `Offer these ${slots.length} options naturally.`,
-      '- e.g. "I have [slot1], [slot2], or [slot3]. Which works best for you?"',
+      '- e.g. "Here are a few times I have available: [slot1], [slot2], or [slot3] — but if none of those suit, just let me know and I can check other times for you."',
+      '- Make clear these are suggestions, not the only available slots.',
     );
   }
 
@@ -249,60 +250,66 @@ export function buildDayAvailabilitySection(
     ].join('\n');
   }
 
-  // Collect which weekdays have at least one slot
-  const daysWithSlots = new Set<string>();
+  // Collect which dates have at least one slot (keyed by date string YYYY-MM-DD)
+  const datesWithSlots = new Set<string>();
   for (const slot of slots) {
-    const date = new Date(`${slot.date}T${slot.startTime}:00`);
-    const dayIndex = date.getDay(); // 0=Sun, 1=Mon ... 6=Sat
-    if (dayIndex >= 1 && dayIndex <= 5) {
-      daysWithSlots.add(WEEKDAY_NAMES[dayIndex - 1]);
-    }
+    datesWithSlots.add(slot.date);
   }
 
-  // Determine which weekdays fall within the requested range, excluding past days
+  // Build a map of date string → formatted label (e.g. "Monday 30th March")
+  // for every weekday in the requested range, excluding past days
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const weekdaysInRange: string[] = [];
+  const daysInRange: { name: string; label: string; dateStr: string }[] = [];
   const cursor = new Date(rangeStart);
   cursor.setHours(0, 0, 0, 0);
   const end = new Date(rangeEnd);
   end.setHours(23, 59, 59, 999);
   while (cursor <= end) {
-    // Skip days that have already passed
     if (cursor >= today) {
       const dayIndex = cursor.getDay();
       if (dayIndex >= 1 && dayIndex <= 5) {
         const name = WEEKDAY_NAMES[dayIndex - 1];
-        if (!weekdaysInRange.includes(name)) weekdaysInRange.push(name);
+        const dateStr = cursor.toISOString().slice(0, 10);
+        const label = `${name} ${ordinal(cursor.getDate())} ${MONTHS[cursor.getMonth()]}`;
+        // Avoid duplicates (in case range spans same weekday twice)
+        if (!daysInRange.some(d => d.dateStr === dateStr)) {
+          daysInRange.push({ name, label, dateStr });
+        }
       }
     }
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  const available = weekdaysInRange.filter(d => daysWithSlots.has(d));
-  const fullyBooked = weekdaysInRange.filter(d => !daysWithSlots.has(d));
+  const available = daysInRange.filter(d => datesWithSlots.has(d.dateStr));
+  const fullyBooked = daysInRange.filter(d => !datesWithSlots.has(d.dateStr));
+
+  const availableLabels = available.map(d => d.label);
+  const fullyBookedLabels = fullyBooked.map(d => d.label);
 
   const lines: string[] = [
     '=== DAY AVAILABILITY ===',
   ];
 
-  if (available.length > 0) {
-    lines.push(`Available days: ${available.join(', ')}`);
+  if (availableLabels.length > 0) {
+    lines.push(`Available days: ${availableLabels.join(', ')}`);
   }
-  if (fullyBooked.length > 0) {
-    lines.push(`Fully booked days: ${fullyBooked.join(', ')}`);
+  if (fullyBookedLabels.length > 0) {
+    lines.push(`Fully booked days: ${fullyBookedLabels.join(', ')}`);
   }
 
   // Build the list of days NOT to mention (past weekdays not in range + weekends)
   const allWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const daysNotToMention = allWeekdays.filter(d => !weekdaysInRange.includes(d));
+  const weekdayNamesInRange = daysInRange.map(d => d.name);
+  const daysNotToMention = allWeekdays.filter(d => !weekdayNamesInRange.includes(d));
 
   lines.push(
     '',
     'INSTRUCTIONS:',
-    `- Tell the lead we have availability on: ${available.join(', ')}.`,
-    fullyBooked.length > 0
-      ? `- Mention that ${fullyBooked.join(', ')} ${fullyBooked.length === 1 ? 'is' : 'are'} fully booked.`
+    `- Tell the lead we have availability on: ${availableLabels.join(', ')}.`,
+    '- Always include the full date alongside the day name (e.g. "Monday 30th March", not just "Monday").',
+    fullyBookedLabels.length > 0
+      ? `- Mention that ${fullyBookedLabels.join(', ')} ${fullyBookedLabels.length === 1 ? 'is' : 'are'} fully booked.`
       : '- Do NOT mention any fully booked days.',
     daysNotToMention.length > 0
       ? `- CRITICAL: Do NOT mention ${daysNotToMention.join(', ')} at all — ${daysNotToMention.length === 1 ? 'that day has' : 'those days have'} already passed.`

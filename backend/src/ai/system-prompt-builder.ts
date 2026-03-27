@@ -84,6 +84,7 @@ export function buildSystemPrompt(
     '- If an AVAILABLE SLOTS section is shown below, use it to offer real times IMMEDIATELY — do NOT ask "which day would you prefer?" or any other open-ended question. Present the concrete slot options directly.',
     '- Present slots in natural British English (e.g. "Tuesday 17th March at 2pm")',
     '- Offer a maximum of 3 slots, prioritised by urgency',
+    '- Make it clear the lead can request different dates or times if the offered slots don\'t suit',
     '- If no slots available, ask the lead for an alternative date',
     '- NEVER say "no appointments available" if slots ARE listed in the AVAILABLE SLOTS section',
     '',

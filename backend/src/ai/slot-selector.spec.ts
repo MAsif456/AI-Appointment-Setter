@@ -135,6 +135,41 @@ describe('AC7 – positional selection', () => {
     expect(result.intent).toBe('SLOT_SELECTED');
     expect(result.selectedSlot?.displayText).toBe('Thursday 26th March at 3pm');
   });
+
+  it('matches "day 1" to the first offered slot', () => {
+    const result = detectSlotSelection('day 1', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+
+  it('matches "gimme day 2" to the second offered slot', () => {
+    const result = detectSlotSelection('gimme day 2', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Wednesday 25th March at 10am');
+  });
+
+  it('matches "option 3" to the third offered slot', () => {
+    const result = detectSlotSelection('option 3', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Thursday 26th March at 3pm');
+  });
+
+  it('matches "slot 1" to the first offered slot', () => {
+    const result = detectSlotSelection('slot 1', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Tuesday 24th March at 2pm');
+  });
+
+  it('matches "number 2" to the second offered slot', () => {
+    const result = detectSlotSelection('number 2', THREE_DISTINCT_DAYS);
+    expect(result.intent).toBe('SLOT_SELECTED');
+    expect(result.selectedSlot?.displayText).toBe('Wednesday 25th March at 10am');
+  });
+
+  it('does not match "day 4" when only 3 slots offered', () => {
+    const result = detectSlotSelection('day 4', THREE_DISTINCT_DAYS);
+    expect(result.intent).not.toBe('SLOT_SELECTED');
+  });
 });
 
 // ---------------------------------------------------------------------------

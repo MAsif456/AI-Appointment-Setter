@@ -175,13 +175,14 @@ describe('buildSlotPromptSection', () => {
     ];
     const result = buildSlotPromptSection(single, 'routine');
     expect(result).toContain('Only ONE slot available');
-    expect(result).toContain('Does that work for you');
+    expect(result).toContain('does that work, or would you prefer a different time');
   });
 
   it('should offer multiple options naturally for 2+ slots', () => {
     const result = buildSlotPromptSection(threeSlots, 'routine');
     expect(result).toContain('Offer these 3 options naturally');
-    expect(result).toContain('Which works best for you');
+    expect(result).toContain('Here are a few times I have available');
+    expect(result).toContain('not the only available slots');
   });
 
   it('should include booking phase transition instruction', () => {
@@ -249,30 +250,30 @@ describe('selectLatestSlots', () => {
 // buildDayAvailabilitySection — weekday availability overview
 // ---------------------------------------------------------------------------
 describe('buildDayAvailabilitySection', () => {
-  // Use a fixed week range: Monday 23 March to Friday 27 March 2026
-  const rangeStart = new Date('2026-03-23T00:00:00');
-  const rangeEnd = new Date('2026-03-27T23:59:59');
+  // Use a fixed future week range: Monday 6 April to Friday 10 April 2026
+  const rangeStart = new Date('2026-04-06T00:00:00');
+  const rangeEnd = new Date('2026-04-10T23:59:59');
 
   const weekSlots: Slot[] = [
-    { date: '2026-03-23', startTime: '09:00', endTime: '09:30' }, // Monday
-    { date: '2026-03-24', startTime: '10:00', endTime: '10:30' }, // Tuesday
-    { date: '2026-03-25', startTime: '11:00', endTime: '11:30' }, // Wednesday
-    // Thursday 26th and Friday 27th have no slots
+    { date: '2026-04-06', startTime: '09:00', endTime: '09:30' }, // Monday
+    { date: '2026-04-07', startTime: '10:00', endTime: '10:30' }, // Tuesday
+    { date: '2026-04-08', startTime: '11:00', endTime: '11:30' }, // Wednesday
+    // Thursday 9th and Friday 10th have no slots
   ];
 
-  it('should show available days when slots exist', () => {
+  it('should show available days with full dates when slots exist', () => {
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
     expect(result).toContain('DAY AVAILABILITY');
-    expect(result).toContain('Monday');
-    expect(result).toContain('Tuesday');
-    expect(result).toContain('Wednesday');
+    expect(result).toContain('Monday 6th April');
+    expect(result).toContain('Tuesday 7th April');
+    expect(result).toContain('Wednesday 8th April');
   });
 
-  it('should mention fully booked days', () => {
+  it('should mention fully booked days with full dates', () => {
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
     expect(result).toContain('Fully booked');
-    expect(result).toContain('Thursday');
-    expect(result).toContain('Friday');
+    expect(result).toContain('Thursday 9th April');
+    expect(result).toContain('Friday 10th April');
   });
 
   it('should instruct AI not to offer specific times yet', () => {
@@ -288,9 +289,14 @@ describe('buildDayAvailabilitySection', () => {
 
   it('should not mention weekend days', () => {
     // Extend range to include Saturday/Sunday
-    const extendedEnd = new Date('2026-03-29T23:59:59');
+    const extendedEnd = new Date('2026-04-12T23:59:59');
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, extendedEnd);
     expect(result).not.toContain('Saturday');
     expect(result).not.toContain('Sunday');
+  });
+
+  it('should include instruction to always use full dates', () => {
+    const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
+    expect(result).toContain('Always include the full date alongside the day name');
   });
 });
