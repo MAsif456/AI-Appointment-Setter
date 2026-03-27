@@ -113,6 +113,7 @@ describe('ConversationsController', () => {
         reply: 'Let me check.',
         offeredSlots: mockOfferedSlots,
         slotSelection: null,
+        bookingResult: null,
         phase: 'greeting',
       });
       expect(mockService.sendMessage).toHaveBeenCalledWith(
@@ -127,7 +128,7 @@ describe('ConversationsController', () => {
       const result = await controller.sendMessage('conv1', {
         message: 'Hello',
       });
-      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null, phase: null });
+      expect(result).toEqual({ reply: null, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null });
     });
   });
 });

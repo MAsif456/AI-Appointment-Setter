@@ -53,7 +53,7 @@ export const mockConversations: Conversation[] = [
     leadSource: 'Facebook Ads',
     phase: 'Booking',
     lastMessage: 'No messages yet',
-    isHighPriority: true,
+    isHighPriority: false,
     requiresIntervention: false,
   },
   {

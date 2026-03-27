@@ -90,6 +90,29 @@ export class Conversation {
   @Prop({ type: [OfferedSlot], default: [] })
   offeredSlots: OfferedSlot[];
 
+  /** Cumulative history of ALL slots offered across all turns — used for prompt context */
+  @Prop({ type: [OfferedSlot], default: [] })
+  slotHistory: OfferedSlot[];
+
+  /** When true, the AI has shown a day-level overview (Mon–Fri) and is waiting
+   *  for the lead to pick a specific day before offering time slots. */
+  @Prop({ default: false })
+  awaitingDaySelection: boolean;
+
+  /** The day name the lead last asked about (e.g. "thursday") — used to scope
+   *  follow-up time preference requests to the correct day. */
+  @Prop()
+  lastRequestedDay?: string;
+
+  /** The start of the date range last fetched for slots — used to scope
+   *  follow-up time preference requests to the correct date range. */
+  @Prop()
+  lastRequestedDateStart?: Date;
+
+  /** The end of the date range last fetched for slots. */
+  @Prop()
+  lastRequestedDateEnd?: Date;
+
   @Prop({ type: Types.ObjectId, ref: 'Appointment' })
   appointmentId?: Types.ObjectId;
 

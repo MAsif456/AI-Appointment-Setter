@@ -201,4 +201,168 @@ describe('ConversationsService – slot selection detection', () => {
     // Wednesday 10am is the only morning slot in the mock data
     expect((result!.offeredSlots as Array<{ displayText: string }>).some(s => s.displayText.includes('10am'))).toBe(true);
   });
+
+  // ---------------------------------------------------------------------------
+  // DAY_OVERVIEW (week-range) flow
+  // ---------------------------------------------------------------------------
+  describe('DAY_OVERVIEW flow', () => {
+    it('triggers DAY_OVERVIEW for "this week" and sets awaitingDaySelection', async () => {
+      useConversation(mockConversationNoSlots);
+      const result = await service.sendMessage('conv1', 'What do you have this week?');
+      expect(result!.slotSelection?.intent).toBe('DAY_OVERVIEW');
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        expect.objectContaining({ awaitingDaySelection: true }),
+      );
+    });
+
+    it('triggers DAY_OVERVIEW for "next week"', async () => {
+      useConversation(mockConversationNoSlots);
+      const result = await service.sendMessage('conv1', 'next week please');
+      expect(result!.slotSelection?.intent).toBe('DAY_OVERVIEW');
+    });
+
+    it('picks a day when awaitingDaySelection and user says a day name', async () => {
+      const awaitingConv = {
+        ...mockConversationNoSlots,
+        awaitingDaySelection: true,
+        lastRequestedDateStart: new Date('2026-03-23'),
+        lastRequestedDateEnd: new Date('2026-03-28'),
+      };
+      mockConversationModel.findById.mockResolvedValue(awaitingConv);
+      const result = await service.sendMessage('conv1', 'Tuesday please');
+      expect(result!.slotSelection?.intent).toBe('DIFFERENT_DATE');
+      expect(result!.slotSelection?.requestedDate).toBe('Tuesday');
+      // Should clear awaitingDaySelection
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        expect.objectContaining({ awaitingDaySelection: false }),
+      );
+    });
+
+    it('detects time filter during awaitingDaySelection (e.g. "what days have 12pm free?")', async () => {
+      const awaitingConv = {
+        ...mockConversationNoSlots,
+        awaitingDaySelection: true,
+        lastRequestedDateStart: new Date('2026-03-23'),
+        lastRequestedDateEnd: new Date('2026-03-28'),
+      };
+      mockConversationModel.findById.mockResolvedValue(awaitingConv);
+      const result = await service.sendMessage('conv1', 'what days have 2pm free?');
+      expect(result!.slotSelection?.intent).toBe('DAY_OVERVIEW');
+      expect(result!.slotSelection?.timePreference).toBe('2pm');
+    });
+
+    it('transitions out of awaitingDaySelection on non-specific reply', async () => {
+      const awaitingConv = {
+        ...mockConversationNoSlots,
+        awaitingDaySelection: true,
+        lastRequestedDateStart: new Date('2026-03-23'),
+        lastRequestedDateEnd: new Date('2026-03-28'),
+      };
+      mockConversationModel.findById.mockResolvedValue(awaitingConv);
+      const result = await service.sendMessage('conv1', 'yes please');
+      expect(result!.slotSelection?.intent).toBe('DIFFERENT_DATE');
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        expect.objectContaining({ awaitingDaySelection: false }),
+      );
+    });
+
+    it('detects new date range during awaitingDaySelection (e.g. "first week of June")', async () => {
+      const awaitingConv = {
+        ...mockConversationNoSlots,
+        awaitingDaySelection: true,
+        lastRequestedDateStart: new Date('2026-03-23'),
+        lastRequestedDateEnd: new Date('2026-03-28'),
+      };
+      mockConversationModel.findById.mockResolvedValue(awaitingConv);
+      const result = await service.sendMessage('conv1', 'what about the first week of June?');
+      expect(result!.slotSelection?.intent).toBe('DIFFERENT_DATE');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FURTHER_DATE flow
+  // ---------------------------------------------------------------------------
+  describe('FURTHER_DATE flow', () => {
+    it('triggers FURTHER_DATE when lead asks for furthest dates', async () => {
+      useConversation(mockConversationWithSlots);
+      const result = await service.sendMessage('conv1', 'what is the furthest date you have?');
+      expect(result!.slotSelection?.intent).toBe('FURTHER_DATE');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Emergency escalation
+  // ---------------------------------------------------------------------------
+  describe('emergency escalation', () => {
+    it('escalates emergency and returns early', async () => {
+      useConversation(mockConversationNoSlots);
+      mockUrgencyPipeline.assessMessage.mockResolvedValueOnce({
+        resolved: 'emergency',
+        assessment: { level: 'emergency', score: 1.0, signals: [], isAmbiguous: false, requiresEscalation: true, emergencyKeywordsMatched: ['chest pain'] },
+      });
+      mockEscalationService.escalateEmergency.mockResolvedValueOnce({
+        aiMessage: 'Please call 999 immediately.',
+      });
+
+      const result = await service.sendMessage('conv1', 'I have severe chest pain');
+      expect(result!.reply).toContain('999');
+      expect(mockEscalationService.escalateEmergency).toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Urgency update
+  // ---------------------------------------------------------------------------
+  describe('urgency update', () => {
+    it('updates lead urgency when it changes', async () => {
+      useConversation(mockConversationNoSlots);
+      mockUrgencyPipeline.assessMessage.mockResolvedValueOnce({
+        resolved: 'urgent',
+        assessment: { level: 'urgent', score: 0.7, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+      });
+
+      await service.sendMessage('conv1', 'I really need to be seen soon');
+      expect(mockLeadModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'lead1',
+        { urgency: 'urgent' },
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Single-day request returns multiple slots
+  // ---------------------------------------------------------------------------
+  describe('single-day request', () => {
+    it('returns multiple slots for a specific day request', async () => {
+      useConversation(mockConversationNoSlots);
+      // Provide multiple slots on the same day
+      mockSlotProvider.getAvailableSlots.mockResolvedValueOnce([
+        { date: '2026-07-06', startTime: '09:00', endTime: '09:30' },
+        { date: '2026-07-06', startTime: '11:00', endTime: '11:30' },
+        { date: '2026-07-06', startTime: '14:00', endTime: '14:30' },
+        { date: '2026-07-06', startTime: '16:00', endTime: '16:30' },
+      ]);
+
+      const result = await service.sendMessage('conv1', 'Monday 6th July');
+      expect(result!.slotSelection?.intent).toBe('DIFFERENT_DATE');
+      // Should return up to 3 slots for that day
+      expect(result!.offeredSlots.length).toBeLessThanOrEqual(3);
+      expect(result!.offeredSlots.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Week range with time preference
+  // ---------------------------------------------------------------------------
+  describe('week range with time preference', () => {
+    it('extracts time from "I want a 12pm slot next week"', async () => {
+      useConversation(mockConversationNoSlots);
+      const result = await service.sendMessage('conv1', 'I want a 12pm slot next week');
+      expect(result!.slotSelection?.intent).toBe('DAY_OVERVIEW');
+      expect(result!.slotSelection?.timePreference).toBe('12pm');
+    });
+  });
 });
