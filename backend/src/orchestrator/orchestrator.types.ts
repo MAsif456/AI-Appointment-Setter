@@ -48,6 +48,8 @@ export interface OrchestratorContext {
   clinicId: string;
   phase: string;
   messages: OrchestratorMessage[];
+  /** MongoDB ObjectId of the conversation document (as hex string). */
+  conversationId?: string;
   patientInfo: {
     firstName: string;
     lastName?: string;

@@ -8,10 +8,11 @@
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
 import { GhlModule } from '../ghl/ghl.module';
+import { CancellationModule } from '../cancellation/cancellation.module';
 import { OrchestratorService } from './orchestrator.service';
 
 @Module({
-  imports: [AiModule, GhlModule],
+  imports: [AiModule, GhlModule, CancellationModule],
   providers: [OrchestratorService],
   exports: [OrchestratorService],
 })
