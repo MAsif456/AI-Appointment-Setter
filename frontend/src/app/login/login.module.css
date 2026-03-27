@@ -196,20 +196,3 @@
   align-items: center;
   justify-content: center;
 }
-
-.signUp {
-  text-align: center;
-  margin-top: 1.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.signUpLink {
-  color: #2563eb;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.signUpLink:hover {
-  text-decoration: underline;
-}

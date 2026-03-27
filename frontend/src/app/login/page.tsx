@@ -165,14 +165,6 @@ export default function LoginPage() {
             Forgot Password?
           </Link>
         </div>          
-
-        {/* Sign Up Link */}
-        <div className={styles.signUp}>
-          Don't have an account?{' '}
-          <Link href="/signup" className={styles.signUpLink}>
-            Sign Up
-          </Link>
-        </div>
       </div>
     </div>
   );
