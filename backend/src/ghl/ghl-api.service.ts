@@ -1,32 +1,35 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { lastValueFrom } from 'rxjs';
-import { SendMessageDto } from './dto/send-message.dto';
-import { CircuitBreaker } from './circuit-breaker';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { lastValueFrom } from "rxjs";
+import { SendMessageDto } from "./dto/send-message.dto";
+import { CircuitBreaker, CircuitState } from "./circuit-breaker";
+import { retryWithBackoff } from "../common/retry-utils";
 
 @Injectable()
 export class GhlApiService {
   private readonly logger = new Logger(GhlApiService.name);
-  private readonly maxRetries = 3;
+  private readonly messagingCircuitBreaker: CircuitBreaker;
   private readonly appointmentCircuitBreaker: CircuitBreaker;
 
   /**
    * Constructs a GhlApiService instance.
-   * Initialises a circuit breaker for appointment creation calls to protect
-   * against cascading failures when the GHL API is unresponsive.
-   *
-   * @param {HttpService} httpService - The HTTP service to use for making requests.
-   * @param {ConfigService} configService - The ConfigService to use for getting configuration values.
+   * Initialises per-service circuit breakers to protect against cascading
+   * failures when the GHL API is unresponsive.
    */
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
+    this.messagingCircuitBreaker = new CircuitBreaker({
+      failureThreshold: 3,
+      resetTimeoutMs: 30_000,
+      name: "GHL-Messaging",
+    });
     this.appointmentCircuitBreaker = new CircuitBreaker({
       failureThreshold: 3,
       resetTimeoutMs: 30_000,
-      name: 'GHL-Appointments',
+      name: "GHL-Appointments",
     });
   }
 
@@ -39,57 +42,50 @@ export class GhlApiService {
    */
   private getHeaders(): Record<string, string> {
     return {
-      Authorization: `Bearer ${this.configService.get<string>('GHL_PRIVATE_TOKEN')}`,
-      Version: '2021-07-28',
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.configService.get<string>("GHL_PRIVATE_TOKEN")}`,
+      Version: "2021-07-28",
+      "Content-Type": "application/json",
     };
   }
 
   /**
-   * Sends a message to the GHL API with retry.
+   * Sends a message to the GHL API with retry and circuit breaker protection.
+   * Uses exponential backoff with full jitter to prevent thundering herd.
    *
    * @param {SendMessageDto} dto - The message to send.
-   *
    * @returns {Promise<any>} - The result of the message send.
-   *
-   * The function will retry up to `maxRetries` times if the request fails.
-   * If all retries fail, the function will throw an error.
    */
   async sendMessageWithRetry(dto: SendMessageDto): Promise<any> {
     const payload = {
       type: dto.type,
       contactId: dto.contactId,
       message: dto.message,
-      status: 'pending',
+      status: "pending",
     };
 
-    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
-      try {
-        const { data } = await lastValueFrom(
-          this.httpService.post('/conversations/messages', payload, {
-            headers: this.getHeaders(),
-          }),
-        );
-        return data;
-      } catch (error) {
-        if (attempt === this.maxRetries) {
-          this.logger.error(
-            `GHL send failed after ${this.maxRetries} attempts`,
-            {
-              contactId: dto.contactId,
-              message: dto.message,
-              error: error.message,
-            },
+    return this.messagingCircuitBreaker.execute(() =>
+      retryWithBackoff(
+        async () => {
+          const { data } = await lastValueFrom(
+            this.httpService.post("/conversations/messages", payload, {
+              headers: this.getHeaders(),
+            }),
           );
-          throw error;
-        }
-        const delay = Math.pow(2, attempt) * 1000;
-        this.logger.warn(
-          `GHL send attempt ${attempt} failed, retrying in ${delay}ms`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
+          return data;
+        },
+        {
+          maxRetries: 3,
+          baseDelayMs: 1000,
+          maxDelayMs: 4000,
+          onRetry: (attempt, error, delayMs) => {
+            this.logger.warn(
+              `GHL send attempt ${attempt} failed — contactId: ${dto.contactId}, ` +
+                `retrying in ${Math.round(delayMs)}ms. Error: ${error.message}`,
+            );
+          },
+        },
+      ),
+    );
   }
 
   /**
@@ -120,7 +116,7 @@ export class GhlApiService {
   ): Promise<any> {
     const { data } = await lastValueFrom(
       this.httpService.post(
-        '/conversations/',
+        "/conversations/",
         { contactId, locationId },
         { headers: this.getHeaders() },
       ),
@@ -148,19 +144,27 @@ export class GhlApiService {
     return this.appointmentCircuitBreaker.execute(async () => {
       const { data } = await lastValueFrom(
         this.httpService.post(
-          '/calendars/events/appointments',
+          "/calendars/events/appointments",
           {
             calendarId,
             locationId,
             contactId,
             startTime,
             endTime,
-            appointmentStatus: 'confirmed',
+            appointmentStatus: "confirmed",
           },
           { headers: this.getHeaders() },
         ),
       );
       return data;
     });
+  }
+
+  /** Returns the current state of each GHL circuit breaker for health monitoring. */
+  getCircuitBreakerStates(): Record<string, CircuitState> {
+    return {
+      messaging: this.messagingCircuitBreaker.getState(),
+      appointments: this.appointmentCircuitBreaker.getState(),
+    };
   }
 }
