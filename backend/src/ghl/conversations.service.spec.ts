@@ -197,4 +197,30 @@ describe('ConversationsService', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('flagForHumanIntervention', () => {
+    it('should set requiresHumanIntervention and reason on the conversation', async () => {
+      conversationModel.findByIdAndUpdate.mockResolvedValue(undefined);
+
+      await service.flagForHumanIntervention(conversationId, 'AI service failure');
+
+      expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          requiresHumanIntervention: true,
+          humanInterventionReason: 'AI service failure',
+          escalationReason: 'AI service failure',
+        }),
+      );
+    });
+
+    it('should set escalatedAt timestamp', async () => {
+      conversationModel.findByIdAndUpdate.mockResolvedValue(undefined);
+
+      await service.flagForHumanIntervention(conversationId, 'Message delivery failed');
+
+      const call = conversationModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(call.escalatedAt).toBeInstanceOf(Date);
+    });
+  });
 });

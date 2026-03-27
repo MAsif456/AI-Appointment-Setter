@@ -78,6 +78,13 @@ describe('ConversationsController', () => {
       const result = await controller.start('conv1');
       expect(result).toEqual({ greeting: null });
     });
+
+    it('should return fallback greeting when service throws', async () => {
+      mockService.startConversation.mockRejectedValue(new Error('DB error'));
+
+      const result = await controller.start('conv1');
+      expect(result.greeting).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
+    });
   });
 
   describe('POST /conversations/:id/reset', () => {
@@ -128,6 +135,16 @@ describe('ConversationsController', () => {
         message: 'Hello',
       });
       expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
+    });
+
+    it('should return fallback reply when service throws', async () => {
+      mockService.sendMessage.mockRejectedValue(new Error('Unexpected error'));
+
+      const result = await controller.sendMessage('conv1', {
+        message: 'Hello',
+      });
+      expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
+      expect(result.offeredSlots).toEqual([]);
     });
   });
 });
