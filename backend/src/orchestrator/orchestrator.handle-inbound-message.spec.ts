@@ -169,6 +169,18 @@ describe('OrchestratorService — handleInboundMessage', () => {
     );
   });
 
+  it('should store the normalised postcode "CF10 1AA" in context when a spaceless postcode "CF101AA" is provided', async () => {
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'CF101AA' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.setContext).toHaveBeenCalledWith(
+      expect.anything(),
+      'validatedPostcode',
+      'CF10 1AA',
+    );
+  });
+
   it('should transition phase to "declined" when an out-of-area postcode is provided', async () => {
     await service.handleInboundMessage(
       { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'EX4 1AB' } } as any,
