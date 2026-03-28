@@ -11,6 +11,14 @@ import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+
+const mockSecurityPipeline = {
+  processInbound: jest.fn().mockImplementation((msg: string) =>
+    Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+  ),
+  validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+};
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -31,6 +39,7 @@ describe('OrchestratorService', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
       ],
     }).compile();
 

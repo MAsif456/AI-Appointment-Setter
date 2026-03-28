@@ -24,6 +24,14 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+
+const mockSecurityPipeline = {
+  processInbound: jest.fn().mockImplementation((msg: string) =>
+    Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+  ),
+  validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+};
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -62,6 +70,7 @@ describe('OrchestratorService — handleInboundMessage', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
       ],
     }).compile();
 

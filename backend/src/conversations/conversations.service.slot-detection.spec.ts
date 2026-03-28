@@ -14,6 +14,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
 
 describe('ConversationsService – slot selection detection', () => {
   let service: ConversationsService;
@@ -99,6 +100,12 @@ describe('ConversationsService – slot selection detection', () => {
     notifyClinicStaff: jest.fn(),
     updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
+  const mockSecurityPipeline = {
+    processInbound: jest.fn().mockImplementation((msg: string) =>
+      Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+    ),
+    validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -114,6 +121,7 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
       ],
     }).compile();
 

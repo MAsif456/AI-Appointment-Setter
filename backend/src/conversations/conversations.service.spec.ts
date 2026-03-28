@@ -8,6 +8,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -47,7 +48,14 @@ describe('ConversationsService', () => {
 
   const mockAbuseHandler = {
     handle: jest.fn().mockResolvedValue(null),
-};
+  };
+
+  const mockSecurityPipeline = {
+    processInbound: jest.fn().mockImplementation((msg: string) =>
+      Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+    ),
+    validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+  };
 
   const mockAppointmentsService = {
     bookAppointment: jest.fn(),
@@ -113,6 +121,7 @@ describe('ConversationsService', () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
       ],
     }).compile();
 
