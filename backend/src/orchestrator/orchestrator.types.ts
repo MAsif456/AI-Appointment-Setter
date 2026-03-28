@@ -7,8 +7,11 @@
 export const FALLBACK_MESSAGE =
   "Thanks for your message! Someone from the clinic will be in touch shortly.";
 
-/** UK postcode pattern — matches both spaced (CF10 1AA) and unspaced (CF101AA) variants. */
-export const POSTCODE_REGEX = /[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}/i;
+/**
+ * UK postcode pattern — matches both spaced (CF10 1AA) and unspaced (CF101AA) variants.
+ * Word boundaries prevent partial matches inside longer strings, so "CF10 1AAA" does NOT match.
+ */
+export const POSTCODE_REGEX = /\b[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}\b/i;
 
 /** Keywords that indicate a lead wants to book an appointment. */
 export const BOOKING_KEYWORDS = ['book', 'appointment', 'schedule', 'sign me up', 'yes please'];

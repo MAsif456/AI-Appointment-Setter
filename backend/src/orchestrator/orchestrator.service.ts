@@ -95,16 +95,13 @@ export class OrchestratorService {
 
   /**
    * Returns true when the whole message (stripped of whitespace) resembles a postcode
-   * attempt: 3–9 alphanumeric characters containing at least one digit.
+   * attempt: 3–9 characters that are entirely alphanumeric (letters and/or digits only,
+   * no spaces or punctuation).  The digit requirement is intentionally omitted so that
+   * random letter strings such as "ghthhdh" are also caught as invalid-format attempts.
    */
   private looksLikePostcodeAttempt(message: string): boolean {
     const stripped = message.replace(/\s+/g, '');
-    return (
-      stripped.length >= 3 &&
-      stripped.length <= 9 &&
-      /^[A-Z0-9]+$/i.test(stripped) &&
-      /[0-9]/.test(stripped)
-    );
+    return stripped.length >= 3 && stripped.length <= 9 && /^[A-Z0-9]+$/i.test(stripped);
   }
 
   /**
