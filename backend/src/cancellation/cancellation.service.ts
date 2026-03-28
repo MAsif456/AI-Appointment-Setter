@@ -126,12 +126,59 @@ export class CancellationService {
     await this.ghlApiService.addContactTag(contactId, 'cancelled');
     await this.ghlApiService.removeContactTag(contactId, 'appointment-booked');
 
+    // Notify the clinic about the cancellation
+    await this.sendClinicNotification(conversationId, contactId, `${date} at ${time}`, reason);
+
     this.logger.log(`Appointment ${appointmentId} cancelled for contact ${contactId}`);
 
     return {
       success: true,
       message: "Your appointment has been cancelled. Feel free to book again anytime!",
     };
+  }
+
+  /** Checks whether the conversation is awaiting a cancellation reason from the lead. */
+  async isAwaitingReason(conversationId: Types.ObjectId): Promise<boolean> {
+    const conversation = await this.conversationModel.findById(conversationId).exec();
+    return conversation?.awaitingCancellationReason === true;
+  }
+
+  /** Sets the awaitingCancellationReason flag and returns the reason request message. */
+  async requestReason(conversationId: Types.ObjectId): Promise<string> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, { awaitingCancellationReason: true });
+    return 'May I ask the reason for cancelling? This helps the clinic improve their service.';
+  }
+
+  /** Stores the lead's cancellation reason and clears the awaiting flag. */
+  async storeReason(conversationId: Types.ObjectId, reason: string): Promise<void> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      cancellationReason: reason,
+      awaitingCancellationReason: false,
+    });
+  }
+
+  /** Notifies the clinic about a cancellation via GHL messaging (fire-and-forget). */
+  private async sendClinicNotification(
+    conversationId: Types.ObjectId,
+    contactId: string,
+    dateTimeStr: string,
+    reason?: string,
+  ): Promise<void> {
+    const conversation = await this.conversationModel.findById(conversationId).exec();
+    if (!conversation?.ghlConversationId) return;
+
+    const reasonLine = reason ? `\nReason: ${reason}` : '';
+    const message = `Cancellation notice: Lead (contact ${contactId}) cancelled their appointment on ${dateTimeStr}.${reasonLine}`;
+
+    try {
+      await this.ghlApiService.sendMessageWithRetry({
+        type: 'SMS',
+        contactId,
+        message,
+      });
+    } catch {
+      this.logger.warn(`Failed to send clinic cancellation notification for contact ${contactId}`);
+    }
   }
 
   /** Substitutes {{placeholder}} variables in a cancellation message template. */

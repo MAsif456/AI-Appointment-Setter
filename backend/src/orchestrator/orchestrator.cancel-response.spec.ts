@@ -21,6 +21,9 @@ const mockCancellationService = {
   buildConfirmationPrompt: jest.fn(),
   evaluatePolicy: jest.fn(),
   executeCancellation: jest.fn(),
+  isAwaitingReason: jest.fn(),
+  requestReason: jest.fn(),
+  storeReason: jest.fn(),
 };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
@@ -104,9 +107,22 @@ describe('OrchestratorService — cancellation responses', () => {
     const warnedContext = { ...baseContext, phase: 'cancelling_warned' };
     const mockAppointment = { _id: new Types.ObjectId(), appointmentDate: new Date() };
 
-    it('should execute cancellation when no fee warning needed (>24h)', async () => {
+    it('should ask for reason before executing when not yet requested', async () => {
       mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
       mockCancellationService.evaluatePolicy.mockResolvedValue({ withinNotice: false, feeEnabled: false });
+      mockCancellationService.isAwaitingReason.mockResolvedValue(false);
+      mockCancellationService.requestReason.mockResolvedValue('May I ask the reason for cancelling?');
+
+      const result = await service.generateResponse({ intent: 'CONFIRM_CANCEL' }, cancellingContext, clinicConfig);
+
+      expect(result).toContain('reason for cancelling');
+      expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
+    });
+
+    it('should execute cancellation when reason already requested (>24h)', async () => {
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.evaluatePolicy.mockResolvedValue({ withinNotice: false, feeEnabled: false });
+      mockCancellationService.isAwaitingReason.mockResolvedValue(true);
       mockCancellationService.executeCancellation.mockResolvedValue({
         success: true,
         message: 'Your appointment has been cancelled. Feel free to book again anytime!',
@@ -134,8 +150,9 @@ describe('OrchestratorService — cancellation responses', () => {
       expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
     });
 
-    it('should execute cancellation from cancelling_warned phase (post-warning confirm)', async () => {
+    it('should execute cancellation from cancelling_warned when reason already asked', async () => {
       mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.isAwaitingReason.mockResolvedValue(true);
       mockCancellationService.executeCancellation.mockResolvedValue({
         success: true,
         message: 'Your appointment has been cancelled. Feel free to book again anytime!',
@@ -145,8 +162,52 @@ describe('OrchestratorService — cancellation responses', () => {
 
       expect(result).toContain('cancelled');
       expect(mockCancellationService.executeCancellation).toHaveBeenCalled();
-      // Should NOT call evaluatePolicy — already warned
       expect(mockCancellationService.evaluatePolicy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('UNKNOWN intent in cancelling phase (reason collection)', () => {
+    const cancellingContext = { ...baseContext, phase: 'cancelling', messages: [{ role: 'user' as const, content: 'Moving away from the area', timestamp: new Date() }] };
+    const mockAppointment = { _id: new Types.ObjectId(), appointmentDate: new Date() };
+
+    it('should store reason and execute cancellation when awaiting reason', async () => {
+      mockCancellationService.isAwaitingReason.mockResolvedValue(true);
+      mockCancellationService.storeReason.mockResolvedValue(undefined);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.executeCancellation.mockResolvedValue({
+        success: true,
+        message: 'Your appointment has been cancelled. Thank you for letting us know.',
+      });
+
+      const result = await service.generateResponse({ intent: 'UNKNOWN' }, cancellingContext, clinicConfig);
+
+      expect(result).toContain('cancelled');
+      expect(mockCancellationService.storeReason).toHaveBeenCalledWith(expect.any(Types.ObjectId), 'Moving away from the area');
+      expect(mockCancellationService.executeCancellation).toHaveBeenCalled();
+    });
+
+    it('should return fallback when not awaiting reason', async () => {
+      mockCancellationService.isAwaitingReason.mockResolvedValue(false);
+
+      const result = await service.generateResponse({ intent: 'UNKNOWN' }, cancellingContext, clinicConfig);
+
+      expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
+    });
+
+    it('should handle cancelling_warned phase with reason collection', async () => {
+      const warnedCtx = { ...cancellingContext, phase: 'cancelling_warned' };
+      mockCancellationService.isAwaitingReason.mockResolvedValue(true);
+      mockCancellationService.storeReason.mockResolvedValue(undefined);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.executeCancellation.mockResolvedValue({
+        success: true,
+        message: 'Your appointment has been cancelled.',
+      });
+
+      const result = await service.generateResponse({ intent: 'UNKNOWN' }, warnedCtx, clinicConfig);
+
+      expect(result).toContain('cancelled');
+      expect(mockCancellationService.storeReason).toHaveBeenCalled();
     });
   });
 

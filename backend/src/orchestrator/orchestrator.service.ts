@@ -1,6 +1,5 @@
 /** Thin coordinator — heavy logic lives in dedicated orchestrator.*.ts files. */
 import { Injectable, Logger } from '@nestjs/common';
-import { Types } from 'mongoose';
 import { GroqService } from '../ai/groq.service';
 import { GreetingService } from '../ai/greeting.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
@@ -23,6 +22,12 @@ import {
 import { normalisePostcode, buildSingleTurnPrompt, buildMultiTurnSystemPrompt } from './orchestrator.prompts';
 import { handleNewLeadFlow } from './orchestrator.new-lead';
 import { handleInboundMessageFlow } from './orchestrator.inbound-message';
+import {
+  handleCancelIntent,
+  handleConfirmCancel,
+  handleDeclineCancel,
+  handleCancellationReason,
+} from './orchestrator.cancel-handlers';
 
 export { FALLBACK_MESSAGE };
 export type { OrchestratorMessage, OrchestratorContext, IntentResult };
@@ -125,15 +130,21 @@ export class OrchestratorService {
       return this.groqService.generateResponse(buildSingleTurnPrompt(bookingContext, context, clinicConfig));
     }
 
-    // Cancellation intents — delegated to CancellationService
+    // Cancellation intents — delegated to extracted handlers
     if (intent.intent === 'CANCEL') {
-      return this.handleCancelIntent(context);
+      return handleCancelIntent(context, this.cancellationService);
     }
     if (intent.intent === 'CONFIRM_CANCEL') {
-      return this.handleConfirmCancel(context, clinicConfig);
+      return handleConfirmCancel(context, clinicConfig, this.cancellationService);
     }
     if (intent.intent === 'DECLINE_CANCEL') {
-      return this.handleDeclineCancel(context);
+      return handleDeclineCancel(context);
+    }
+
+    // If awaiting a cancellation reason (freeform text), collect and proceed
+    if (intent.intent === 'UNKNOWN' && context.conversationId &&
+        (context.phase === 'cancelling' || context.phase === 'cancelling_warned')) {
+      return handleCancellationReason(context, this.cancellationService);
     }
 
     // UNKNOWN: send full conversation history to the chat API
@@ -144,42 +155,6 @@ export class OrchestratorService {
       messages.push({ role: msg.role, content: msg.content });
     }
     return this.groqService.generateChatResponse(messages);
-  }
-
-  /** Handles CANCEL intent: checks for existing appointment, returns confirmation prompt or guard message. */
-  private async handleCancelIntent(context: OrchestratorContext): Promise<string> {
-    if (!context.conversationId) return "I don't have a booking on file for you. Is there something else I can help with?";
-    const appointment = await this.cancellationService.checkAppointmentExists(new Types.ObjectId(context.conversationId));
-    if (!appointment) return "I don't have a booking on file for you. Is there something else I can help with?";
-    return this.cancellationService.buildConfirmationPrompt(appointment);
-  }
-
-  /** Evaluates policy on CONFIRM_CANCEL: executes cancellation or returns fee warning. */
-  private async handleConfirmCancel(context: OrchestratorContext, clinicConfig: ClinicConfig): Promise<string> {
-    if (!context.conversationId || !context.ghlContactId) return FALLBACK_MESSAGE;
-    const convId = new Types.ObjectId(context.conversationId);
-    const appointment = await this.cancellationService.checkAppointmentExists(convId);
-    if (!appointment) return "I don't have a booking on file for you. Is there something else I can help with?";
-
-    // If coming from 'cancelling' (first confirmation), check policy
-    if (context.phase === 'cancelling') {
-      const policy = await this.cancellationService.evaluatePolicy(appointment, new Types.ObjectId(clinicConfig.clinicId));
-      if (policy.withinNotice && policy.feeEnabled && policy.warningMessage) {
-        return policy.warningMessage;
-      }
-    }
-
-    // Either no fee warning needed, or lead confirmed after warning (cancelling_warned)
-    const result = await this.cancellationService.executeCancellation(convId, appointment._id as Types.ObjectId, context.ghlContactId);
-    return result.message;
-  }
-
-  /** Handles DECLINE_CANCEL intent: reassures the lead their appointment is kept. */
-  private async handleDeclineCancel(context: OrchestratorContext): Promise<string> {
-    if (context.phase === 'cancelling_warned') {
-      return "No problem! Let's look at rescheduling your appointment instead. When would suit you better?";
-    }
-    return 'No problem, your appointment is still confirmed. Is there anything else I can help with?';
   }
 
   /** Creates a structured message object representing a conversation turn. */

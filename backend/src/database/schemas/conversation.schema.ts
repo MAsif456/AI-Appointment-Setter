@@ -139,6 +139,10 @@ export class Conversation {
   @Prop()
   cancellationReason?: string;
 
+  /** True when the system has asked for a cancellation reason and is awaiting a response. */
+  @Prop({ default: false })
+  awaitingCancellationReason: boolean;
+
   /** Audit trail of all cancelled appointments — supports analytics and repeat-canceller detection. */
   @Prop({ type: [CancelledAppointment], default: [] })
   cancelledAppointments: CancelledAppointment[];

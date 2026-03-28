@@ -18,6 +18,7 @@ describe('CancellationService', () => {
     cancelAppointment: jest.fn(),
     addContactTag: jest.fn(),
     removeContactTag: jest.fn(),
+    sendMessageWithRetry: jest.fn(),
   };
 
   // Reusable test data
@@ -176,9 +177,13 @@ describe('CancellationService', () => {
       });
       mockAppointmentModel.findByIdAndUpdate.mockResolvedValue({});
       mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+      mockConversationModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ ghlConversationId: 'ghl_conv_123' }),
+      });
       mockGhlApiService.cancelAppointment.mockResolvedValue({ id: 'ghl_apt_123' });
       mockGhlApiService.addContactTag.mockResolvedValue({});
       mockGhlApiService.removeContactTag.mockResolvedValue({});
+      mockGhlApiService.sendMessageWithRetry.mockResolvedValue({});
     });
 
     it('should cancel in GHL and update local records', async () => {
@@ -242,6 +247,84 @@ describe('CancellationService', () => {
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         conversationId,
         expect.objectContaining({ cancellationReason: 'Moving away' }),
+      );
+    });
+
+    it('should send clinic notification via GHL messaging', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'Schedule conflict');
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'SMS',
+          contactId: 'contact_123',
+          message: expect.stringContaining('Cancellation notice'),
+        }),
+      );
+    });
+
+    it('should include reason in clinic notification when provided', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'Too expensive');
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Reason: Too expensive'),
+        }),
+      );
+    });
+  });
+
+  describe('isAwaitingReason', () => {
+    it('should return true when awaitingCancellationReason flag is set', async () => {
+      mockConversationModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ awaitingCancellationReason: true }),
+      });
+
+      const result = await service.isAwaitingReason(conversationId);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when flag is not set', async () => {
+      mockConversationModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ awaitingCancellationReason: false }),
+      });
+
+      const result = await service.isAwaitingReason(conversationId);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when conversation not found', async () => {
+      mockConversationModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      const result = await service.isAwaitingReason(conversationId);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('requestReason', () => {
+    it('should set awaitingCancellationReason flag and return prompt', async () => {
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      const result = await service.requestReason(conversationId);
+
+      expect(result).toContain('reason');
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        conversationId,
+        { awaitingCancellationReason: true },
+      );
+    });
+  });
+
+  describe('storeReason', () => {
+    it('should store reason and clear awaiting flag', async () => {
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      await service.storeReason(conversationId, 'Too expensive');
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        conversationId,
+        { cancellationReason: 'Too expensive', awaitingCancellationReason: false },
       );
     });
   });
