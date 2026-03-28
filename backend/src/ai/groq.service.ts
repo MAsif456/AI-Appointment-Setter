@@ -25,6 +25,7 @@ export class GroqService implements OnModuleInit {
    */
   onModuleInit(): void {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
+    this.logger.log(`Groq API key starts with: ${apiKey?.slice(0, 15)}`);
 
     if (!apiKey) {
       this.logger.error(

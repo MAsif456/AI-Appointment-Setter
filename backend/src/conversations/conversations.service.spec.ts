@@ -5,6 +5,9 @@ import { ConversationsService } from './conversations.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { UrgencyPipeline } from '../ai/urgency-pipeline';
+import { EscalationService } from '../ai/escalation.service';
+import { AbuseHandlerService } from './abuse-handler.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -29,7 +32,7 @@ describe('ConversationsService', () => {
   };
 
   const mockClinicModel = { findById: jest.fn() };
-  const mockLeadModel = { findById: jest.fn() };
+  const mockLeadModel = { findById: jest.fn(), findByIdAndUpdate: jest.fn().mockResolvedValue({}) };
 
   const mockChatService = {
     startConversation: jest.fn(),
@@ -42,8 +45,30 @@ describe('ConversationsService', () => {
     ]),
   };
 
+  const mockAbuseHandler = {
+    handle: jest.fn().mockResolvedValue(null),
+};
+
   const mockAppointmentsService = {
     bookAppointment: jest.fn(),
+  };
+
+  const mockUrgencyPipeline = {
+    assessMessage: jest.fn().mockResolvedValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    }),
+    assessFormData: jest.fn().mockReturnValue({
+      resolved: 'routine',
+      assessment: { level: 'routine', score: 0.1, signals: [], isAmbiguous: false, requiresEscalation: false, emergencyKeywordsMatched: [] },
+    }),
+  };
+
+  const mockEscalationService = {
+    escalateEmergency: jest.fn(),
+    handleNoSlotsForUrgent: jest.fn(),
+    notifyClinicStaff: jest.fn(),
+    updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
 
   // Shared test fixtures
@@ -84,7 +109,10 @@ describe('ConversationsService', () => {
         { provide: getModelToken('Lead'), useValue: mockLeadModel },
         { provide: ChatService, useValue: mockChatService },
         { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AbuseHandlerService, useValue: mockAbuseHandler },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
+        { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
+        { provide: EscalationService, useValue: mockEscalationService },
       ],
     }).compile();
 
@@ -144,7 +172,7 @@ describe('ConversationsService', () => {
   });
 
   describe('resetConversation', () => {
-    it('should delete messages and reset conversation phase', async () => {
+    it('should delete messages and reset conversation phase and lead urgency', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
 
@@ -156,6 +184,10 @@ describe('ConversationsService', () => {
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'conv1',
         expect.objectContaining({ phase: 'greeting', messageCount: 0 }),
+      );
+      expect(mockLeadModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'lead1',
+        { urgency: 'unknown' },
       );
     });
 
@@ -186,7 +218,27 @@ describe('ConversationsService', () => {
       expect(result!.reply).toBe('Let me check that.');
       expect(result!.offeredSlots).toBeDefined();
       // Should create two messages: user + AI
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(3);
+    });
+
+    it('should return follow-up message when conversation is already escalated', async () => {
+      const escalatedConversation = { ...mockConversation, phase: 'escalated' };
+      mockConversationModel.findById.mockResolvedValue(escalatedConversation);
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockUrgencyPipeline.assessMessage.mockResolvedValueOnce({
+        resolved: 'emergency',
+        assessment: { level: 'emergency', score: 1.0, signals: [], isAmbiguous: false, requiresEscalation: true, emergencyKeywordsMatched: [] },
+      });
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+
+      const result = await service.sendMessage('conv1', 'actually its fine now');
+
+      expect(result!.reply).toContain('already been flagged');
+      expect(result!.reply).toContain('999');
+      // Should NOT call escalateEmergency again
+      expect(mockEscalationService.escalateEmergency).not.toHaveBeenCalled();
     });
 
     it('should return null when AI fails', async () => {
@@ -200,7 +252,7 @@ describe('ConversationsService', () => {
 
       expect(result).toBeNull();
       // Only the user message should be saved, not an AI reply
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(1);
+      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
     });
   });
 });

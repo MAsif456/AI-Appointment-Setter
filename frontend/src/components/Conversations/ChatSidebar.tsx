@@ -35,6 +35,8 @@ const PHASE_CLASSES: Record<string, string> = {
   qualifying: styles.phaseQualifying,
   booking: styles.phaseBooking,
   confirmed: styles.phaseConfirmed,
+  escalated: styles.phaseEscalated,
+  declined: styles.phaseDeclined,
 };
 
 /**

@@ -158,7 +158,217 @@ describe('buildSystemPrompt', () => {
       const ctx: SlotSelectionContext = { intent: 'NONE_SUITABLE' };
       const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
       expect(prompt).toContain('No problem');
-      expect(prompt).toContain('When would work better');
+      expect(prompt).toContain('dates or times would work better');
+    });
+
+    it('AMBIGUOUS with same-time slots asks which day', () => {
+      const ctx: SlotSelectionContext = {
+        intent: 'AMBIGUOUS',
+        ambiguousSlots: [
+          { displayText: 'Tuesday 7th April at 1:20pm' },
+          { displayText: 'Thursday 9th April at 1:20pm' },
+          { displayText: 'Monday 13th April at 1:20pm' },
+        ],
+      };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('which day');
+      expect(prompt).toContain('Do NOT pick one arbitrarily');
+    });
+
+    it('AMBIGUOUS with same-day slots asks which time', () => {
+      const ctx: SlotSelectionContext = {
+        intent: 'AMBIGUOUS',
+        ambiguousSlots: [
+          { displayText: 'Tuesday 7th April at 10am' },
+          { displayText: 'Tuesday 7th April at 2pm' },
+        ],
+      };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('which time');
+      expect(prompt).toContain('Do NOT pick one arbitrarily');
+    });
+
+    it('DIFFERENT_DATE instructs not to re-offer old slots', () => {
+      const ctx: SlotSelectionContext = { intent: 'DIFFERENT_DATE' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('Do NOT re-offer any previously offered slots');
+      expect(prompt).toContain('Do NOT fall back to previously offered slots');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Previously offered slots injection
+  // ---------------------------------------------------------------------------
+  describe('previouslyOfferedSlots injection', () => {
+    it('includes PREVIOUSLY OFFERED SLOTS section when provided', () => {
+      const prompt = buildSystemPrompt(lead, clinic, {
+        slotSection: '',
+        previouslyOfferedSlots: [
+          'Tuesday 7th April at 1:20pm',
+          'Thursday 9th April at 1:20pm',
+        ],
+      });
+      expect(prompt).toContain('=== PREVIOUSLY OFFERED SLOTS ===');
+      expect(prompt).toContain('1. Tuesday 7th April at 1:20pm');
+      expect(prompt).toContain('2. Thursday 9th April at 1:20pm');
+    });
+
+    it('does NOT include PREVIOUSLY OFFERED SLOTS header when list is empty', () => {
+      const prompt = buildSystemPrompt(lead, clinic, {
+        slotSection: '',
+        previouslyOfferedSlots: [],
+      });
+      expect(prompt).not.toContain('=== PREVIOUSLY OFFERED SLOTS ===');
+    });
+
+    it('does NOT include PREVIOUSLY OFFERED SLOTS header when undefined', () => {
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection: '' });
+      expect(prompt).not.toContain('=== PREVIOUSLY OFFERED SLOTS ===');
+    });
+
+    it('includes rule to only offer slots from AVAILABLE SLOTS section', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).toContain('Only offer slots listed in the AVAILABLE SLOTS section');
+    });
+
+    it('includes rule to acknowledge previously offered slots accurately', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).toContain('Never deny offering a slot that is listed there');
+    });
+  });
+
+  // Urgency context injection
+  describe('urgencyContext injection', () => {
+    it('Stage 3 does NOT ask about urgency', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).not.toContain('Ask about urgency');
+      expect(prompt).toContain('Do NOT ask about urgency');
+    });
+
+    it('injects emergency guidance when urgencyContext is emergency', () => {
+      const prompt = buildSystemPrompt(lead, clinic, undefined, {
+        level: 'emergency',
+        isEmergency: true,
+      });
+      expect(prompt).toContain('=== URGENCY CONTEXT ===');
+      expect(prompt).toContain('EMERGENCY');
+      expect(prompt).toContain('999');
+    });
+
+    it('injects priority language when urgencyContext is urgent', () => {
+      const prompt = buildSystemPrompt(lead, clinic, undefined, {
+        level: 'urgent',
+        isEmergency: false,
+      });
+      expect(prompt).toContain('=== URGENCY CONTEXT ===');
+      expect(prompt).toContain('urgently');
+      expect(prompt).toContain('earliest available slot');
+    });
+
+    it('does not inject urgency section when urgencyContext is absent', () => {
+      const prompt = buildSystemPrompt(lead, clinic);
+      expect(prompt).not.toContain('=== URGENCY CONTEXT ===');
+    });
+
+    it('injects routine guidance when urgencyContext is routine', () => {
+      const prompt = buildSystemPrompt(lead, clinic, undefined, {
+        level: 'routine',
+        isEmergency: false,
+      });
+      expect(prompt).toContain('=== URGENCY CONTEXT ===');
+    });
+
+    it('does not inject urgency section when level is unknown', () => {
+      const prompt = buildSystemPrompt(lead, clinic, undefined, {
+        level: 'unknown',
+        isEmergency: false,
+      });
+      expect(prompt).not.toContain('=== URGENCY CONTEXT ===');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FURTHER_DATE and DAY_OVERVIEW selection context
+  // ---------------------------------------------------------------------------
+  describe('FURTHER_DATE and DAY_OVERVIEW context', () => {
+    const slotSection = '=== AVAILABLE SLOTS ===\nSome slots';
+
+    it('instructs AI to offer furthest dates for FURTHER_DATE', () => {
+      const ctx: SlotSelectionContext = { intent: 'FURTHER_DATE' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('later or further available dates');
+      expect(prompt).toContain('furthest dates available');
+      expect(prompt).toContain('ONLY offer the exact slots listed above');
+    });
+
+    it('instructs AI to show day availability for DAY_OVERVIEW without time', () => {
+      const ctx: SlotSelectionContext = { intent: 'DAY_OVERVIEW' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('availability for a week range');
+      expect(prompt).toContain('which weekdays have openings');
+      expect(prompt).toContain('Do NOT offer specific time slots yet');
+    });
+
+    it('instructs AI to filter by time for DAY_OVERVIEW with numeric timePreference', () => {
+      const ctx: SlotSelectionContext = { intent: 'DAY_OVERVIEW', timePreference: '12pm' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('specifically asked about 12pm slots');
+      expect(prompt).toContain('ONLY days that have a 12pm slot');
+    });
+
+    it('DAY_OVERVIEW with non-numeric timePreference shows general overview', () => {
+      const ctx: SlotSelectionContext = { intent: 'DAY_OVERVIEW', timePreference: 'morning' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection, selectionContext: ctx });
+      expect(prompt).toContain('which weekdays have openings');
+      expect(prompt).not.toContain('specifically asked about');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Edge cases
+  // ---------------------------------------------------------------------------
+  describe('edge cases', () => {
+    it('falls back to Friendly tone for unknown tone values', () => {
+      const prompt = buildSystemPrompt(lead, { ...clinic, tone: 'Unknown' });
+      expect(prompt).toMatch(/warm.*casual.*conversational/i);
+    });
+
+    it('handles lead without issue', () => {
+      const noIssueLead: LeadInfo = { firstName: 'Jane' };
+      const prompt = buildSystemPrompt(noIssueLead, clinic);
+      expect(prompt).toContain('Jane');
+      expect(prompt).toContain('Ask what they need help with');
+    });
+
+    it('handles lead without lastName or phone', () => {
+      const minLead: LeadInfo = { firstName: 'Bob' };
+      const prompt = buildSystemPrompt(minLead, clinic);
+      expect(prompt).toContain('Name: Bob');
+      expect(prompt).not.toContain('Phone:');
+    });
+
+    it('handles clinic without serviceAreas', () => {
+      const prompt = buildSystemPrompt(lead, { ...clinic, serviceAreas: [] });
+      expect(prompt).toContain('Accept any postcode');
+    });
+
+    it('AMBIGUOUS with different days and different times uses generic question', () => {
+      const ctx: SlotSelectionContext = {
+        intent: 'AMBIGUOUS',
+        ambiguousSlots: [
+          { displayText: 'Tuesday 7th April at 10am' },
+          { displayText: 'Thursday 9th April at 2pm' },
+        ],
+      };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection: '', selectionContext: ctx });
+      expect(prompt).toContain('which one works best for you');
+    });
+
+    it('DIFFERENT_DATE without requestedDate omits day label', () => {
+      const ctx: SlotSelectionContext = { intent: 'DIFFERENT_DATE' };
+      const prompt = buildSystemPrompt(lead, clinic, { slotSection: '', selectionContext: ctx });
+      expect(prompt).toContain('different availability');
+      expect(prompt).not.toContain('for undefined');
     });
   });
 });

@@ -63,56 +63,58 @@ describe('buildConfirmationMessage', () => {
 });
 
 describe('formatDateBritish', () => {
+  // Tests use local-time ISO strings (no Z suffix) since slot times
+  // represent clinic-local times, not UTC.
   it('should format a Tuesday afternoon correctly', () => {
-    const result = formatDateBritish('2026-03-17T14:00:00Z');
+    const result = formatDateBritish('2026-03-17T14:00:00');
     expect(result.date).toBe('Tuesday 17th March');
     expect(result.time).toBe('2:00 PM');
   });
 
   it('should format morning times with AM', () => {
-    const result = formatDateBritish('2026-03-18T09:30:00Z');
+    const result = formatDateBritish('2026-03-18T09:30:00');
     expect(result.date).toContain('Wednesday');
     expect(result.time).toBe('9:30 AM');
   });
 
   it('should handle midnight as 12:00 AM', () => {
-    const result = formatDateBritish('2026-03-18T00:00:00Z');
+    const result = formatDateBritish('2026-03-18T00:00:00');
     expect(result.time).toBe('12:00 AM');
   });
 
   it('should handle noon as 12:00 PM', () => {
-    const result = formatDateBritish('2026-03-18T12:00:00Z');
+    const result = formatDateBritish('2026-03-18T12:00:00');
     expect(result.time).toBe('12:00 PM');
   });
 
   it('should use st suffix for 1st', () => {
-    const result = formatDateBritish('2026-03-01T10:00:00Z');
+    const result = formatDateBritish('2026-03-01T10:00:00');
     expect(result.date).toContain('1st');
   });
 
   it('should use nd suffix for 2nd', () => {
-    const result = formatDateBritish('2026-03-02T10:00:00Z');
+    const result = formatDateBritish('2026-03-02T10:00:00');
     expect(result.date).toContain('2nd');
   });
 
   it('should use rd suffix for 3rd', () => {
-    const result = formatDateBritish('2026-03-03T10:00:00Z');
+    const result = formatDateBritish('2026-03-03T10:00:00');
     expect(result.date).toContain('3rd');
   });
 
   it('should use th suffix for 11th-13th (special cases)', () => {
-    expect(formatDateBritish('2026-03-11T10:00:00Z').date).toContain('11th');
-    expect(formatDateBritish('2026-03-12T10:00:00Z').date).toContain('12th');
-    expect(formatDateBritish('2026-03-13T10:00:00Z').date).toContain('13th');
+    expect(formatDateBritish('2026-03-11T10:00:00').date).toContain('11th');
+    expect(formatDateBritish('2026-03-12T10:00:00').date).toContain('12th');
+    expect(formatDateBritish('2026-03-13T10:00:00').date).toContain('13th');
   });
 
   it('should use st suffix for 21st', () => {
-    const result = formatDateBritish('2026-03-21T10:00:00Z');
+    const result = formatDateBritish('2026-03-21T10:00:00');
     expect(result.date).toContain('21st');
   });
 
   it('should format minutes with leading zero', () => {
-    const result = formatDateBritish('2026-03-17T14:05:00Z');
+    const result = formatDateBritish('2026-03-17T14:05:00');
     expect(result.time).toBe('2:05 PM');
   });
 });

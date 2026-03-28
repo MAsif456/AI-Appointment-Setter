@@ -33,18 +33,19 @@ describe('ConversationList', () => {
     expect(screen.getAllByText('Declined').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows high priority icon for priority conversations', () => {
-    const { container } = render(<ConversationList />);
-    // The HighPriorityIcon renders SVG elements in the name cell
+  it('does not show high priority icon when no conversations are urgent', () => {
+    render(<ConversationList />);
     const rachelRow = screen.getByText('Rachel Green').closest('tr');
     expect(rachelRow).toBeInTheDocument();
-    const svgs = rachelRow!.querySelectorAll('svg');
-    expect(svgs.length).toBeGreaterThanOrEqual(1);
+    // No priority icon SVG in the name cell when not high priority
+    const nameCell = rachelRow!.querySelector('td');
+    const svgs = nameCell!.querySelectorAll('svg');
+    expect(svgs.length).toBe(0);
   });
 
-  it('shows the high priority alert banner', () => {
+  it('does not show the high priority banner when no urgent cases exist', () => {
     render(<ConversationList />);
-    expect(screen.getByText(/high priority/)).toBeInTheDocument();
+    expect(screen.queryByText(/high priority/)).not.toBeInTheDocument();
   });
 
   it('does not show an intervention alert banner', () => {
