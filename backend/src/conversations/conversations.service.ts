@@ -17,6 +17,7 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -191,6 +192,7 @@ export class ConversationsService {
     private readonly urgencyPipeline: UrgencyPipeline,
     private readonly escalationService: EscalationService,
     private readonly abuseHandler: AbuseHandlerService,
+    private readonly securityPipeline: SecurityPipelineService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -265,8 +267,25 @@ export class ConversationsService {
 
     await this.saveMessage(conversation, clinic, lead, 'lead', userMessage);
 
+    // Security pipeline: sanitise input, detect injection, enforce boundaries
+    const securityResult = await this.securityPipeline.processInbound(
+      userMessage,
+      conversationId,
+      (conversation.clinicId as any).toString(),
+      conversation.phase,
+      (conversation.leadId as any).toString(),
+    );
+    if (!securityResult.allowed) {
+      const fallback = securityResult.fallbackResponse ?? "I'm here to help you book an appointment. How can I assist?";
+      await this.saveMessage(conversation, clinic, lead, 'ai', fallback);
+      await this.updateConversationMeta(conversation, 'ai', undefined);
+      return { reply: fallback, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
+    // Use sanitised message for downstream processing
+    const sanitisedUserMessage = securityResult.sanitisedMessage;
+
     const abuseHandled = await this.abuseHandler.handle(
-      conversation, clinic, lead, userMessage,
+      conversation, clinic, lead, sanitisedUserMessage,
     );
     if (abuseHandled) {
       // If the lead accepted the human offer, signal to the caller so the

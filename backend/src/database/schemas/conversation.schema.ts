@@ -133,6 +133,10 @@ export class Conversation {
   @Prop({ default: false })
   abuseOfferPending: boolean;
 
+  // Tracks prompt injection attempts for rate-based escalation
+  @Prop({ default: 0 })
+  injectionAttemptCount: number;
+
   // for closure tracking
   @Prop()
   closedAt?: Date;
