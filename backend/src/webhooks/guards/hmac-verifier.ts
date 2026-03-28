@@ -12,9 +12,22 @@ export interface HmacVerifyResult {
   reason?: string;
 }
 
-// Ref: https://webhooks.fyi/security/hmac
-// Ref: https://webhooks.fyi/security/replay-prevention
-// Ref: https://nodejs.org/api/crypto.html
+
+/**
+ * Verifies the HMAC signature of the incoming request.
+ * If the signature is invalid or the GHL_WEBHOOK_SECRET is not configured,
+ * an UnauthorizedException is thrown.
+ * @param {Buffer} rawBody - The raw request body as a Buffer.
+ * @param {string} signature - The HMAC signature to verify.
+ * @param {Record<string, string | string[] | undefined>} headers - The request headers.
+ * @param {string} secret - The webhook secret.
+ * @returns {HmacVerifyResult} An object containing the result of the HMAC verification and an optional reason string.
+ * @throws {UnauthorizedException} If the signature is invalid or the GHL_WEBHOOK_SECRET is not configured.
+ * 
+ * Ref: https://webhooks.fyi/security/hmac
+ * Ref: https://webhooks.fyi/security/replay-prevention
+ * Ref: https://nodejs.org/api/crypto.html
+ */
 export function verifyHmacSignature(
   rawBody: Buffer,
   signature: string,
