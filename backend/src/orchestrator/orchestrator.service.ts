@@ -17,12 +17,14 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { GhlContactCreatePayload, GhlInboundMessagePayload } from '../webhooks/dto/ghl-webhook.dto';
 import {
   FALLBACK_MESSAGE,
+  INVALID_POSTCODE_RESPONSE,
   POSTCODE_REGEX,
   BOOKING_KEYWORDS,
   OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
 } from './orchestrator.types';
+import { PostcodeValidationService } from './postcode-validation.service';
 import { normalisePostcode, buildSingleTurnPrompt, buildMultiTurnSystemPrompt } from './orchestrator.prompts';
 import { handleNewLeadFlow } from './orchestrator.new-lead';
 import { handleInboundMessageFlow } from './orchestrator.inbound-message';
@@ -40,6 +42,7 @@ export class OrchestratorService {
     private readonly conversationsService: ConversationsService,
     private readonly messagesService: MessagesService,
     private readonly ghlApiService: GhlApiService,
+    private readonly postcodeValidationService: PostcodeValidationService,
   ) {}
 
   async handleNewLead(webhookData: GhlContactCreatePayload, clinicConfig: ClinicConfig): Promise<void> {
@@ -60,18 +63,23 @@ export class OrchestratorService {
       logger: this.logger,
       detectIntent: this.detectIntent.bind(this),
       generateResponse: this.generateResponse.bind(this),
+      postcodeValidationService: this.postcodeValidationService,
     });
   }
 
   /**
    * Detects the intent of an inbound message based on its content and the current phase.
-   * Phase-gating: PROVIDE_POSTCODE only in 'qualifying', WANT_TO_BOOK only in 'qualified'.
+   * Phase-gating: PROVIDE_POSTCODE / INVALID_POSTCODE_FORMAT only in 'qualifying',
+   * WANT_TO_BOOK only in 'qualified'.
    */
   detectIntent(messageContent: string, currentPhase: string): IntentResult {
     if (currentPhase === 'qualifying') {
       const postcodeMatch = messageContent.match(POSTCODE_REGEX);
       if (postcodeMatch) {
         return { intent: 'PROVIDE_POSTCODE', data: { postcode: normalisePostcode(postcodeMatch[0]) } };
+      }
+      if (this.looksLikePostcodeAttempt(messageContent)) {
+        return { intent: 'INVALID_POSTCODE_FORMAT' };
       }
     }
 
@@ -86,10 +94,25 @@ export class OrchestratorService {
   }
 
   /**
+   * Returns true when the whole message (stripped of whitespace) resembles a postcode
+   * attempt: 3–9 characters that are entirely alphanumeric (letters and/or digits only,
+   * no spaces or punctuation).  The digit requirement is intentionally omitted so that
+   * random letter strings such as "ghthhdh" are also caught as invalid-format attempts.
+   */
+  private looksLikePostcodeAttempt(message: string): boolean {
+    const stripped = message.replace(/\s+/g, '');
+    return stripped.length >= 3 && stripped.length <= 9 && /^[A-Z0-9]+$/i.test(stripped);
+  }
+
+  /**
    * Generates an AI response based on the detected intent and conversation context.
    * All prompts enforce British English spelling and a 160-character response limit.
    */
   async generateResponse(intent: IntentResult, context: OrchestratorContext, clinicConfig: ClinicConfig): Promise<string | null> {
+    if (intent.intent === 'INVALID_POSTCODE_FORMAT') {
+      return INVALID_POSTCODE_RESPONSE;
+    }
+
     if (intent.intent === 'PROVIDE_POSTCODE') {
       const { postcode } = intent.data;
       const outwardCode = postcode.split(' ')[0];
