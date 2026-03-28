@@ -8,6 +8,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { CancellationService } from '../cancellation/cancellation.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -71,6 +72,16 @@ describe('ConversationsService', () => {
     updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockCancellationService = {
+    checkAppointmentExists: jest.fn().mockResolvedValue(null),
+    buildConfirmationPrompt: jest.fn(),
+    evaluatePolicy: jest.fn(),
+    executeCancellation: jest.fn(),
+    isAwaitingReason: jest.fn().mockResolvedValue(false),
+    requestReason: jest.fn(),
+    storeReason: jest.fn(),
+  };
+
   // Shared test fixtures
   const mockConversation = {
     _id: 'conv1',
@@ -113,6 +124,7 @@ describe('ConversationsService', () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
+        { provide: CancellationService, useValue: mockCancellationService },
       ],
     }).compile();
 
@@ -253,6 +265,80 @@ describe('ConversationsService', () => {
       expect(result).toBeNull();
       // Only the user message should be saved, not an AI reply
       expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('cancellation intercept', () => {
+    const bookedConversation = { ...mockConversation, phase: 'booked' };
+    const cancellingConversation = { ...mockConversation, phase: 'cancelling' };
+    const mockAppointment = { _id: 'apt_1', appointmentDate: new Date(), status: 'confirmed' };
+
+    beforeEach(() => {
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+    });
+
+    it('should intercept "cancel" keyword in booked phase and return confirmation', async () => {
+      mockConversationModel.findById.mockResolvedValue(bookedConversation);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.buildConfirmationPrompt.mockReturnValue(
+        "Just to confirm, you'd like to cancel your appointment on Friday 3rd April at 10:20 AM. Is that correct?",
+      );
+
+      const result = await service.sendMessage('conv1', 'I want to cancel my appointment');
+
+      expect(result!.reply).toContain('cancel your appointment');
+      expect(mockCancellationService.checkAppointmentExists).toHaveBeenCalled();
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('should intercept confirm keyword in cancelling phase and ask for reason', async () => {
+      mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.evaluatePolicy.mockResolvedValue({ withinNotice: false, feeEnabled: false });
+      mockCancellationService.isAwaitingReason.mockResolvedValue(false);
+      mockCancellationService.requestReason.mockResolvedValue('May I ask the reason for cancelling?');
+
+      const result = await service.sendMessage('conv1', 'yes');
+
+      expect(result!.reply).toContain('reason for cancelling');
+      expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
+    });
+
+    it('should execute cancellation when reason is provided as freeform text', async () => {
+      mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+      mockCancellationService.isAwaitingReason.mockResolvedValue(true);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.executeCancellation.mockResolvedValue({
+        success: true,
+        message: 'Your appointment has been cancelled. Feel free to book again anytime!',
+      });
+
+      const result = await service.sendMessage('conv1', 'Moving away from the area');
+
+      expect(result!.reply).toContain('cancelled');
+      expect(mockCancellationService.storeReason).toHaveBeenCalledWith(expect.anything(), 'Moving away from the area');
+    });
+
+    it('should intercept decline keyword and reassure appointment is kept', async () => {
+      mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+
+      const result = await service.sendMessage('conv1', 'no, keep it');
+
+      expect(result!.reply).toContain('still confirmed');
+      expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
+    });
+
+    it('should not intercept cancellation keywords in non-cancellation phases', async () => {
+      mockConversationModel.findById.mockResolvedValue({ ...mockConversation, phase: 'qualifying' });
+      mockChatService.sendMessage.mockResolvedValue('How can I help?');
+
+      await service.sendMessage('conv1', 'I want to cancel my appointment');
+
+      expect(mockCancellationService.checkAppointmentExists).not.toHaveBeenCalled();
+      expect(mockChatService.sendMessage).toHaveBeenCalled();
     });
   });
 });

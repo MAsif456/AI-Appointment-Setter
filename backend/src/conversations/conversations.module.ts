@@ -12,6 +12,7 @@ import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 import { AbuseHandlerService } from './abuse-handler.service';
 import { AbuseDetectionService } from './abuse-detection.service';
+import { CancellationModule } from '../cancellation/cancellation.module';
 
 
 @Module({
@@ -25,6 +26,7 @@ import { AbuseDetectionService } from './abuse-detection.service';
     AiModule,
     AppointmentsModule,
     GhlModule,
+    CancellationModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, EscalationService, AbuseHandlerService, AbuseDetectionService],

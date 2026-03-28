@@ -205,8 +205,8 @@ describe('OrchestratorService — detectIntent', () => {
       expect(service.detectIntent('No, keep it', 'cancelling').intent).toBe('DECLINE_CANCEL');
     });
 
-    it('should detect "reschedule" in the cancelling_warned phase', () => {
-      expect(service.detectIntent("I'll reschedule instead", 'cancelling_warned').intent).toBe('DECLINE_CANCEL');
+    it('should detect "changed my mind" in the cancelling_warned phase', () => {
+      expect(service.detectIntent("I've changed my mind", 'cancelling_warned').intent).toBe('DECLINE_CANCEL');
     });
 
     it('should detect "never mind" in the cancelling phase', () => {

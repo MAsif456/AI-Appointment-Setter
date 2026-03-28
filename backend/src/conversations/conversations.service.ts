@@ -17,6 +17,9 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { CancellationService } from '../cancellation/cancellation.service';
+import { Types } from 'mongoose';
+import { CANCEL_KEYWORDS, CONFIRM_KEYWORDS, DECLINE_CANCEL_KEYWORDS, BOOKING_KEYWORDS } from '../orchestrator/orchestrator.types';
 
 /** Day names indexed by Date.getDay() */
 const DAYS_LOWER = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -191,6 +194,7 @@ export class ConversationsService {
     private readonly urgencyPipeline: UrgencyPipeline,
     private readonly escalationService: EscalationService,
     private readonly abuseHandler: AbuseHandlerService,
+    private readonly cancellationService: CancellationService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -273,7 +277,11 @@ export class ConversationsService {
       // US-20 escalation service can take over (phase change, GHL tags, etc.)
       return abuseHandled;
     }
-    
+
+    // ── Cancellation intent intercept ──
+    const cancelResult = await this.handleCancellationIntercept(conversation, clinic, lead, userMessage);
+    if (cancelResult) return cancelResult;
+
     const history: ChatMessage[] = [
       ...messages.map(m => ({
         role: m.sender === 'ai' ? 'assistant' as const : 'user' as const,
@@ -740,6 +748,89 @@ export class ConversationsService {
   }
 
   /** Creates a message document in MongoDB, optionally with urgency audit data. */
+  /** Intercepts cancellation-related messages before they reach ChatService. */
+  private async handleCancellationIntercept(
+    conversation: ConversationDocument,
+    clinic: ClinicDocument,
+    lead: LeadDocument,
+    userMessage: string,
+  ): Promise<{ reply: string; offeredSlots: any[]; slotSelection: null; bookingResult: null } | null> {
+    const phase = conversation.phase;
+    const lower = userMessage.toLowerCase();
+    const convId = conversation._id as Types.ObjectId;
+    let reply: string | null = null;
+    let newPhase: string | undefined;
+
+    if (phase === 'booked' && CANCEL_KEYWORDS.some(kw => lower.includes(kw))) {
+      const appointment = await this.cancellationService.checkAppointmentExists(convId);
+      if (!appointment) {
+        reply = "I don't have a booking on file for you. Is there something else I can help with?";
+      } else {
+        reply = this.cancellationService.buildConfirmationPrompt(appointment);
+        newPhase = 'cancelling';
+      }
+    } else if (phase === 'cancelling' || phase === 'cancelling_warned') {
+      if (CONFIRM_KEYWORDS.some(kw => lower.includes(kw))) {
+        // Policy check only in first confirmation phase
+        if (phase === 'cancelling') {
+          const appointment = await this.cancellationService.checkAppointmentExists(convId);
+          if (appointment) {
+            const policy = await this.cancellationService.evaluatePolicy(appointment, clinic._id as Types.ObjectId);
+            if (policy.withinNotice && policy.feeEnabled && policy.warningMessage) {
+              reply = policy.warningMessage;
+              newPhase = 'cancelling_warned';
+              await this.saveMessage(conversation, clinic, lead, 'ai', reply);
+              await this.updateConversationMeta(conversation, 'ai', newPhase);
+              return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+            }
+          }
+        }
+        // Ask for reason or execute
+        const alreadyAsked = await this.cancellationService.isAwaitingReason(convId);
+        if (!alreadyAsked) {
+          reply = await this.cancellationService.requestReason(convId);
+        } else {
+          const appointment = await this.cancellationService.checkAppointmentExists(convId);
+          if (appointment) {
+            const result = await this.cancellationService.executeCancellation(
+              convId, appointment._id as Types.ObjectId, lead.ghlContactId ?? '',
+            );
+            reply = result.message;
+            newPhase = 'cancelled';
+          }
+        }
+      } else if (DECLINE_CANCEL_KEYWORDS.some(kw => lower.includes(kw))) {
+        reply = phase === 'cancelling_warned'
+          ? "No problem! Let's look at rescheduling your appointment instead. When would suit you better?"
+          : 'No problem, your appointment is still confirmed. Is there anything else I can help with?';
+        newPhase = 'booked';
+      } else {
+        // Freeform text — could be the cancellation reason
+        const isAwaiting = await this.cancellationService.isAwaitingReason(convId);
+        if (isAwaiting) {
+          await this.cancellationService.storeReason(convId, userMessage);
+          const appointment = await this.cancellationService.checkAppointmentExists(convId);
+          if (appointment) {
+            const result = await this.cancellationService.executeCancellation(
+              convId, appointment._id as Types.ObjectId, lead.ghlContactId ?? '', userMessage,
+            );
+            reply = result.message;
+            newPhase = 'cancelled';
+          }
+        }
+      }
+    } else if (phase === 'cancelled' && BOOKING_KEYWORDS.some(kw => lower.includes(kw))) {
+      newPhase = 'qualified';
+      return null; // Let the ChatService handle re-booking naturally
+    }
+
+    if (!reply) return null;
+
+    await this.saveMessage(conversation, clinic, lead, 'ai', reply);
+    await this.updateConversationMeta(conversation, 'ai', newPhase);
+    return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+  }
+
   private async saveMessage(
     conversation: ConversationDocument,
     clinic: ClinicDocument,

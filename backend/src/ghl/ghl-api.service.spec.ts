@@ -170,16 +170,15 @@ describe('GhlApiService', () => {
   });
 
   describe('cancelAppointment', () => {
-    it('should cancel an appointment via GHL PUT endpoint', async () => {
-      const responseData = { id: 'apt_123', status: 'cancelled' };
-      httpService.put.mockReturnValue(of(mockAxiosResponse(responseData)));
+    it('should delete an appointment via GHL DELETE endpoint', async () => {
+      const responseData = { succeeded: true };
+      httpService.delete.mockReturnValue(of(mockAxiosResponse(responseData)));
 
       const result = await service.cancelAppointment('apt_123');
 
       expect(result).toEqual(responseData);
-      expect(httpService.put).toHaveBeenCalledWith(
-        '/calendars/events/appointments/apt_123',
-        { status: 'cancelled' },
+      expect(httpService.delete).toHaveBeenCalledWith(
+        '/calendars/events/apt_123',
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: 'Bearer test-private-token' }),
         }),
@@ -187,7 +186,7 @@ describe('GhlApiService', () => {
     });
 
     it('should return null on failure (null-on-failure pattern)', async () => {
-      httpService.put.mockReturnValue(throwError(() => new Error('GHL down')));
+      httpService.delete.mockReturnValue(throwError(() => new Error('GHL down')));
 
       const result = await service.cancelAppointment('apt_123');
 

@@ -123,16 +123,15 @@ export class GhlApiService {
   }
 
   /**
-   * Cancels an appointment in GHL by setting its status to 'cancelled'.
-   * @param {string} eventId - The GHL appointment/event ID.
+   * Deletes (cancels) an appointment in GHL via the Delete Event endpoint.
+   * @param {string} eventId - The GHL calendar event ID.
    * @returns {Promise<any | null>} - The response data, or null on failure.
    */
   async cancelAppointment(eventId: string): Promise<any | null> {
     try {
       const { data } = await lastValueFrom(
-        this.httpService.put(
-          `/calendars/events/appointments/${eventId}`,
-          { status: 'cancelled' },
+        this.httpService.delete(
+          `/calendars/events/${eventId}`,
           { headers: this.getHeaders() },
         ),
       );
@@ -160,7 +159,7 @@ export class GhlApiService {
       );
       return data;
     } catch (error) {
-      this.logger.error(`GHL add tag '${tag}' failed for contact: ${contactId}`, error.message);
+      this.logger.warn(`GHL add tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
       return null;
     }
   }
@@ -181,7 +180,7 @@ export class GhlApiService {
       );
       return data;
     } catch (error) {
-      this.logger.error(`GHL remove tag '${tag}' failed for contact: ${contactId}`, error.message);
+      this.logger.warn(`GHL remove tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
       return null;
     }
   }
