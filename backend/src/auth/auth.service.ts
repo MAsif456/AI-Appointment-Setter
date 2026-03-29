@@ -1,6 +1,6 @@
 import {
   BadRequestException, ConflictException, Injectable,
-  UnauthorizedException, ForbiddenException, Logger,
+  UnauthorizedException, Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -8,12 +8,8 @@ import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User, UserDocument } from '../database/schemas/user.schema';
-import { LoginDto } from './dto/auth.dto';
-import {
-  CreateUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto,
-} from './dto/auth.dto';
+import { LoginDto, CreateUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from './dto/auth.dto';
 import { EmailService } from './email.service';
-import { AuthResponseDto } from './dto/auth-response.dto';
 
 /** Generates a cryptographically secure URL-safe token */
 function generateToken(): string {
@@ -22,8 +18,8 @@ function generateToken(): string {
 
 /**
  * Core authentication service.
- * Staff accounts are created by admins only — there is no public registration.
- * Email verification and password reset use token-based links, not numeric codes.
+ * Staff accounts are created by admins only — no public registration.
+ * Email verification and password reset use token-based links.
  */
 @Injectable()
 export class AuthService {
@@ -36,9 +32,9 @@ export class AuthService {
   ) {}
 
   /**
-   * Creates a new user account (admin-only action).
+   * Creates a new user account (admin-only).
    * Sends a verification link to the new user's email.
-   * Staff members must have at least one assigned clinic.
+   * Staff must have at least one assigned clinic.
    */
   async createUser(dto: CreateUserDto): Promise<{ message: string }> {
     const existing = await this.userModel.findOne({ email: dto.email.toLowerCase() });
@@ -60,7 +56,7 @@ export class AuthService {
       isActive: false,
       isVerified: false,
       verificationToken,
-      verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     await this.emailService.sendVerificationEmail(dto.email, verificationToken);
@@ -69,8 +65,8 @@ export class AuthService {
   }
 
   /**
-   * Verifies a user's email using the token from the link sent to their inbox.
-   * Activates the account on success.
+   * Verifies a user's email using the token from the link.
+   * The token is single-use — cleared after successful verification.
    */
   async verifyEmail(token: string): Promise<{ message: string }> {
     const user = await this.userModel.findOne({ verificationToken: token });
@@ -81,6 +77,7 @@ export class AuthService {
 
     user.isVerified = true;
     user.isActive = true;
+    // Clear token so the link cannot be used again
     user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();
@@ -88,10 +85,7 @@ export class AuthService {
     return { message: 'Email verified successfully. You can now log in.' };
   }
 
-  /**
-   * Resends a verification link. Only works if the account is not yet verified.
-   * Does not reveal whether the email exists in the system.
-   */
+  /** Resends verification link. Never reveals whether the email exists. */
   async resendVerificationLink(email: string): Promise<{ message: string }> {
     const user = await this.userModel.findOne({ email: email.toLowerCase() });
     const safe = { message: 'If the account exists and is unverified, a new link has been sent.' };
@@ -105,15 +99,16 @@ export class AuthService {
     return safe;
   }
 
-  /** Authenticates a user and returns a JWT token. */
-  async login(dto: LoginDto): Promise<AuthResponseDto> {
+  /**
+   * Authenticates a user and returns a JWT token.
+   * The response includes assignedClinics so the frontend can filter
+   * clinic access without making a separate API call.
+   */
+  async login(dto: LoginDto) {
     const user = await this.userModel.findOne({ email: dto.email.toLowerCase() });
 
     if (!user || !user.isActive) throw new UnauthorizedException('Invalid email or password');
-
-    if (!user.isVerified) {
-      throw new UnauthorizedException('Please verify your email before logging in.');
-    }
+    if (!user.isVerified) throw new UnauthorizedException('Please verify your email before logging in.');
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) throw new UnauthorizedException('Invalid email or password');
@@ -125,22 +120,27 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload);
 
     return {
-      user: { _id: user._id.toString(), name: user.name, email: user.email, role: user.role },
+      user: {
+        _id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        // assignedClinics as strings so the frontend can compare against clinic._id
+        assignedClinics: user.assignedClinics?.map(id => id.toString()) || [],
+      },
       accessToken,
     };
   }
 
-  /** Validates a user by ID — used by the JWT strategy. */
+  /** Validates a user by ID — used by the JWT strategy on every request. */
   async validateUser(userId: string): Promise<UserDocument> {
     const user = await this.userModel.findById(userId).select('-passwordHash');
+    // If the user was deleted or deactivated, this throws and the request gets a 401
     if (!user || !user.isActive) throw new UnauthorizedException('Session expired');
     return user;
   }
 
-  /**
-   * Sends a password reset link. Always returns a generic message
-   * to prevent email enumeration attacks.
-   */
+  /** Sends a password reset link. Always returns generic message to prevent enumeration. */
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const user = await this.userModel.findOne({ email: dto.email.toLowerCase() });
     const safe = { message: 'If the email exists, a reset link has been sent.' };
@@ -148,13 +148,13 @@ export class AuthService {
     if (!user) return safe;
 
     user.passwordResetToken = generateToken();
-    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
     await user.save();
     await this.emailService.sendPasswordResetEmail(dto.email, user.passwordResetToken);
     return safe;
   }
 
-  /** Resets a password using the token from the link sent to the user's email. */
+  /** Resets password using the token from the link email. Token is single-use. */
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
     const user = await this.userModel.findOne({ passwordResetToken: dto.token });
 
@@ -163,6 +163,7 @@ export class AuthService {
     }
 
     user.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    // Clear token so the link cannot be used again
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
