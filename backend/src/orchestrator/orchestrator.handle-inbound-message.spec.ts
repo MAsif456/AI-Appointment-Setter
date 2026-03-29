@@ -21,12 +21,14 @@ import { GroqService } from '../ai/groq.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
+const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn(), flagForHumanIntervention: jest.fn(), setContext: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
@@ -58,6 +60,7 @@ describe('OrchestratorService — handleInboundMessage', () => {
         OrchestratorService,
         { provide: GreetingService, useValue: mockGreetingService },
         { provide: GroqService, useValue: mockGroqService },
+        { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
@@ -155,6 +158,57 @@ describe('OrchestratorService — handleInboundMessage', () => {
       clinicConfig,
     );
     expect(mockConversationsService.updatePhase).not.toHaveBeenCalled();
+  });
+
+  it('should transition phase to "cancelling" when CANCEL intent is detected in booked phase', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'booked' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'I want to cancel' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'cancelling');
+  });
+
+  it('should transition phase to "cancelling_warned" when CONFIRM_CANCEL response includes a fee warning', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling' });
+    jest.spyOn(service as any, 'generateResponse').mockResolvedValue(
+      'Cancellations within 24 hours may incur a fee of £50. Would you like to proceed or reschedule instead?',
+    );
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'yes please cancel it' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'cancelling_warned');
+  });
+
+  it('should not update phase to cancelling_warned when CONFIRM_CANCEL response is a plain cancellation message', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling' });
+    jest.spyOn(service as any, 'generateResponse').mockResolvedValue(
+      'Your appointment has been cancelled.',
+    );
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'yes please cancel it' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).not.toHaveBeenCalledWith(expect.anything(), 'cancelling_warned');
+  });
+
+  it('should transition phase to "rescheduling" when DECLINE_CANCEL from cancelling_warned phase', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling_warned' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'no, keep my appointment' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'rescheduling');
+  });
+
+  it('should transition phase to "booked" when DECLINE_CANCEL from cancelling phase', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'no, keep my appointment' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'booked');
   });
 
   it('should store the validated postcode in context when an in-area postcode is detected', async () => {

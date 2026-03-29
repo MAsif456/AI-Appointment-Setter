@@ -33,6 +33,31 @@ export const BOOKING_KEYWORDS = [
   "yes please",
 ];
 
+/** Keywords that indicate a lead wants to cancel their appointment. */
+export const CANCEL_KEYWORDS = [
+  'cancel', "can't come", "can't make it", "won't be able",
+  'cancel my booking', 'cancel my appointment', 'cancel the appointment',
+  'need to cancel', 'want to cancel', 'like to cancel',
+  "can't attend", "unable to attend", "unable to make it",
+  'withdraw', 'call it off', 'drop my appointment',
+  "won't make it", "won't be coming", "not going to make it",
+  "can no longer make", "no longer need",
+];
+
+/** Keywords that confirm a pending action (cancellation confirmation). */
+export const CONFIRM_KEYWORDS = [
+  'yes', 'correct', 'confirm', 'go ahead', 'please cancel', 'yeah', 'yep', 'sure',
+  'ok', 'okay', 'that is correct', "that's correct", 'absolutely', 'definitely',
+  'proceed', 'do it', 'yes please', 'yea', 'aye',
+];
+
+/** Keywords that decline a pending cancellation. */
+export const DECLINE_CANCEL_KEYWORDS = [
+  'no', 'never mind', 'keep it', "don't cancel", 'keep my appointment',
+  'changed my mind', 'forget it', 'leave it', 'no thanks', 'nah',
+  "i'll keep it", "i'll still come", "actually no", 'on second thought',
+];
+
 /** Default SMS message type used for ContactCreate events where no channel is known. */
 export const DEFAULT_MESSAGE_TYPE = "SMS";
 
@@ -52,6 +77,8 @@ export interface OrchestratorContext {
   clinicId: string;
   phase: string;
   messages: OrchestratorMessage[];
+  /** MongoDB ObjectId of the conversation document (as hex string). */
+  conversationId?: string;
   patientInfo: {
     firstName: string;
     lastName?: string;
@@ -70,4 +97,7 @@ export type IntentResult =
   | { intent: "PROVIDE_POSTCODE"; data: { postcode: string } }
   | { intent: "INVALID_POSTCODE_FORMAT" }
   | { intent: "WANT_TO_BOOK" }
+  | { intent: "CANCEL" }
+  | { intent: "CONFIRM_CANCEL" }
+  | { intent: "DECLINE_CANCEL" }
   | { intent: "UNKNOWN" };

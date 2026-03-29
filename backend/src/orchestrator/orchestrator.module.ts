@@ -8,11 +8,12 @@
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
 import { GhlModule } from '../ghl/ghl.module';
+import { CancellationModule } from '../cancellation/cancellation.module';
 import { OrchestratorService } from './orchestrator.service';
 import { PostcodeValidationService } from './postcode-validation.service';
 
 @Module({
-  imports: [AiModule, GhlModule],
+  imports: [AiModule, GhlModule, CancellationModule],
   providers: [OrchestratorService, PostcodeValidationService],
   exports: [OrchestratorService],
 })

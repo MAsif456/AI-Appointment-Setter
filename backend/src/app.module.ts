@@ -12,6 +12,7 @@ import { AiModule } from "./ai/ai.module";
 import { ConversationsModule } from "./conversations/conversations.module";
 import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { AppointmentsModule } from "./appointments/appointments.module";
+import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 
@@ -40,6 +41,7 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
     ConversationsModule,
     OrchestratorModule,
     AppointmentsModule,
+    CancellationModule,
     HealthModule,
   ],
   controllers: [AppController],

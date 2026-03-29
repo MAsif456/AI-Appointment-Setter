@@ -10,8 +10,10 @@ import { GhlModule } from '../ghl/ghl.module';
 import { EscalationService } from '../ai/escalation.service';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
+import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { AbuseHandlerService } from './abuse-handler.service';
 import { AbuseDetectionService } from './abuse-detection.service';
+import { CancellationModule } from '../cancellation/cancellation.module';
 
 
 @Module({
@@ -25,9 +27,10 @@ import { AbuseDetectionService } from './abuse-detection.service';
     AiModule,
     AppointmentsModule,
     GhlModule,
+    CancellationModule,
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService, EscalationService, AbuseHandlerService, AbuseDetectionService],
+  providers: [ConversationsService, ConversationsPersistenceService, EscalationService, AbuseHandlerService, AbuseDetectionService],
   exports: [ConversationsService],
 })
 export class ConversationsModule {
