@@ -174,6 +174,19 @@ describe('ConversationsService', () => {
     });
   });
 
+  describe('setContext', () => {
+    it('should call findByIdAndUpdate with $set for the given key', async () => {
+      conversationModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await service.setContext(conversationId, 'validatedPostcode', 'CF10 1AA');
+
+      expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        conversationId,
+        { $set: { 'context.validatedPostcode': 'CF10 1AA' } },
+      );
+    });
+  });
+
   describe('updatePhase', () => {
     it('should update the conversation phase', async () => {
       const updated = { _id: conversationId, phase: 'qualifying' };

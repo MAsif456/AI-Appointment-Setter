@@ -23,11 +23,13 @@ import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { PostcodeValidationService } from './postcode-validation.service';
+import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
 const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
-const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
+const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn(), setContext: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
 
@@ -62,6 +64,7 @@ describe('OrchestratorService — handleInboundMessage', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        PostcodeValidationService,
       ],
     }).compile();
 
@@ -80,6 +83,7 @@ describe('OrchestratorService — handleInboundMessage', () => {
     mockGroqService.generateResponse.mockResolvedValue('AI response');
     mockGhlApiService.sendMessageWithRetry.mockResolvedValue({ id: 'msg_001' });
     mockConversationsService.updatePhase.mockResolvedValue({});
+    mockConversationsService.setContext.mockResolvedValue(undefined);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -205,6 +209,50 @@ describe('OrchestratorService — handleInboundMessage', () => {
       clinicConfig,
     );
     expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'booked');
+  });
+
+  it('should store the validated postcode in context when an in-area postcode is detected', async () => {
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'My postcode is CF10 1AA' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.setContext).toHaveBeenCalledWith(
+      expect.anything(),
+      'validatedPostcode',
+      'CF10 1AA',
+    );
+  });
+
+  it('should store the normalised postcode "CF10 1AA" in context when a spaceless postcode "CF101AA" is provided', async () => {
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'CF101AA' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.setContext).toHaveBeenCalledWith(
+      expect.anything(),
+      'validatedPostcode',
+      'CF10 1AA',
+    );
+  });
+
+  it('should transition phase to "declined" when an out-of-area postcode is provided', async () => {
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'EX4 1AB' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'declined');
+    expect(mockConversationsService.setContext).not.toHaveBeenCalled();
+  });
+
+  it('should send the static invalid-format message and not change phase when postcode format is invalid', async () => {
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: '12345' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: INVALID_POSTCODE_RESPONSE }),
+    );
+    expect(mockConversationsService.updatePhase).not.toHaveBeenCalled();
   });
 
   it('should map WhatsApp message type to the whatsapp channel', async () => {

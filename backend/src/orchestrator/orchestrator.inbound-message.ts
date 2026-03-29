@@ -20,6 +20,7 @@ import {
   IntentResult,
 } from './orchestrator.types';
 import { mapMessageTypeToChannel, channelToMessageType } from './orchestrator.prompts';
+import { PostcodeValidationService } from './postcode-validation.service';
 
 /** Dependencies injected by OrchestratorService. */
 export interface InboundMessageDeps {
@@ -29,6 +30,7 @@ export interface InboundMessageDeps {
   logger: Logger;
   detectIntent: (content: string, phase: string) => IntentResult;
   generateResponse: (intent: IntentResult, context: OrchestratorContext, config: ClinicConfig) => Promise<string | null>;
+  postcodeValidationService: PostcodeValidationService;
 }
 
 /**
@@ -50,7 +52,7 @@ export async function handleInboundMessageFlow(
   clinicConfig: ClinicConfig,
   deps: InboundMessageDeps,
 ): Promise<void> {
-  const { conversationsService, messagesService, ghlApiService, logger, detectIntent, generateResponse } = deps;
+  const { conversationsService, messagesService, ghlApiService, logger, detectIntent, generateResponse, postcodeValidationService } = deps;
 
   const contactId = webhookData.id;
   const ghlConversationId = webhookData.conversationId;
@@ -138,7 +140,14 @@ export async function handleInboundMessageFlow(
 
   // Advance phase based on detected intent
   if (intent.intent === 'PROVIDE_POSTCODE') {
-    await conversationsService.updatePhase(conversationObjectId, 'qualified');
+    const { postcode } = intent.data;
+    const inArea = postcodeValidationService.isInServiceArea(postcode, clinicConfig.serviceAreas ?? []);
+    if (inArea) {
+      await conversationsService.setContext(conversationObjectId, 'validatedPostcode', postcode);
+      await conversationsService.updatePhase(conversationObjectId, 'qualified');
+    } else {
+      await conversationsService.updatePhase(conversationObjectId, 'declined');
+    }
   } else if (intent.intent === 'WANT_TO_BOOK') {
     await conversationsService.updatePhase(conversationObjectId, 'booking');
   } else if (intent.intent === 'CANCEL') {

@@ -8,6 +8,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConversationsService } from './conversations.service';
+import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
@@ -109,6 +110,12 @@ describe('ConversationsService – slot selection detection', () => {
     requestReason: jest.fn(),
     storeReason: jest.fn(),
   };
+  const mockPersistenceService = {
+    saveMessage: jest.fn().mockResolvedValue({}),
+    updateConversationMeta: jest.fn().mockResolvedValue({}),
+    storeOfferedSlots: jest.fn().mockResolvedValue({}),
+    saveDateContext: jest.fn().mockResolvedValue({}),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -125,6 +132,7 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
         { provide: CancellationService, useValue: mockCancellationService },
+        { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
       ],
     }).compile();
 

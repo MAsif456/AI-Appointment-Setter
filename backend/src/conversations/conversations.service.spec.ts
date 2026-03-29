@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
+import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
@@ -82,6 +83,13 @@ describe('ConversationsService', () => {
     storeReason: jest.fn(),
   };
 
+  const mockPersistenceService = {
+    saveMessage: jest.fn().mockResolvedValue({}),
+    updateConversationMeta: jest.fn().mockResolvedValue({}),
+    storeOfferedSlots: jest.fn().mockResolvedValue({}),
+    saveDateContext: jest.fn().mockResolvedValue({}),
+  };
+
   // Shared test fixtures
   const mockConversation = {
     _id: 'conv1',
@@ -125,6 +133,7 @@ describe('ConversationsService', () => {
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
         { provide: CancellationService, useValue: mockCancellationService },
+        { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
       ],
     }).compile();
 
@@ -166,8 +175,8 @@ describe('ConversationsService', () => {
       const result = await service.startConversation('conv1');
 
       expect(result).toBe('Hi Sarah!');
-      expect(mockMessageModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ sender: 'ai', content: 'Hi Sarah!' }),
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledWith(
+        expect.anything(), expect.anything(), expect.anything(), 'ai', 'Hi Sarah!',
       );
     });
 
@@ -229,8 +238,8 @@ describe('ConversationsService', () => {
       expect(result).not.toBeNull();
       expect(result!.reply).toBe('Let me check that.');
       expect(result!.offeredSlots).toBeDefined();
-      // Should create two messages: user + AI
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(3);
+      // Should save two lead messages (with/without urgency data) + one AI reply
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(3);
     });
 
     it('should return follow-up message when conversation is already escalated', async () => {
@@ -263,8 +272,8 @@ describe('ConversationsService', () => {
       const result = await service.sendMessage('conv1', 'Hello');
 
       expect(result).toBeNull();
-      // Only the user message should be saved, not an AI reply
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+      // Only the two lead messages should be saved (with/without urgency data), not an AI reply
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(2);
     });
   });
 

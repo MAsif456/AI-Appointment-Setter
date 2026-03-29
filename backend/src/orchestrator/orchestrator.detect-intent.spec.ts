@@ -15,6 +15,7 @@ import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
+import { PostcodeValidationService } from './postcode-validation.service';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -36,6 +37,7 @@ describe('OrchestratorService — detectIntent', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        PostcodeValidationService,
       ],
     }).compile();
 
@@ -130,8 +132,38 @@ describe('OrchestratorService — detectIntent', () => {
     });
   });
 
+  describe('INVALID_POSTCODE_FORMAT', () => {
+    it('should return INVALID_POSTCODE_FORMAT for a numeric-only string (12345) in qualifying phase', () => {
+      expect(service.detectIntent('12345', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return INVALID_POSTCODE_FORMAT for a short alphanumeric string with digit (AB12) in qualifying phase', () => {
+      expect(service.detectIntent('AB12', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return INVALID_POSTCODE_FORMAT for a random letter string with no digits (ghthhdh)', () => {
+      expect(service.detectIntent('ghthhdh', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return INVALID_POSTCODE_FORMAT for a mixed random string (c738487)', () => {
+      expect(service.detectIntent('c738487', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return INVALID_POSTCODE_FORMAT for a postcode with a too-long inward code (CF10 1AAA)', () => {
+      expect(service.detectIntent('CF10 1AAA', 'qualifying').intent).toBe('INVALID_POSTCODE_FORMAT');
+    });
+
+    it('should return UNKNOWN for an invalid-format attempt outside the qualifying phase', () => {
+      expect(service.detectIntent('12345', 'greeting').intent).toBe('UNKNOWN');
+    });
+
+    it('should return UNKNOWN for a very short input (hi) that is below the minimum length', () => {
+      expect(service.detectIntent('hi', 'qualifying').intent).toBe('UNKNOWN');
+    });
+  });
+
   describe('UNKNOWN', () => {
-    it('should return UNKNOWN for a message with no matching content', () => {
+    it('should return UNKNOWN for a full sentence with no matching content', () => {
       expect(service.detectIntent('I am not sure what I need', 'qualifying').intent).toBe('UNKNOWN');
     });
 
@@ -143,7 +175,7 @@ describe('OrchestratorService — detectIntent', () => {
       expect(service.detectIntent('How much does a session cost?', 'greeting').intent).toBe('UNKNOWN');
     });
 
-    it('should return UNKNOWN when the message is a greeting with no intent', () => {
+    it('should return UNKNOWN when the message contains spaces and punctuation (Hi there!)', () => {
       expect(service.detectIntent('Hi there!', 'qualifying').intent).toBe('UNKNOWN');
     });
   });

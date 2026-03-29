@@ -12,6 +12,7 @@ import { CancellationService } from '../cancellation/cancellation.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { PostcodeValidationService } from './postcode-validation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
@@ -61,6 +62,7 @@ describe('OrchestratorService — cancellation responses', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        PostcodeValidationService,
       ],
     }).compile();
 

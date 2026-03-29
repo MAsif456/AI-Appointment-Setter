@@ -21,6 +21,8 @@ import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { PostcodeValidationService } from './postcode-validation.service';
+import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -60,6 +62,7 @@ describe('OrchestratorService — generateResponse', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        PostcodeValidationService,
       ],
     }).compile();
 
@@ -219,6 +222,15 @@ describe('OrchestratorService — generateResponse', () => {
       const messages = mockGroqService.generateChatResponse.mock.calls[0][0] as Array<{ role: string; content: string }>;
       expect(messages).toHaveLength(1);
       expect(messages[0].role).toBe('system');
+    });
+  });
+
+  describe('INVALID_POSTCODE_FORMAT intent', () => {
+    it('should return the static invalid postcode response without calling Groq', async () => {
+      const result = await service.generateResponse({ intent: 'INVALID_POSTCODE_FORMAT' }, baseContext, baseClinicConfig);
+      expect(result).toBe(INVALID_POSTCODE_RESPONSE);
+      expect(mockGroqService.generateResponse).not.toHaveBeenCalled();
+      expect(mockGroqService.generateChatResponse).not.toHaveBeenCalled();
     });
   });
 
