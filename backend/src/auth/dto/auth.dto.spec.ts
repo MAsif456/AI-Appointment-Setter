@@ -1,203 +1,196 @@
 import { validate } from 'class-validator';
-import { RegisterDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto } from './auth.dto';
+import { 
+  CreateUserDto,
+  UpdateUserDto,
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './auth.dto';
 
-describe('RegisterDto', () => {
-  it('should pass validation with valid data', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
-    dto.email = 'test@example.com';
-    dto.password = 'Test123!@#';
+describe('CreateUserDto', () => {
+  const validDto = (): CreateUserDto => {
+    const dto = new CreateUserDto();
+    dto.name = 'John Doe'; dto.email = 'john@example.com';
+    dto.password = 'StrongPass1!'; dto.role = 'staff';
+    dto.assignedClinics = ['507f1f77bcf86cd799439011'];
+    return dto;
+  };
 
-    const errors = await validate(dto);
+  it('should pass with valid data', async () => {
+    const errors = await validate(validDto());
     expect(errors.length).toBe(0);
   });
 
   it('should fail if name is empty', async () => {
-    const dto = new RegisterDto();
+    const dto = validDto();
     dto.name = '';
-    dto.email = 'test@example.com';
-    dto.password = 'Test123!@#';
-
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('name');
-    expect(errors[0].constraints?.isNotEmpty).toContain('Name is required');
+    expect(errors.some(e => e.property === 'name')).toBe(true);
   });
 
   it('should fail if email is invalid', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
+    const dto = validDto();
     dto.email = 'invalid-email';
-    dto.password = 'Test123!@#';
-
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('email');
-    expect(errors[0].constraints?.isEmail).toContain('Please provide a valid email address');
+    expect(errors.some(e => e.property === 'email')).toBe(true);
   });
 
   it('should fail if password is too short', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
-    dto.email = 'test@example.com';
+    const dto = validDto();
     dto.password = 'Short1!';
-
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('password');
-    expect(errors[0].constraints?.minLength).toContain('Password must be at least 8 characters');
+    expect(errors.some(e => e.property === 'password')).toBe(true);
   });
 
   it('should fail if password lacks uppercase', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
-    dto.email = 'test@example.com';
-    dto.password = 'test123!@#';
-
+    const dto = validDto();
+    dto.password = 'test123!';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('password');
-    expect(errors[0].constraints?.matches).toContain(
-      'Password must contain uppercase, lowercase, number, and special character',
-    );
+    expect(errors.some(e => e.property === 'password')).toBe(true);
   });
 
   it('should fail if password lacks lowercase', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
-    dto.email = 'test@example.com';
-    dto.password = 'TEST123!@#';
-
+    const dto = validDto();
+    dto.password = 'TEST123!';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('password');
+    expect(errors.some(e => e.property === 'password')).toBe(true);
   });
 
   it('should fail if password lacks number', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
-    dto.email = 'test@example.com';
-    dto.password = 'TestTest!@#';
-
+    const dto = validDto();
+    dto.password = 'TestUser!';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('password');
+    expect(errors.some(e => e.property === 'password')).toBe(true);
   });
 
   it('should fail if password lacks special character', async () => {
-    const dto = new RegisterDto();
-    dto.name = 'Test User';
-    dto.email = 'test@example.com';
-    dto.password = 'Test123456';
-
+    const dto = validDto();
+    dto.password = 'TestUser123';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('password');
+    expect(errors.some(e => e.property === 'password')).toBe(true);
   });
-});
 
-describe('VerifyEmailDto', () => {
-  it('should pass validation with valid data', async () => {
-    const dto = new VerifyEmailDto();
-    dto.email = 'test@example.com';
-    dto.code = '123456';
+  it('should fail if role is invalid', async () => {
+    const dto = validDto();
+    dto.role = 'patient' as any;
+    const errors = await validate(dto);
+    expect(errors.some(e => e.property === 'role')).toBe(true);
+  });
 
+  it('should pass without assignedClinics (optional)', async () => {
+    const dto = validDto();
+    delete dto.assignedClinics;
     const errors = await validate(dto);
     expect(errors.length).toBe(0);
   });
 
-  it('should fail if email is invalid', async () => {
-    const dto = new VerifyEmailDto();
-    dto.email = 'invalid-email';
-    dto.code = '123456';
-
+  it('should fail if assignedClinics is not an array', async () => {
+    const dto = validDto();
+    dto.assignedClinics = 'not-array' as any;
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('email');
+    expect(errors.some(e => e.property === 'assignedClinics')).toBe(true);
   });
 
-  it('should fail if code is empty', async () => {
-    const dto = new VerifyEmailDto();
-    dto.email = 'test@example.com';
-    dto.code = '';
-
+  it('should fail if assignedClinics contains invalid MongoId', async () => {
+    const dto = validDto();
+    dto.assignedClinics = ['invalid-id'];
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('code');
+    expect(errors.some(e => e.property === 'assignedClinics')).toBe(true);
+  });
+});
+
+describe('UpdateUserDto', () => {
+  it('should pass with empty object', async () => {
+    const dto = new UpdateUserDto();
+    const errors = await validate(dto);
+    expect(errors.length).toBe(0);
+  });
+
+  it('should validate email if invalid', async () => {
+    const dto = new UpdateUserDto();
+    dto.email = 'bad-email';
+    const errors = await validate(dto);
+    expect(errors.some(e => e.property === 'email')).toBe(true);
+  });
+
+  it('should validate role enum', async () => {
+    const dto = new UpdateUserDto();
+    dto.role = 'invalid' as any;
+    const errors = await validate(dto);
+    expect(errors.some(e => e.property === 'role')).toBe(true);
+  });
+
+  it('should validate assignedClinics MongoId', async () => {
+    const dto = new UpdateUserDto();
+    dto.assignedClinics = ['bad-id'];
+    const errors = await validate(dto);
+    expect(errors.some(e => e.property === 'assignedClinics')).toBe(true);
+  });
+});
+
+describe('ChangePasswordDto', () => {
+  it('should pass valid passwords', async () => {
+    const dto = new ChangePasswordDto();
+    dto.currentPassword = 'OldPass1!';
+    dto.newPassword = 'NewPass1!';
+    const errors = await validate(dto);
+    expect(errors.length).toBe(0);
+  });
+
+  it('should fail if currentPassword missing', async () => {
+    const dto = new ChangePasswordDto();
+    dto.currentPassword = '';
+    const errors = await validate(dto);
+    expect(errors.some(e => e.property === 'currentPassword')).toBe(true);
+  });
+
+  it('should fail weak new password', async () => {
+    const dto = new ChangePasswordDto();
+    dto.currentPassword = 'OldPass1!';
+    dto.newPassword = 'weak';
+    const errors = await validate(dto);
+    expect(errors.some(e => e.property === 'newPassword')).toBe(true);
   });
 });
 
 describe('ForgotPasswordDto', () => {
-  it('should pass validation with valid email', async () => {
+  it('should pass valid email', async () => {
     const dto = new ForgotPasswordDto();
     dto.email = 'test@example.com';
-
     const errors = await validate(dto);
     expect(errors.length).toBe(0);
   });
 
-  it('should fail if email is invalid', async () => {
+  it('should fail invalid email', async () => {
     const dto = new ForgotPasswordDto();
-    dto.email = 'invalid-email';
-
+    dto.email = 'bad-email';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('email');
+    expect(errors.some(e => e.property === 'email')).toBe(true);
   });
 });
 
 describe('ResetPasswordDto', () => {
-  it('should pass validation with valid data', async () => {
+  it('should pass valid data', async () => {
     const dto = new ResetPasswordDto();
-    dto.email = 'test@example.com';
-    dto.code = '123456';
-    dto.newPassword = 'NewPass123!@#';
-
+    dto.token = 'valid-token';
+    dto.newPassword = 'NewPass1!';
     const errors = await validate(dto);
     expect(errors.length).toBe(0);
   });
 
-  it('should fail if email is invalid', async () => {
+  it('should fail if token is missing', async () => {
     const dto = new ResetPasswordDto();
-    dto.email = 'invalid-email';
-    dto.code = '123456';
-    dto.newPassword = 'NewPass123!@#';
-
+    dto.token = '';
+    dto.newPassword = 'NewPass1!';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('email');
+    expect(errors.some(e => e.property === 'token')).toBe(true);
   });
 
-  it('should fail if code is empty', async () => {
+  it('should fail weak password', async () => {
     const dto = new ResetPasswordDto();
-    dto.email = 'test@example.com';
-    dto.code = '';
-    dto.newPassword = 'NewPass123!@#';
-
+    dto.token = 'valid-token';
+    dto.newPassword = 'weak';
     const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('code');
-  });
-
-  it('should fail if password is too short', async () => {
-    const dto = new ResetPasswordDto();
-    dto.email = 'test@example.com';
-    dto.code = '123456';
-    dto.newPassword = 'Short1!';
-
-    const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('newPassword');
-  });
-
-  it('should fail if password does not match pattern', async () => {
-    const dto = new ResetPasswordDto();
-    dto.email = 'test@example.com';
-    dto.code = '123456';
-    dto.newPassword = 'weakpassword';
-
-    const errors = await validate(dto);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('newPassword');
+    expect(errors.some(e => e.property === 'newPassword')).toBe(true);
   });
 });

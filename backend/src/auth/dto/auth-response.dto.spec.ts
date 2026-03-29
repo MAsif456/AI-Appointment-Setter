@@ -9,6 +9,8 @@ describe('AuthResponseDto', () => {
       name: 'Test User',
       email: 'test@test.com',
       role: 'staff',
+      assignedClinics: ['clinic1', 'clinic2'],
+
     };
 
     dto.accessToken = 'jwt-token-here';
@@ -16,6 +18,7 @@ describe('AuthResponseDto', () => {
     expect(dto.user.email).toBe('test@test.com');
     expect(dto.user.name).toBe('Test User');
     expect(dto.user.role).toBe('staff');
+    expect(dto.user.assignedClinics).toEqual(['clinic1', 'clinic2']);
     expect(dto.accessToken).toBe('jwt-token-here');
   });
 
@@ -26,6 +29,7 @@ describe('AuthResponseDto', () => {
         name: 'John Doe',
         email: 'john@example.com',
         role: 'admin',
+        assignedClinics: ['clinic1', 'clinic2'],
       },
       accessToken: 'token123',
     };
@@ -36,5 +40,20 @@ describe('AuthResponseDto', () => {
     expect(dto.user).toHaveProperty('name');
     expect(dto.user).toHaveProperty('email');
     expect(dto.user).toHaveProperty('role');
+  });
+  it('should allow empty assignedClinics array', () => {
+    const dto = new AuthResponseDto();
+
+    dto.user = {
+      _id: '1',
+      name: 'Test User',
+      email: 'test@test.com',
+      role: 'admin',
+      assignedClinics: [],
+    };
+
+    dto.accessToken = 'token';
+
+    expect(dto.user.assignedClinics).toEqual([]);
   });
 });

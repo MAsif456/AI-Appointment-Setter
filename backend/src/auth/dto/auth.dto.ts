@@ -77,11 +77,3 @@ export class ResetPasswordDto {
   @Matches(PASSWORD_REGEX, { message: PASSWORD_MESSAGE })
   newPassword: string;
 }
-
-export class LoginDto {
-  @IsEmail({}, { message: 'Please provide a valid email address' })
-  email: string;
-
-  @IsNotEmpty({ message: 'Password is required' })
-  password: string;
-}

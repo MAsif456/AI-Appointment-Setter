@@ -8,7 +8,8 @@ import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User, UserDocument } from '../database/schemas/user.schema';
-import { LoginDto, CreateUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from './dto/auth.dto';
+import { LoginDto } from './dto/login.dto';
+import { CreateUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from './dto/auth.dto';
 import { EmailService } from './email.service';
 
 /** Generates a cryptographically secure URL-safe token */

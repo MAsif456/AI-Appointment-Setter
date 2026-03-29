@@ -1,174 +1,139 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminGuard } from './guards/admin.guard';
+import {
+  LoginDto, ForgotPasswordDto, ResetPasswordDto,
+  ChangePasswordDto, CreateUserDto,
+} from './dto/auth.dto';
 
+/** Bypass guards in unit tests — we test guard logic separately */
+const mockGuard = { canActivate: () => true };
+
+/** Mock AuthService — all methods return simple resolved values */
+const mockAuthService = {
+  createUser: jest.fn(),
+  verifyEmail: jest.fn(),
+  resendVerificationLink: jest.fn(),
+  login: jest.fn(),
+  forgotPassword: jest.fn(),
+  resetPassword: jest.fn(),
+  changePassword: jest.fn(),
+};
+
+/** Unit tests for AuthController */
 describe('AuthController', () => {
   let controller: AuthController;
-
-  const mockAuthService = {
-    createUser: jest.fn(),
-    verifyEmail: jest.fn(),
-    resendVerificationLink: jest.fn(),
-    login: jest.fn(),
-    forgotPassword: jest.fn(),
-    resetPassword: jest.fn(),
-    changePassword: jest.fn(),
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [{ provide: AuthService, useValue: mockAuthService }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard).useValue(mockGuard)
+      .overrideGuard(AdminGuard).useValue(mockGuard)
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
     jest.clearAllMocks();
   });
 
-  // ✅ CREATE USER (replaces register)
+  // createUser
   describe('createUser', () => {
-    it('should create a new user (admin route)', async () => {
-      const dto = {
-        name: 'Test User',
-        email: 'test@example.com',
-        role: 'staff',
+    it('delegates to authService.createUser and returns result', async () => {
+      const dto: CreateUserDto = {
+        name: 'Sarah', email: 'sarah@test.com',
+        password: 'Pass1!xxx', role: 'staff',
+        assignedClinics: ['507f1f77bcf86cd799439011'],
       };
-
-      mockAuthService.createUser.mockResolvedValue({
-        message: 'User created',
-        email: dto.email,
-      });
-
+      mockAuthService.createUser.mockResolvedValue({ message: 'Account created.' });
       const result = await controller.createUser(dto);
-
-      expect(result.message).toContain('User created');
       expect(mockAuthService.createUser).toHaveBeenCalledWith(dto);
+      expect(result).toEqual({ message: 'Account created.' });
     });
   });
 
-  // ✅ VERIFY EMAIL (now uses token, not DTO)
+  // verifyEmail
   describe('verifyEmail', () => {
-    it('should verify email using token', async () => {
-      const token = 'verification-token';
-
-      mockAuthService.verifyEmail.mockResolvedValue({
-        message: 'Email verified successfully',
-      });
-
-      const result = await controller.verifyEmail(token);
-
-      expect(result.message).toContain('verified');
-      expect(mockAuthService.verifyEmail).toHaveBeenCalledWith(token);
+    it('delegates to authService.verifyEmail with token from query param', async () => {
+      mockAuthService.verifyEmail.mockResolvedValue({ message: 'Email verified.' });
+      const result = await controller.verifyEmail('some-token');
+      expect(mockAuthService.verifyEmail).toHaveBeenCalledWith('some-token');
+      expect(result).toEqual({ message: 'Email verified.' });
     });
   });
 
-  // ✅ RESEND VERIFICATION (new endpoint)
+  // resendVerification
   describe('resendVerification', () => {
-    it('should resend verification link', async () => {
-      const email = 'test@example.com';
-
-      mockAuthService.resendVerificationLink.mockResolvedValue({
-        message: 'Verification email sent',
-      });
-
-      const result = await controller.resendVerification(email);
-
-      expect(result.message).toContain('Verification');
-      expect(mockAuthService.resendVerificationLink).toHaveBeenCalledWith(email);
+    it('delegates to authService.resendVerificationLink', async () => {
+      mockAuthService.resendVerificationLink.mockResolvedValue({ message: 'Link sent.' });
+      const result = await controller.resendVerification('user@test.com');
+      expect(mockAuthService.resendVerificationLink).toHaveBeenCalledWith('user@test.com');
+      expect(result).toEqual({ message: 'Link sent.' });
     });
   });
 
-  // ✅ LOGIN (unchanged)
+  // login
   describe('login', () => {
-    it('should login user', async () => {
-      const loginDto = { email: 'test@example.com', password: 'password' };
-
-      mockAuthService.login.mockResolvedValue({
-        user: { email: 'test@example.com' },
-        accessToken: 'token',
-      });
-
-      const result = await controller.login(loginDto);
-
-      expect(result.accessToken).toBe('token');
-      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
+    it('delegates to authService.login and returns token response', async () => {
+      const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
+      const response = { user: { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', assignedClinics: [] }, accessToken: 'jwt' };
+      mockAuthService.login.mockResolvedValue(response);
+      const result = await controller.login(dto);
+      expect(mockAuthService.login).toHaveBeenCalledWith(dto);
+      expect(result).toEqual(response);
     });
   });
 
-  // ✅ FORGOT PASSWORD (unchanged)
+  // forgotPassword
   describe('forgotPassword', () => {
-    it('should send password reset link', async () => {
-      const dto = { email: 'test@example.com' };
-
-      mockAuthService.forgotPassword.mockResolvedValue({
-        message: 'If the email exists, a reset link has been sent.',
-      });
-
+    it('delegates to authService.forgotPassword', async () => {
+      const dto: ForgotPasswordDto = { email: 'user@test.com' };
+      mockAuthService.forgotPassword.mockResolvedValue({ message: 'Link sent.' });
       const result = await controller.forgotPassword(dto);
-
-      expect(result.message).toContain('reset');
       expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(dto);
+      expect(result).toEqual({ message: 'Link sent.' });
     });
   });
 
-  // ✅ RESET PASSWORD (unchanged)
+  // resetPassword
   describe('resetPassword', () => {
-    it('should reset password', async () => {
-      const dto = {
-        token: 'reset-token',
-        newPassword: 'NewPass123!',
-      };
-
-      mockAuthService.resetPassword.mockResolvedValue({
-        message: 'Password reset successfully',
-      });
-
+    it('delegates to authService.resetPassword', async () => {
+      const dto: ResetPasswordDto = { token: 'abc', newPassword: 'NewPass1!' };
+      mockAuthService.resetPassword.mockResolvedValue({ message: 'Password reset.' });
       const result = await controller.resetPassword(dto);
-
-      expect(result.message).toContain('reset successfully');
       expect(mockAuthService.resetPassword).toHaveBeenCalledWith(dto);
+      expect(result).toEqual({ message: 'Password reset.' });
     });
   });
 
-  // ✅ CHANGE PASSWORD (new)
+  // changePassword
   describe('changePassword', () => {
-    it('should change password for authenticated user', async () => {
-      const req = { user: { _id: 'user123' } };
-      const dto = {
-        currentPassword: 'oldPass',
-        newPassword: 'newPass',
-      };
-
-      mockAuthService.changePassword.mockResolvedValue({
-        message: 'Password changed successfully',
-      });
-
-      const result = await controller.changePassword(req, dto);
-
-      expect(result.message).toContain('changed');
-      expect(mockAuthService.changePassword).toHaveBeenCalledWith(
-        'user123',
-        dto,
-      );
+    it('delegates to authService.changePassword with userId from req', async () => {
+      const dto: ChangePasswordDto = { currentPassword: 'Old1!', newPassword: 'New1!xxx' };
+      const req = { user: { _id: { toString: () => 'user_123' } } };
+      mockAuthService.changePassword.mockResolvedValue({ message: 'Password updated.' });
+      const result = await controller.changePassword(req as any, dto);
+      expect(mockAuthService.changePassword).toHaveBeenCalledWith('user_123', dto);
+      expect(result).toEqual({ message: 'Password updated.' });
     });
   });
 
-  // ✅ LOGOUT (unchanged but now guarded)
+  // logout
   describe('logout', () => {
-    it('should logout', async () => {
+    it('returns logout confirmation message', async () => {
       const result = await controller.logout();
-      expect(result.message).toBe('Logged out successfully');
+      expect(result).toEqual({ message: 'Logged out successfully' });
     });
   });
 
-  // ✅ GET CURRENT USER (renamed route: /me)
+  // getCurrentUser
   describe('getCurrentUser', () => {
-    it('should return current user', async () => {
-      const req = { user: { email: 'test@example.com' } };
-
-      const result = await controller.getCurrentUser(req);
-
-      expect(result.email).toBe('test@example.com');
+    it('returns the user from the request', async () => {
+      const req = { user: { _id: '1', name: 'Admin', role: 'admin' } };
+      const result = await controller.getCurrentUser(req as any);
+      expect(result).toEqual(req.user);
     });
   });
 });
