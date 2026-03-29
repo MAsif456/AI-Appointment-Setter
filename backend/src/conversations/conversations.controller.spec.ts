@@ -120,6 +120,7 @@ describe('ConversationsController', () => {
         reply: 'Let me check.',
         offeredSlots: mockOfferedSlots,
         slotSelection: null,
+        bookingResult: null,
         phase: 'greeting',
       });
       expect(mockService.sendMessage).toHaveBeenCalledWith(
@@ -135,6 +136,7 @@ describe('ConversationsController', () => {
         message: 'Hello',
       });
       expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
+      expect(result.bookingResult).toBeNull();
     });
 
     it('should return fallback reply when service throws', async () => {
@@ -145,6 +147,7 @@ describe('ConversationsController', () => {
       });
       expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
       expect(result.offeredSlots).toEqual([]);
+      expect(result.bookingResult).toBeNull();
     });
   });
 });

@@ -18,8 +18,11 @@ export const FALLBACK_CALENDAR_UNAVAILABLE =
 export const FALLBACK_APPOINTMENT_FAILED =
   "I'm having a bit of trouble confirming your booking. Let me get a team member to finalise this for you.";
 
-/** UK postcode pattern — matches both spaced (CF10 1AA) and unspaced (CF101AA) variants. */
-export const POSTCODE_REGEX = /[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}/i;
+/**
+ * UK postcode pattern — matches both spaced (CF10 1AA) and unspaced (CF101AA) variants.
+ * Word boundaries prevent partial matches inside longer strings, so "CF10 1AAA" does NOT match.
+ */
+export const POSTCODE_REGEX = /\b[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}\b/i;
 
 /** Keywords that indicate a lead wants to book an appointment. */
 export const BOOKING_KEYWORDS = [
@@ -58,8 +61,13 @@ export interface OrchestratorContext {
   };
 }
 
+/** Static response returned when a message looks like a postcode but is not a valid UK format. */
+export const INVALID_POSTCODE_RESPONSE =
+  "That doesn't look like a UK postcode. Could you double-check and send it again?";
+
 /** Discriminated union of all possible detected intents. */
 export type IntentResult =
   | { intent: "PROVIDE_POSTCODE"; data: { postcode: string } }
+  | { intent: "INVALID_POSTCODE_FORMAT" }
   | { intent: "WANT_TO_BOOK" }
   | { intent: "UNKNOWN" };

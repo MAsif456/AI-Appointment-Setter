@@ -55,13 +55,13 @@ export function formatDateBritish(
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
-  const dayName = days[d.getUTCDay()];
-  const dayNum = d.getUTCDate();
+  const dayName = days[d.getDay()];
+  const dayNum = d.getDate();
   const suffix = getDaySuffix(dayNum);
-  const monthName = months[d.getUTCMonth()];
+  const monthName = months[d.getMonth()];
 
-  const hours = d.getUTCHours();
-  const minutes = d.getUTCMinutes();
+  const hours = d.getHours();
+  const minutes = d.getMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHour = hours % 12 || 12;
   const timeStr = minutes === 0

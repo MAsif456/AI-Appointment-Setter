@@ -23,6 +23,7 @@ import {
   mapMessageTypeToChannel,
   channelToMessageType,
 } from "./orchestrator.prompts";
+import { PostcodeValidationService } from "./postcode-validation.service";
 
 /** Dependencies injected by OrchestratorService. */
 export interface InboundMessageDeps {
@@ -37,6 +38,7 @@ export interface InboundMessageDeps {
     config: ClinicConfig,
   ) => Promise<string | null>;
   correlationId?: string;
+  postcodeValidationService: PostcodeValidationService;
 }
 
 /**
@@ -66,6 +68,7 @@ export async function handleInboundMessageFlow(
     detectIntent,
     generateResponse,
     correlationId,
+    postcodeValidationService,
   } = deps;
   const cid = correlationId ? `[${correlationId}] ` : "";
 
@@ -210,7 +213,14 @@ export async function handleInboundMessageFlow(
 
   // Advance phase
   if (intent.intent === "PROVIDE_POSTCODE") {
-    await conversationsService.updatePhase(conversationObjectId, "qualified");
+    const { postcode } = intent.data;
+    const inArea = postcodeValidationService.isInServiceArea(postcode, clinicConfig.serviceAreas ?? []);
+    if (inArea) {
+      await conversationsService.setContext(conversationObjectId, "validatedPostcode", postcode);
+      await conversationsService.updatePhase(conversationObjectId, "qualified");
+    } else {
+      await conversationsService.updatePhase(conversationObjectId, "declined");
+    }
   } else if (intent.intent === "WANT_TO_BOOK") {
     await conversationsService.updatePhase(conversationObjectId, "booking");
   }
