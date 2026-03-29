@@ -109,6 +109,7 @@ export async function handleInboundMessageFlow(
     ghlContactId: contactId,
     clinicId: clinicConfig.clinicId,
     phase: currentPhase,
+    conversationId: conversationObjectId.toHexString(),
     messages: contextMessages,
     patientInfo: { firstName: 'there' },
   };
@@ -137,7 +138,7 @@ export async function handleInboundMessageFlow(
   // Persist AI response
   await messagesService.addMessage(conversationObjectId, clinicObjectId, leadObjectId, 'ai', response, channel, ghlMessageId);
 
-  // Advance phase
+  // Advance phase based on detected intent
   if (intent.intent === 'PROVIDE_POSTCODE') {
     const { postcode } = intent.data;
     const inArea = postcodeValidationService.isInServiceArea(postcode, clinicConfig.serviceAreas ?? []);
@@ -149,6 +150,21 @@ export async function handleInboundMessageFlow(
     }
   } else if (intent.intent === 'WANT_TO_BOOK') {
     await conversationsService.updatePhase(conversationObjectId, 'booking');
+  } else if (intent.intent === 'CANCEL') {
+    await conversationsService.updatePhase(conversationObjectId, 'cancelling');
+  } else if (intent.intent === 'CONFIRM_CANCEL') {
+    // If response is a fee warning, move to cancelling_warned; otherwise executeCancellation already set 'cancelled'
+    const isWarning = response.includes('incur a fee') || response.includes('Would you like to proceed');
+    if (isWarning) {
+      await conversationsService.updatePhase(conversationObjectId, 'cancelling_warned');
+    }
+    // Note: if cancellation was executed, CancellationService already set phase to 'cancelled'
+  } else if (intent.intent === 'DECLINE_CANCEL') {
+    if (currentPhase === 'cancelling_warned') {
+      await conversationsService.updatePhase(conversationObjectId, 'rescheduling');
+    } else {
+      await conversationsService.updatePhase(conversationObjectId, 'booked');
+    }
   }
 
   logger.log(`Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`);

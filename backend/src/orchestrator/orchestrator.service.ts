@@ -1,16 +1,9 @@
-/**
- * Orchestrates the AI-powered conversation flow triggered by GHL webhooks.
- *
- * This class is a thin coordinator — the heavy logic lives in:
- *   - orchestrator.new-lead.ts      (handleNewLeadFlow)
- *   - orchestrator.inbound-message.ts (handleInboundMessageFlow)
- *   - orchestrator.prompts.ts       (prompt builders, channel mappers)
- *   - orchestrator.types.ts         (shared interfaces and constants)
- */
+/** Thin coordinator — heavy logic lives in dedicated orchestrator.*.ts files. */
 import { Injectable, Logger } from '@nestjs/common';
 import { GroqService } from '../ai/groq.service';
 import { GreetingService } from '../ai/greeting.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { CancellationService } from '../cancellation/cancellation.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
@@ -20,6 +13,9 @@ import {
   INVALID_POSTCODE_RESPONSE,
   POSTCODE_REGEX,
   BOOKING_KEYWORDS,
+  CANCEL_KEYWORDS,
+  CONFIRM_KEYWORDS,
+  DECLINE_CANCEL_KEYWORDS,
   OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
@@ -28,6 +24,12 @@ import { PostcodeValidationService } from './postcode-validation.service';
 import { normalisePostcode, buildSingleTurnPrompt, buildMultiTurnSystemPrompt } from './orchestrator.prompts';
 import { handleNewLeadFlow } from './orchestrator.new-lead';
 import { handleInboundMessageFlow } from './orchestrator.inbound-message';
+import {
+  handleCancelIntent,
+  handleConfirmCancel,
+  handleDeclineCancel,
+  handleCancellationReason,
+} from './orchestrator.cancel-handlers';
 
 export { FALLBACK_MESSAGE };
 export type { OrchestratorMessage, OrchestratorContext, IntentResult };
@@ -39,6 +41,7 @@ export class OrchestratorService {
   constructor(
     private readonly greetingService: GreetingService,
     private readonly groqService: GroqService,
+    private readonly cancellationService: CancellationService,
     private readonly conversationsService: ConversationsService,
     private readonly messagesService: MessagesService,
     private readonly ghlApiService: GhlApiService,
@@ -73,6 +76,8 @@ export class OrchestratorService {
    * WANT_TO_BOOK only in 'qualified'.
    */
   detectIntent(messageContent: string, currentPhase: string): IntentResult {
+    const lower = messageContent.toLowerCase();
+
     if (currentPhase === 'qualifying') {
       const postcodeMatch = messageContent.match(POSTCODE_REGEX);
       if (postcodeMatch) {
@@ -84,7 +89,30 @@ export class OrchestratorService {
     }
 
     if (currentPhase === 'qualified') {
-      const lower = messageContent.toLowerCase();
+      if (BOOKING_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'WANT_TO_BOOK' };
+      }
+    }
+
+    // Cancellation intents — only in 'booked' phase
+    if (currentPhase === 'booked') {
+      if (CANCEL_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'CANCEL' };
+      }
+    }
+
+    // Cancellation confirmation/decline — in 'cancelling' or 'cancelling_warned' phases
+    if (currentPhase === 'cancelling' || currentPhase === 'cancelling_warned') {
+      if (CONFIRM_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'CONFIRM_CANCEL' };
+      }
+      if (DECLINE_CANCEL_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return { intent: 'DECLINE_CANCEL' };
+      }
+    }
+
+    // Graceful re-entry: lead in 'cancelled' phase wants to rebook
+    if (currentPhase === 'cancelled') {
       if (BOOKING_KEYWORDS.some((kw) => lower.includes(kw))) {
         return { intent: 'WANT_TO_BOOK' };
       }
@@ -129,6 +157,23 @@ export class OrchestratorService {
     if (intent.intent === 'WANT_TO_BOOK') {
       const bookingContext = 'The patient has expressed intent to book an appointment. Generate a response that enthusiastically confirms this and begins collecting booking details (preferred date and time).';
       return this.groqService.generateResponse(buildSingleTurnPrompt(bookingContext, context, clinicConfig));
+    }
+
+    // Cancellation intents — delegated to extracted handlers
+    if (intent.intent === 'CANCEL') {
+      return handleCancelIntent(context, this.cancellationService);
+    }
+    if (intent.intent === 'CONFIRM_CANCEL') {
+      return handleConfirmCancel(context, clinicConfig, this.cancellationService);
+    }
+    if (intent.intent === 'DECLINE_CANCEL') {
+      return handleDeclineCancel(context);
+    }
+
+    // If awaiting a cancellation reason (freeform text), collect and proceed
+    if (intent.intent === 'UNKNOWN' && context.conversationId &&
+        (context.phase === 'cancelling' || context.phase === 'cancelling_warned')) {
+      return handleCancellationReason(context, this.cancellationService);
     }
 
     // UNKNOWN: send full conversation history to the chat API

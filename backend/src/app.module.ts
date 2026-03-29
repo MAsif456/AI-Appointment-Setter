@@ -11,6 +11,7 @@ import { AiModule } from './ai/ai.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { OrchestratorModule } from './orchestrator/orchestrator.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { CancellationModule } from './cancellation/cancellation.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AppointmentsModule } from './appointments/appointments.module';
     ConversationsModule,
     OrchestratorModule,
     AppointmentsModule,
+    CancellationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
