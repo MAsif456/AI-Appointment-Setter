@@ -6,9 +6,9 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import {
-  LoginDto, ForgotPasswordDto, ResetPasswordDto,
-  ChangePasswordDto, CreateUserDto,
+  ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto, CreateUserDto,
 } from './dto/auth.dto';
+import { LoginDto } from './dto/login.dto';
 
 /**
  * Handles all authentication endpoints.
