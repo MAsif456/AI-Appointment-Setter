@@ -80,7 +80,8 @@
       "**/*.(t|j)s",
       "!main.ts",
       "!database/**",
-      "!schemas/**"
+      "!schemas/**",
+      "!coverage-branch/**"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"

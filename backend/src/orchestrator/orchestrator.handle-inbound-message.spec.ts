@@ -156,6 +156,57 @@ describe('OrchestratorService — handleInboundMessage', () => {
     expect(mockConversationsService.updatePhase).not.toHaveBeenCalled();
   });
 
+  it('should transition phase to "cancelling" when CANCEL intent is detected in booked phase', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'booked' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'I want to cancel' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'cancelling');
+  });
+
+  it('should transition phase to "cancelling_warned" when CONFIRM_CANCEL response includes a fee warning', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling' });
+    jest.spyOn(service as any, 'generateResponse').mockResolvedValue(
+      'Cancellations within 24 hours may incur a fee of £50. Would you like to proceed or reschedule instead?',
+    );
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'yes please cancel it' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'cancelling_warned');
+  });
+
+  it('should not update phase to cancelling_warned when CONFIRM_CANCEL response is a plain cancellation message', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling' });
+    jest.spyOn(service as any, 'generateResponse').mockResolvedValue(
+      'Your appointment has been cancelled.',
+    );
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'yes please cancel it' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).not.toHaveBeenCalledWith(expect.anything(), 'cancelling_warned');
+  });
+
+  it('should transition phase to "rescheduling" when DECLINE_CANCEL from cancelling_warned phase', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling_warned' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'no, keep my appointment' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'rescheduling');
+  });
+
+  it('should transition phase to "booked" when DECLINE_CANCEL from cancelling phase', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({ ...mockConversation, phase: 'cancelling' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'no, keep my appointment' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'booked');
+  });
+
   it('should map WhatsApp message type to the whatsapp channel', async () => {
     await service.handleInboundMessage(
       {
