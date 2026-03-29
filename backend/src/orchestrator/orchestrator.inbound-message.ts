@@ -5,22 +5,25 @@
  * Receives its dependencies as a plain object so it can be called from the
  * injectable service without coupling to NestJS DI.
  */
-import { Logger } from '@nestjs/common';
-import { Types } from 'mongoose';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { ConversationsService } from '../ghl/conversations.service';
-import { MessagesService } from '../ghl/messages.service';
-import { GhlApiService } from '../ghl/ghl-api.service';
-import { GhlInboundMessagePayload } from '../webhooks/dto/ghl-webhook.dto';
+import { Logger } from "@nestjs/common";
+import { Types } from "mongoose";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { ConversationsService } from "../ghl/conversations.service";
+import { MessagesService } from "../ghl/messages.service";
+import { GhlApiService } from "../ghl/ghl-api.service";
+import { GhlInboundMessagePayload } from "../webhooks/dto/ghl-webhook.dto";
 import {
-  FALLBACK_MESSAGE,
+  FALLBACK_AI_UNAVAILABLE,
   DEFAULT_MESSAGE_TYPE,
   OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
-} from './orchestrator.types';
-import { mapMessageTypeToChannel, channelToMessageType } from './orchestrator.prompts';
-import { PostcodeValidationService } from './postcode-validation.service';
+} from "./orchestrator.types";
+import {
+  mapMessageTypeToChannel,
+  channelToMessageType,
+} from "./orchestrator.prompts";
+import { PostcodeValidationService } from "./postcode-validation.service";
 
 /** Dependencies injected by OrchestratorService. */
 export interface InboundMessageDeps {
@@ -29,7 +32,12 @@ export interface InboundMessageDeps {
   ghlApiService: GhlApiService;
   logger: Logger;
   detectIntent: (content: string, phase: string) => IntentResult;
-  generateResponse: (intent: IntentResult, context: OrchestratorContext, config: ClinicConfig) => Promise<string | null>;
+  generateResponse: (
+    intent: IntentResult,
+    context: OrchestratorContext,
+    config: ClinicConfig,
+  ) => Promise<string | null>;
+  correlationId?: string;
   postcodeValidationService: PostcodeValidationService;
 }
 
@@ -52,32 +60,51 @@ export async function handleInboundMessageFlow(
   clinicConfig: ClinicConfig,
   deps: InboundMessageDeps,
 ): Promise<void> {
-  const { conversationsService, messagesService, ghlApiService, logger, detectIntent, generateResponse, postcodeValidationService } = deps;
+  const {
+    conversationsService,
+    messagesService,
+    ghlApiService,
+    logger,
+    detectIntent,
+    generateResponse,
+    correlationId,
+    postcodeValidationService,
+  } = deps;
+  const cid = correlationId ? `[${correlationId}] ` : "";
 
   const contactId = webhookData.id;
   const ghlConversationId = webhookData.conversationId;
-  const messageContent = webhookData.message?.body ?? '';
-  const channel = mapMessageTypeToChannel((webhookData.message?.type as string) ?? DEFAULT_MESSAGE_TYPE);
+  const messageContent = webhookData.message?.body ?? "";
+  const channel = mapMessageTypeToChannel(
+    (webhookData.message?.type as string) ?? DEFAULT_MESSAGE_TYPE,
+  );
 
   if (!contactId) {
-    logger.warn(`InboundMessage payload missing contactId — clinicId: ${clinicConfig.clinicId}. Skipping.`);
+    logger.warn(
+      `InboundMessage payload missing contactId — clinicId: ${clinicConfig.clinicId}. Skipping.`,
+    );
     return;
   }
 
   const clinicObjectId = new Types.ObjectId(clinicConfig.clinicId);
 
   // Load or create conversation context
-  let conversation = await conversationsService.findByGhlContactId(contactId, clinicObjectId);
+  let conversation = await conversationsService.findByGhlContactId(
+    contactId,
+    clinicObjectId,
+  );
 
   if (!conversation) {
-    logger.log(`No existing conversation for contactId: ${contactId}. Creating new context.`);
+    logger.log(
+      `No existing conversation for contactId: ${contactId}. Creating new context.`,
+    );
     try {
       conversation = await conversationsService.createForNewLead(
         clinicObjectId,
         contactId,
-        ghlConversationId ?? '',
+        ghlConversationId ?? "",
         channel,
-        { firstName: 'Unknown', phone: 'unknown', leadSource: 'other' },
+        { firstName: "Unknown", phone: "unknown", leadSource: "other" },
       );
     } catch (error) {
       logger.error(
@@ -90,18 +117,26 @@ export async function handleInboundMessageFlow(
 
   const conversationObjectId = conversation._id as Types.ObjectId;
   const leadObjectId = conversation.leadId as Types.ObjectId;
-  const currentPhase = conversation.phase ?? 'qualifying';
+  const currentPhase = conversation.phase ?? "qualifying";
 
   // Persist the inbound message
-  await messagesService.addMessage(conversationObjectId, clinicObjectId, leadObjectId, 'lead', messageContent, channel);
+  await messagesService.addMessage(
+    conversationObjectId,
+    clinicObjectId,
+    leadObjectId,
+    "lead",
+    messageContent,
+    channel,
+  );
 
   // Load history and build context
-  const storedMessages = await messagesService.getByConversation(conversationObjectId);
+  const storedMessages =
+    await messagesService.getByConversation(conversationObjectId);
   const contextMessages: OrchestratorMessage[] = storedMessages
-    .filter((m) => m.sender !== 'system')
+    .filter((m) => m.sender !== "system")
     .map((m) => ({
       content: m.content,
-      role: (m.sender === 'ai' ? 'assistant' : 'user') as 'assistant' | 'user',
+      role: (m.sender === "ai" ? "assistant" : "user") as "assistant" | "user",
       timestamp: (m as any).createdAt ?? new Date(),
     }));
 
@@ -111,61 +146,142 @@ export async function handleInboundMessageFlow(
     phase: currentPhase,
     conversationId: conversationObjectId.toHexString(),
     messages: contextMessages,
-    patientInfo: { firstName: 'there' },
+    patientInfo: { firstName: "there" },
   };
 
   const intent = detectIntent(messageContent, currentPhase);
-  logger.log(`Intent detected: ${intent.intent} — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`);
+  logger.log(
+    `${cid}Intent detected: ${intent.intent} — contactId: ${contactId}, conversationId: ${ghlConversationId ?? "unknown"}, clinicId: ${clinicConfig.clinicId}`,
+  );
 
-  let response = await generateResponse(intent, context, clinicConfig);
-  if (!response) {
-    logger.warn(`AI response generation failed — contactId: ${contactId}. Using fallback.`);
-    response = FALLBACK_MESSAGE;
+  const aiResult = await generateResponse(intent, context, clinicConfig);
+  const aiFailed = !aiResult;
+  let response: string = aiResult ?? FALLBACK_AI_UNAVAILABLE;
+
+  if (aiFailed) {
+    logger.warn(
+      `${cid}AI response generation failed — contactId: ${contactId}. Using fallback.`,
+    );
+    await conversationsService.flagForHumanIntervention(
+      conversationObjectId,
+      "AI service failure",
+    );
+
+    // Background retry: attempt once more, send follow-up if successful
+    backgroundRetryAiResponse(
+      intent,
+      context,
+      clinicConfig,
+      deps,
+      contactId,
+      channel,
+      conversationObjectId,
+      clinicObjectId,
+      leadObjectId,
+    );
   }
 
   // Send via GHL
   let ghlMessageId: string | undefined;
   try {
-    const sendResult = await ghlApiService.sendMessageWithRetry({ type: channelToMessageType(channel), contactId, message: response });
+    const sendResult = await ghlApiService.sendMessageWithRetry({
+      type: channelToMessageType(channel),
+      contactId,
+      message: response,
+    });
     ghlMessageId = sendResult?.id ?? sendResult?.messageId;
   } catch (error) {
     logger.error(
-      `Failed to send response via GHL after retries — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`,
+      `${cid}Failed to send response via GHL after retries — contactId: ${contactId}, conversationId: ${ghlConversationId ?? "unknown"}, clinicId: ${clinicConfig.clinicId}`,
       (error as Error).stack,
+    );
+    await conversationsService.flagForHumanIntervention(
+      conversationObjectId,
+      "Message delivery failed after retries",
     );
   }
 
   // Persist AI response
-  await messagesService.addMessage(conversationObjectId, clinicObjectId, leadObjectId, 'ai', response, channel, ghlMessageId);
+  await messagesService.addMessage(
+    conversationObjectId,
+    clinicObjectId,
+    leadObjectId,
+    "ai",
+    response,
+    channel,
+    ghlMessageId,
+  );
 
   // Advance phase based on detected intent
-  if (intent.intent === 'PROVIDE_POSTCODE') {
+  if (intent.intent === "PROVIDE_POSTCODE") {
     const { postcode } = intent.data;
     const inArea = postcodeValidationService.isInServiceArea(postcode, clinicConfig.serviceAreas ?? []);
     if (inArea) {
-      await conversationsService.setContext(conversationObjectId, 'validatedPostcode', postcode);
-      await conversationsService.updatePhase(conversationObjectId, 'qualified');
+      await conversationsService.setContext(conversationObjectId, "validatedPostcode", postcode);
+      await conversationsService.updatePhase(conversationObjectId, "qualified");
     } else {
-      await conversationsService.updatePhase(conversationObjectId, 'declined');
+      await conversationsService.updatePhase(conversationObjectId, "declined");
     }
-  } else if (intent.intent === 'WANT_TO_BOOK') {
-    await conversationsService.updatePhase(conversationObjectId, 'booking');
-  } else if (intent.intent === 'CANCEL') {
-    await conversationsService.updatePhase(conversationObjectId, 'cancelling');
-  } else if (intent.intent === 'CONFIRM_CANCEL') {
+  } else if (intent.intent === "WANT_TO_BOOK") {
+    await conversationsService.updatePhase(conversationObjectId, "booking");
+  } else if (intent.intent === "CANCEL") {
+    await conversationsService.updatePhase(conversationObjectId, "cancelling");
+  } else if (intent.intent === "CONFIRM_CANCEL") {
     // If response is a fee warning, move to cancelling_warned; otherwise executeCancellation already set 'cancelled'
-    const isWarning = response.includes('incur a fee') || response.includes('Would you like to proceed');
+    const isWarning = response.includes("incur a fee") || response.includes("Would you like to proceed");
     if (isWarning) {
-      await conversationsService.updatePhase(conversationObjectId, 'cancelling_warned');
+      await conversationsService.updatePhase(conversationObjectId, "cancelling_warned");
     }
     // Note: if cancellation was executed, CancellationService already set phase to 'cancelled'
-  } else if (intent.intent === 'DECLINE_CANCEL') {
-    if (currentPhase === 'cancelling_warned') {
-      await conversationsService.updatePhase(conversationObjectId, 'rescheduling');
+  } else if (intent.intent === "DECLINE_CANCEL") {
+    if (currentPhase === "cancelling_warned") {
+      await conversationsService.updatePhase(conversationObjectId, "rescheduling");
     } else {
-      await conversationsService.updatePhase(conversationObjectId, 'booked');
+      await conversationsService.updatePhase(conversationObjectId, "booked");
     }
   }
 
-  logger.log(`Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`);
+  logger.log(
+    `${cid}Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? "unknown"}, clinicId: ${clinicConfig.clinicId}`,
+  );
+}
+
+/** Fire-and-forget: retry AI once in the background and send follow-up if successful. */
+function backgroundRetryAiResponse(
+  intent: IntentResult,
+  context: OrchestratorContext,
+  clinicConfig: ClinicConfig,
+  deps: InboundMessageDeps,
+  contactId: string,
+  channel: string,
+  conversationObjectId: Types.ObjectId,
+  clinicObjectId: Types.ObjectId,
+  leadObjectId: Types.ObjectId,
+): void {
+  const { ghlApiService, messagesService, logger, generateResponse } = deps;
+
+  generateResponse(intent, context, clinicConfig)
+    .then(async (retryResponse) => {
+      if (!retryResponse) return;
+      logger.log(`Background AI retry succeeded — contactId: ${contactId}`);
+      const result = await ghlApiService.sendMessageWithRetry({
+        type: channelToMessageType(channel),
+        contactId,
+        message: retryResponse,
+      });
+      await messagesService.addMessage(
+        conversationObjectId,
+        clinicObjectId,
+        leadObjectId,
+        "ai",
+        retryResponse,
+        channel,
+        result?.id ?? result?.messageId,
+      );
+    })
+    .catch((err) =>
+      logger.warn(
+        `Background AI retry failed — contactId: ${contactId}: ${(err as Error).message}`,
+      ),
+    );
 }

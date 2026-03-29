@@ -16,6 +16,7 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { resolveSlotSelectionIntent } from './slot-selection.resolver';
@@ -81,10 +82,11 @@ export class ConversationsService {
 
     const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
     const greeting = await this.chatService.startConversation(leadInfo, clinicConfig);
-    if (!greeting) return null;
-    await this.persistence.saveMessage(conversation, clinic, lead, 'ai', greeting);
+    const finalGreeting = greeting ?? FALLBACK_AI_UNAVAILABLE;
+    if (!greeting) this.logger.warn('Greeting generation failed — using fallback');
+    await this.persistence.saveMessage(conversation, clinic, lead, 'ai', finalGreeting);
     await this.persistence.updateConversationMeta(conversation, 'ai', 'greeting');
-    return greeting;
+    return finalGreeting;
   }
 
   /**

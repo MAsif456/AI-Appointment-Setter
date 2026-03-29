@@ -143,6 +143,23 @@ export class ConversationsService {
   }
 
   /**
+   * Flags a conversation for human follow-up after a service failure.
+   * Sets requiresHumanIntervention and records the reason.
+   */
+  async flagForHumanIntervention(
+    conversationId: Types.ObjectId,
+    reason: string,
+  ): Promise<void> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      requiresHumanIntervention: true,
+      humanInterventionReason: reason,
+      escalatedAt: new Date(),
+      escalationReason: reason,
+    });
+    this.logger.log(`Conversation ${conversationId} flagged: ${reason}`);
+  }
+
+  /**
    * Stores a key/value pair in the conversation's context Map.
    * @param {Types.ObjectId} conversationId - The conversation ID.
    * @param {string} key - The context key, e.g. "validatedPostcode".
