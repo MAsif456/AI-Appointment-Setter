@@ -143,6 +143,35 @@ export class ConversationsService {
   }
 
   /**
+   * Flags a conversation for human follow-up after a service failure.
+   * Sets requiresHumanIntervention and records the reason.
+   */
+  async flagForHumanIntervention(
+    conversationId: Types.ObjectId,
+    reason: string,
+  ): Promise<void> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      requiresHumanIntervention: true,
+      humanInterventionReason: reason,
+      escalatedAt: new Date(),
+      escalationReason: reason,
+    });
+    this.logger.log(`Conversation ${conversationId} flagged: ${reason}`);
+  }
+
+  /**
+   * Stores a key/value pair in the conversation's context Map.
+   * @param {Types.ObjectId} conversationId - The conversation ID.
+   * @param {string} key - The context key, e.g. "validatedPostcode".
+   * @param {string} value - The value to store.
+   */
+  async setContext(conversationId: Types.ObjectId, key: string, value: string): Promise<void> {
+    await this.conversationModel
+      .findByIdAndUpdate(conversationId, { $set: { [`context.${key}`]: value } })
+      .exec();
+  }
+
+  /**
    * Maps a message type to a channel type.
    * @param {string} messageType - The message type (e.g. SMS, WhatsApp, FB, IG, Live Chat).
    * @returns {string} - The mapped channel type (e.g. sms, whatsapp, facebook, instagram, website).

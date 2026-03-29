@@ -26,4 +26,13 @@ export interface ClinicConfig {
 
   /** Whether the clinic is currently active */
   isActive: boolean;
+
+  /** Per-clinic cancellation policy settings */
+  cancellationPolicy?: {
+    feeEnabled: boolean;
+    feeAmount?: number;
+    feeDescription?: string;
+    noticeHours: number;
+    cancellationMessage?: string;
+  };
 }

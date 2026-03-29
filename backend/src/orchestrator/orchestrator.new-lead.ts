@@ -5,15 +5,18 @@
  * Receives its dependencies as a plain object so it can be called from the
  * injectable service without coupling to NestJS DI.
  */
-import { Logger } from '@nestjs/common';
-import { Types } from 'mongoose';
-import { GreetingService } from '../ai/greeting.service';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { ConversationsService } from '../ghl/conversations.service';
-import { MessagesService } from '../ghl/messages.service';
-import { GhlApiService } from '../ghl/ghl-api.service';
-import { GhlContactCreatePayload } from '../webhooks/dto/ghl-webhook.dto';
-import { FALLBACK_MESSAGE, DEFAULT_MESSAGE_TYPE } from './orchestrator.types';
+import { Logger } from "@nestjs/common";
+import { Types } from "mongoose";
+import { GreetingService } from "../ai/greeting.service";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { ConversationsService } from "../ghl/conversations.service";
+import { MessagesService } from "../ghl/messages.service";
+import { GhlApiService } from "../ghl/ghl-api.service";
+import { GhlContactCreatePayload } from "../webhooks/dto/ghl-webhook.dto";
+import {
+  FALLBACK_AI_UNAVAILABLE,
+  DEFAULT_MESSAGE_TYPE,
+} from "./orchestrator.types";
 
 /** Dependencies injected by OrchestratorService. */
 export interface NewLeadDeps {
@@ -22,6 +25,7 @@ export interface NewLeadDeps {
   messagesService: MessagesService;
   ghlApiService: GhlApiService;
   logger: Logger;
+  correlationId?: string;
 }
 
 /**
@@ -41,22 +45,36 @@ export async function handleNewLeadFlow(
   clinicConfig: ClinicConfig,
   deps: NewLeadDeps,
 ): Promise<void> {
-  const { greetingService, conversationsService, messagesService, ghlApiService, logger } = deps;
+  const {
+    greetingService,
+    conversationsService,
+    messagesService,
+    ghlApiService,
+    logger,
+    correlationId,
+  } = deps;
+  const cid = correlationId ? `[${correlationId}] ` : "";
   const { first_name, last_name, phone, email, issue } = webhookData;
-  const contactId = webhookData['id'] as string | undefined;
+  const contactId = webhookData["id"] as string | undefined;
 
   if (!contactId) {
-    logger.warn(`ContactCreate payload missing contactId — clinicId: ${clinicConfig.clinicId}. Skipping.`);
+    logger.warn(
+      `ContactCreate payload missing contactId — clinicId: ${clinicConfig.clinicId}. Skipping.`,
+    );
     return;
   }
 
   const clinicObjectId = new Types.ObjectId(clinicConfig.clinicId);
 
   // Create a GHL conversation so we have a conversationId to send messages against
-  let ghlConversationId = '';
+  let ghlConversationId = "";
   try {
-    const ghlConversation = await ghlApiService.createConversation(contactId, clinicConfig.ghlLocationId);
-    ghlConversationId = ghlConversation?.id ?? ghlConversation?.conversation?.id ?? '';
+    const ghlConversation = await ghlApiService.createConversation(
+      contactId,
+      clinicConfig.ghlLocationId,
+    );
+    ghlConversationId =
+      ghlConversation?.id ?? ghlConversation?.conversation?.id ?? "";
   } catch (error) {
     logger.warn(
       `Failed to create GHL conversation — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}. Continuing with empty conversationId. Error: ${(error as Error).message}`,
@@ -70,8 +88,12 @@ export async function handleNewLeadFlow(
       clinicObjectId,
       contactId,
       ghlConversationId,
-      'sms',
-      { firstName: first_name ?? 'Unknown', phone: phone ?? 'unknown', leadSource: 'other' },
+      "sms",
+      {
+        firstName: first_name ?? "Unknown",
+        phone: phone ?? "unknown",
+        leadSource: "other",
+      },
     );
   } catch (error) {
     logger.error(
@@ -83,24 +105,45 @@ export async function handleNewLeadFlow(
 
   // Generate the personalised AI greeting
   let greeting = await greetingService.generateGreeting(
-    { firstName: first_name ?? 'there', lastName: last_name, phone, email, issue, contactId },
+    {
+      firstName: first_name ?? "there",
+      lastName: last_name,
+      phone,
+      email,
+      issue,
+      contactId,
+    },
     clinicConfig,
   );
 
   if (!greeting) {
-    logger.warn(`AI greeting generation failed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}. Using fallback message.`);
-    greeting = FALLBACK_MESSAGE;
+    logger.warn(
+      `AI greeting generation failed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}. Using fallback message.`,
+    );
+    greeting = FALLBACK_AI_UNAVAILABLE;
+    await conversationsService.flagForHumanIntervention(
+      conversation._id as Types.ObjectId,
+      "AI service failure",
+    );
   }
 
-  // Send via GHL (3× retry handled by GhlApiService)
+  // Send via GHL (3× retry with jitter handled by GhlApiService)
   let ghlMessageId: string | undefined;
   try {
-    const sendResult = await ghlApiService.sendMessageWithRetry({ type: DEFAULT_MESSAGE_TYPE, contactId, message: greeting });
+    const sendResult = await ghlApiService.sendMessageWithRetry({
+      type: DEFAULT_MESSAGE_TYPE,
+      contactId,
+      message: greeting,
+    });
     ghlMessageId = sendResult?.id ?? sendResult?.messageId;
   } catch (error) {
     logger.error(
       `Failed to send greeting via GHL after retries — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
       (error as Error).stack,
+    );
+    await conversationsService.flagForHumanIntervention(
+      conversation._id as Types.ObjectId,
+      "Message delivery failed after retries",
     );
   }
 
@@ -109,12 +152,17 @@ export async function handleNewLeadFlow(
     conversation._id as Types.ObjectId,
     clinicObjectId,
     conversation.leadId as Types.ObjectId,
-    'ai',
+    "ai",
     greeting,
     conversation.channel,
     ghlMessageId,
   );
 
-  await conversationsService.updatePhase(conversation._id as Types.ObjectId, 'qualifying');
-  logger.log(`New lead processed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`);
+  await conversationsService.updatePhase(
+    conversation._id as Types.ObjectId,
+    "qualifying",
+  );
+  logger.log(
+    `${cid}New lead processed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
+  );
 }

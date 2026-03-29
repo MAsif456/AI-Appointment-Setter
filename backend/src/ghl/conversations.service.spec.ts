@@ -174,6 +174,19 @@ describe('ConversationsService', () => {
     });
   });
 
+  describe('setContext', () => {
+    it('should call findByIdAndUpdate with $set for the given key', async () => {
+      conversationModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await service.setContext(conversationId, 'validatedPostcode', 'CF10 1AA');
+
+      expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        conversationId,
+        { $set: { 'context.validatedPostcode': 'CF10 1AA' } },
+      );
+    });
+  });
+
   describe('updatePhase', () => {
     it('should update the conversation phase', async () => {
       const updated = { _id: conversationId, phase: 'qualifying' };
@@ -195,6 +208,32 @@ describe('ConversationsService', () => {
       const result = await service.updatePhase(new Types.ObjectId(), 'qualifying');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('flagForHumanIntervention', () => {
+    it('should set requiresHumanIntervention and reason on the conversation', async () => {
+      conversationModel.findByIdAndUpdate.mockResolvedValue(undefined);
+
+      await service.flagForHumanIntervention(conversationId, 'AI service failure');
+
+      expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          requiresHumanIntervention: true,
+          humanInterventionReason: 'AI service failure',
+          escalationReason: 'AI service failure',
+        }),
+      );
+    });
+
+    it('should set escalatedAt timestamp', async () => {
+      conversationModel.findByIdAndUpdate.mockResolvedValue(undefined);
+
+      await service.flagForHumanIntervention(conversationId, 'Message delivery failed');
+
+      const call = conversationModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(call.escalatedAt).toBeInstanceOf(Date);
     });
   });
 });
