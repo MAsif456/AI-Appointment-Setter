@@ -25,6 +25,7 @@ import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -65,6 +66,7 @@ describe('OrchestratorService — handleInboundMessage', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 

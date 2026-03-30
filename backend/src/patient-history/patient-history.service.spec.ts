@@ -104,11 +104,10 @@ describe('PatientHistoryService', () => {
   });
 
   it('returns medium confidence when only email matches', async () => {
-    // Phone query returns null; email query returns a record
+    // Phone is undefined so phone lookup is skipped; email query returns a record
     mockModel = {
       findOne: jest.fn()
-        .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) })   // phone miss
-        .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(recentRecord) }), // email hit
+        .mockReturnValue({ exec: jest.fn().mockResolvedValue(recentRecord) }), // email hit
       findOneAndUpdate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
     };
     const module: TestingModule = await Test.createTestingModule({

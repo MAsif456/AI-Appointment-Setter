@@ -44,8 +44,8 @@ export class PatientHistoryService {
    * Looks up a PatientHistory record for the given contact at the given clinic.
    *
    * Lookup order:
-   *   1. Phone match (high confidence) — most reliable for SMS/WhatsApp channels.
-   *   2. Email match (medium confidence) — fallback when phone is absent or unmatched.
+   *   1. Phone match (high confidence) - most reliable for SMS/WhatsApp channels.
+   *   2. Email match (medium confidence) - fallback when phone is absent or unmatched.
    *
    * @param phone - Lead phone number from the GHL webhook payload.
    * @param email - Lead email address (optional).
@@ -88,7 +88,7 @@ export class PatientHistoryService {
 
       return null;
     } catch (error) {
-      // Graceful degradation — any DB error falls back to new-patient flow
+      // Graceful degradation - any DB error falls back to new-patient flow
       this.logger.warn(
         `PatientHistory lookup failed for clinicId: ${clinicId} — ${(error as Error).message}. Treating as new patient.`,
       );

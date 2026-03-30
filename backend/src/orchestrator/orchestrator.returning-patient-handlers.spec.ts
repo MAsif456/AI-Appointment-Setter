@@ -23,7 +23,8 @@ describe('orchestrator returning patient handlers', () => {
       const response = handleDetailsUnchanged().toLowerCase();
       expect(response).not.toContain('groq');
       expect(response).not.toContain('llama');
-      expect(response).not.toContain('ai');
+      expect(response).not.toContain('chatgpt');
+      expect(response).not.toContain('openai');
     });
 
     it('returns a consistent value on repeated calls', () => {
@@ -44,7 +45,8 @@ describe('orchestrator returning patient handlers', () => {
       const response = handleDetailsChanged().toLowerCase();
       expect(response).not.toContain('groq');
       expect(response).not.toContain('llama');
-      expect(response).not.toContain('ai');
+      expect(response).not.toContain('chatgpt');
+      expect(response).not.toContain('openai');
     });
 
     it('asks for a postcode', () => {

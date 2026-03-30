@@ -12,6 +12,7 @@ import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
@@ -34,6 +35,7 @@ describe('OrchestratorService', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 
