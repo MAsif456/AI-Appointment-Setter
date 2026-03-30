@@ -31,7 +31,11 @@ export interface InboundMessageDeps {
   messagesService: MessagesService;
   ghlApiService: GhlApiService;
   logger: Logger;
-  detectIntent: (content: string, phase: string) => IntentResult;
+  detectIntent: (
+    content: string,
+    phase: string,
+    context?: Pick<OrchestratorContext, 'isReturningPatient'>,
+  ) => IntentResult;
   generateResponse: (
     intent: IntentResult,
     context: OrchestratorContext,
@@ -147,9 +151,10 @@ export async function handleInboundMessageFlow(
     conversationId: conversationObjectId.toHexString(),
     messages: contextMessages,
     patientInfo: { firstName: "there" },
+    isReturningPatient: conversation.isReturningPatient ?? false,
   };
 
-  const intent = detectIntent(messageContent, currentPhase);
+  const intent = detectIntent(messageContent, currentPhase, { isReturningPatient: context.isReturningPatient });
   logger.log(
     `${cid}Intent detected: ${intent.intent} — contactId: ${contactId}, conversationId: ${ghlConversationId ?? "unknown"}, clinicId: ${clinicConfig.clinicId}`,
   );
@@ -239,6 +244,17 @@ export async function handleInboundMessageFlow(
     } else {
       await conversationsService.updatePhase(conversationObjectId, "booked");
     }
+  } else if (intent.intent === "DETAILS_UNCHANGED") {
+    // Copy the historical postcode into validatedPostcode so downstream booking
+    // services can use it without knowing whether the patient is new or returning.
+    const postcode = conversation.context?.get("returningPatientPostcode");
+    if (postcode) {
+      await conversationsService.setContext(conversationObjectId, "validatedPostcode", postcode);
+    }
+    await conversationsService.updatePhase(conversationObjectId, "booking");
+  } else if (intent.intent === "DETAILS_CHANGED") {
+    // Route to qualifying so the lead can provide an updated postcode
+    await conversationsService.updatePhase(conversationObjectId, "qualifying");
   }
 
   logger.log(

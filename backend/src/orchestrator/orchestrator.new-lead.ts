@@ -12,6 +12,7 @@ import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
 import { ConversationsService } from "../ghl/conversations.service";
 import { MessagesService } from "../ghl/messages.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
+import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { GhlContactCreatePayload } from "../webhooks/dto/ghl-webhook.dto";
 import {
   FALLBACK_AI_UNAVAILABLE,
@@ -24,6 +25,7 @@ export interface NewLeadDeps {
   conversationsService: ConversationsService;
   messagesService: MessagesService;
   ghlApiService: GhlApiService;
+  patientHistoryService: PatientHistoryService;
   logger: Logger;
   correlationId?: string;
 }
@@ -35,10 +37,12 @@ export interface NewLeadDeps {
  *   1. Validate contactId is present.
  *   2. Create a GHL conversation via the GHL API (gracefully skips if it fails).
  *   3. Create the conversation context document in MongoDB.
- *   4. Generate a personalised AI greeting (falls back to static message on failure).
- *   5. Send the greeting to the lead via the GHL API (with retry).
- *   6. Persist the AI greeting as a message in MongoDB.
- *   7. Transition the conversation phase to 'qualifying'.
+ *   4. Look up PatientHistory to check if this is a returning patient.
+ *   5a. Returning patient: update conversation flags, store historical postcode,
+ *       log analytics event, generate returning-patient greeting, stay in 'greeting'.
+ *   5b. New patient: generate standard greeting, advance phase to 'qualifying'.
+ *   6. Send the greeting to the lead via the GHL API (with retry).
+ *   7. Persist the AI greeting as a message in MongoDB.
  */
 export async function handleNewLeadFlow(
   webhookData: GhlContactCreatePayload,
@@ -50,6 +54,7 @@ export async function handleNewLeadFlow(
     conversationsService,
     messagesService,
     ghlApiService,
+    patientHistoryService,
     logger,
     correlationId,
   } = deps;
@@ -103,22 +108,65 @@ export async function handleNewLeadFlow(
     return;
   }
 
-  // Generate the personalised AI greeting
-  let greeting = await greetingService.generateGreeting(
-    {
-      firstName: first_name ?? "there",
-      lastName: last_name,
-      phone,
-      email,
-      issue,
-      contactId,
-    },
-    clinicConfig,
+  // Check if this lead has booked with this clinic before
+  const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
+  const returningPatient = await patientHistoryService.findReturningPatient(
+    phone,
+    email,
+    clinicConfig.clinicId,
+    expiryDays,
   );
+
+  if (returningPatient) {
+    // Update conversation with returning patient flags
+    await conversationsService.updateReturningPatientFlags(
+      conversation._id as Types.ObjectId,
+      {
+        isReturningPatient: true,
+        previousConversationId: returningPatient.previousConversationId,
+        returningPatientConfidence: returningPatient.confidence,
+      },
+    );
+
+    // Store the historical postcode so DETAILS_UNCHANGED can skip qualification
+    if (returningPatient.validatedPostcode) {
+      await conversationsService.setContext(
+        conversation._id as Types.ObjectId,
+        "returningPatientPostcode",
+        returningPatient.validatedPostcode,
+      );
+    }
+
+    // Structured analytics log for returning patient detection
+    logger.log(
+      `RETURNING_PATIENT_DETECTED clinicId=${clinicConfig.clinicId} contactId=${contactId} confidence=${returningPatient.confidence} previousConversationId=${returningPatient.previousConversationId?.toString() ?? "none"}`,
+    );
+  }
+
+  const leadInfo = {
+    firstName: first_name ?? "there",
+    lastName: last_name,
+    phone,
+    email,
+    issue,
+    contactId,
+  };
+
+  // Generate greeting — returning patients get a personalised welcome-back message
+  let greeting: string | null;
+  if (returningPatient) {
+    greeting = await greetingService.generateReturningPatientGreeting(
+      leadInfo,
+      clinicConfig,
+      returningPatient,
+    );
+  } else {
+    greeting = await greetingService.generateGreeting(leadInfo, clinicConfig);
+  }
 
   if (!greeting) {
     logger.warn(
-      `AI greeting generation failed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}. Using fallback message.`,
+      `${cid}AI greeting generation failed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}. Using fallback message.`,
     );
     greeting = FALLBACK_AI_UNAVAILABLE;
     await conversationsService.flagForHumanIntervention(
@@ -127,7 +175,7 @@ export async function handleNewLeadFlow(
     );
   }
 
-  // Send via GHL (3× retry with jitter handled by GhlApiService)
+  // Send via GHL (3x retry with jitter handled by GhlApiService)
   let ghlMessageId: string | undefined;
   try {
     const sendResult = await ghlApiService.sendMessageWithRetry({
@@ -147,7 +195,7 @@ export async function handleNewLeadFlow(
     );
   }
 
-  // Persist the greeting and advance the phase
+  // Persist the greeting message
   await messagesService.addMessage(
     conversation._id as Types.ObjectId,
     clinicObjectId,
@@ -158,11 +206,16 @@ export async function handleNewLeadFlow(
     ghlMessageId,
   );
 
+  // Returning patients stay in 'greeting' so the next reply can be detected as
+  // DETAILS_UNCHANGED or DETAILS_CHANGED before moving to booking or qualifying.
+  // New patients advance directly to 'qualifying'.
+  const targetPhase = returningPatient ? "greeting" : "qualifying";
   await conversationsService.updatePhase(
     conversation._id as Types.ObjectId,
-    "qualifying",
+    targetPhase,
   );
+
   logger.log(
-    `${cid}New lead processed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
+    `${cid}New lead processed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}, phase: ${targetPhase}`,
   );
 }
