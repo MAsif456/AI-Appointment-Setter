@@ -58,6 +58,19 @@ export const DECLINE_CANCEL_KEYWORDS = [
   "i'll keep it", "i'll still come", "actually no", 'on second thought',
 ];
 
+/** Keywords indicating a returning patient confirms their details are unchanged. */
+export const DETAILS_UNCHANGED_KEYWORDS = [
+  'yes', 'same', 'nothing changed', "hasn't changed", 'all the same',
+  'still the same', 'no changes', 'correct', "that's right", 'all correct',
+  'yep', 'yeah', 'yea', 'right', 'aye',
+];
+
+/** Keywords indicating a returning patient says their details have changed. */
+export const DETAILS_CHANGED_KEYWORDS = [
+  'moved', 'new address', 'different postcode', 'changed', 'new number',
+  'different number', 'updated', 'no longer', 'different details', 'different area',
+];
+
 /** Default SMS message type used for ContactCreate events where no channel is known. */
 export const DEFAULT_MESSAGE_TYPE = "SMS";
 
@@ -86,6 +99,8 @@ export interface OrchestratorContext {
     email?: string;
     issue?: string;
   };
+  /** True when a PatientHistory record was matched at conversation start. */
+  isReturningPatient?: boolean;
 }
 
 /** Static response returned when a message looks like a postcode but is not a valid UK format. */
@@ -100,4 +115,6 @@ export type IntentResult =
   | { intent: "CANCEL" }
   | { intent: "CONFIRM_CANCEL" }
   | { intent: "DECLINE_CANCEL" }
+  | { intent: "DETAILS_UNCHANGED" }
+  | { intent: "DETAILS_CHANGED" }
   | { intent: "UNKNOWN" };
