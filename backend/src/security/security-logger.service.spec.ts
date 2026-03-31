@@ -70,6 +70,63 @@ describe('SecurityLoggerService', () => {
     });
   });
 
+  describe('logEvent edge cases', () => {
+    it('should log second line for sanitise action with sanitisedMessage', async () => {
+      const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
+
+      await service.logEvent({
+        eventType: 'message_sanitised',
+        threatScore: 0.4,
+        flags: ['test_flag'],
+        originalMessage: 'some suspicious content',
+        sanitisedMessage: 'cleaned content',
+        conversationId: mockConversationId,
+        clinicId: mockClinicId,
+        timestamp: new Date(),
+        action: 'sanitise',
+      });
+
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      expect(warnSpy.mock.calls[1][0]).toContain('sanitised="cleaned content"');
+    });
+
+    it('should log block action without sanitisedMessage', async () => {
+      const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
+
+      await service.logEvent({
+        eventType: 'injection_blocked',
+        threatScore: 0.9,
+        flags: ['test_flag'],
+        originalMessage: 'bad content',
+        conversationId: mockConversationId,
+        clinicId: mockClinicId,
+        timestamp: new Date(),
+        action: 'block',
+      });
+
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      // Should not contain "sanitised=" when no sanitisedMessage provided
+      expect(warnSpy.mock.calls[1][0]).not.toContain('sanitised=');
+    });
+
+    it('should not log second line for pass action', async () => {
+      const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
+
+      await service.logEvent({
+        eventType: 'injection_detected',
+        threatScore: 0.1,
+        flags: ['weak_signal'],
+        originalMessage: 'some message',
+        conversationId: mockConversationId,
+        clinicId: mockClinicId,
+        timestamp: new Date(),
+        action: 'pass',
+      });
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // Conversation flagging
 
   describe('flagConversation', () => {
@@ -124,12 +181,30 @@ describe('SecurityLoggerService', () => {
       expect(count).toBe(2);
     });
 
+    it('should return 0 when conversation is not found', async () => {
+      mockConversationModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue(null),
+      });
+
+      const count = await service.getInjectionCount(mockConversationId);
+      expect(count).toBe(0);
+    });
+
     it('should return 0 when query fails', async () => {
       mockConversationModel.findById.mockReturnValue({
         select: jest.fn().mockRejectedValue(new Error('DB error')),
       });
 
       const count = await service.getInjectionCount(mockConversationId);
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('incrementInjectionCount', () => {
+    it('should return 0 when findByIdAndUpdate returns null', async () => {
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue(null);
+
+      const count = await service.incrementInjectionCount(mockConversationId);
       expect(count).toBe(0);
     });
   });
