@@ -27,16 +27,10 @@ import {
   GhlInboundMessagePayload,
 } from "./dto/ghl-webhook.dto";
 
-/** Response shape returned to GHL after processing any webhook event. */
 export interface WebhookResponse {
   success: boolean;
 }
 
-/**
- * Handles all routing logic for GHL webhook events.
- * Depends on ClinicsService to resolve location.id → clinic document.
- * Delegates conversation orchestration to OrchestratorService.
- */
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
@@ -50,7 +44,7 @@ export class WebhooksService {
    * Entry point for all incoming GHL webhook events.
    *
    * Processing steps:
-   *   1. Log the full raw payload for debugging purposes.
+   *   1. Extract and log metadata only (type + locationId) — no PII in logs.
    *   2. Extract location.id — warn and return early if absent.
    *   3. Look up the clinic by GHL Location ID.
    *   4. If clinic is not found, log and return 200 without processing.
@@ -68,14 +62,16 @@ export class WebhooksService {
     payload: Record<string, unknown>,
   ): Promise<WebhookResponse> {
     const correlationId = generateCorrelationId();
+    const ghlType = typeof payload.type === "string" ? payload.type : "unknown";
+    const location = payload.location as Record<string, unknown> | undefined;
+    const ghlLocationId =
+      typeof location?.id === "string" ? location.id : "unknown";
     this.logger.log(
-      `[${correlationId}] GHL webhook received: ${JSON.stringify(payload)}`,
+      `[${correlationId}] GHL webhook received: type=${ghlType}, locationId=${ghlLocationId}`,
     );
 
     try {
       const ghlPayload = payload as GhlWebhookPayload;
-
-      /** GHL sends the location ID nested under location.id, not at root level. */
       const locationId = ghlPayload.location?.id;
       const { type } = ghlPayload;
 
@@ -119,7 +115,6 @@ export class WebhooksService {
           this.logger.warn(`Unrecognised GHL event type: ${type}`);
       }
     } catch (err) {
-      /** Log the error but still return 200 to prevent GHL retry storms. */
       this.logger.error(
         `Error processing GHL webhook: ${(err as Error).message}`,
         (err as Error).stack,
@@ -129,15 +124,6 @@ export class WebhooksService {
     return { success: true };
   }
 
-  /**
-   * Handles a ContactCreate event.
-   * Contact fields arrive at root level in snake_case format per GHL standard data.
-   * Delegates the full AI greeting flow to OrchestratorService.
-   *
-   * @param payload - The ContactCreate webhook payload from GHL.
-   * @param clinicName - The name of the matched clinic, used in log output.
-   * @param clinicConfig - The resolved clinic configuration for the orchestrator.
-   */
   private async handleContactCreate(
     payload: GhlContactCreatePayload,
     clinicName: string,
@@ -156,15 +142,6 @@ export class WebhooksService {
     );
   }
 
-  /**
-   * Handles an InboundMessage event.
-   * Message content arrives nested under payload.message.body per GHL standard data.
-   * Delegates the intent detection and AI response flow to OrchestratorService.
-   *
-   * @param payload - The InboundMessage webhook payload from GHL.
-   * @param clinicName - The name of the matched clinic, used in log output.
-   * @param clinicConfig - The resolved clinic configuration for the orchestrator.
-   */
   private async handleInboundMessage(
     payload: GhlInboundMessagePayload,
     clinicName: string,
@@ -186,17 +163,6 @@ export class WebhooksService {
     );
   }
 
-  /**
-   * Converts a ClinicDocument from MongoDB into the ClinicConfig interface
-   * expected by the AI and orchestrator services.
-   *
-   * Maps the stored tone value ('friendly' | 'professional' | 'balanced') to the
-   * AI interface's capitalised format ('Friendly' | 'Professional').
-   * Treats 'balanced' and any unknown value as 'Friendly'.
-   *
-   * @param clinic - The full clinic document from MongoDB.
-   * @returns A ClinicConfig ready to pass to AI and orchestration services.
-   */
   private buildClinicConfig(clinic: ClinicDocument): ClinicConfig {
     const tone =
       clinic.aiConfig?.tone === "professional" ? "Professional" : "Friendly";
