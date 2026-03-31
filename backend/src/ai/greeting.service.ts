@@ -79,8 +79,11 @@ export class GreetingService {
 
     // Build an AI prompt appropriate to the confidence level
     const prompt = this.buildReturningPatientPrompt(leadInfo, clinicConfig, returningPatient);
+    const resolvedName = (leadInfo.firstName && leadInfo.firstName !== 'there')
+      ? leadInfo.firstName
+      : returningPatient.firstName;
     this.logger.log(
-      `Generating returning patient greeting for lead: ${leadInfo.firstName} (confidence: ${returningPatient.confidence})`,
+      `Generating returning patient greeting for lead: ${resolvedName} (confidence: ${returningPatient.confidence})`,
     );
 
     const greeting = await this.groqService.generateResponse(prompt);
@@ -111,15 +114,21 @@ export class GreetingService {
     clinicConfig: ClinicConfig,
     returningPatient: ReturningPatientResult,
   ): string {
+    // Prefer the name from PatientHistory (always populated at booking time) over the
+    // lead record, which may be empty when the webhook fires before GHL contact sync.
+    const firstName = (leadInfo.firstName && leadInfo.firstName !== 'there')
+      ? leadInfo.firstName
+      : returningPatient.firstName;
+
     const isStale = returningPatient.confidence === 'stale';
     const openingInstruction = isStale
-      ? `The patient has contacted before but it has been a while. Open warmly, e.g. "It's been a while, great to hear from you again, ${leadInfo.firstName}!"`
-      : `Greet the patient as a returning patient, e.g. "Welcome back, ${leadInfo.firstName}!"`;
+      ? `The patient has contacted before but it has been a while. Open warmly, e.g. "It's been a while, great to hear from you again, ${firstName}!"`
+      : `Greet the patient as a returning patient, e.g. "Welcome back, ${firstName}!"`;
 
     const parts: string[] = [
       `You are the receptionist for ${clinicConfig.name}.`,
       `${openingInstruction}`,
-      `IMPORTANT: You MUST address the patient by their first name (${leadInfo.firstName}) in the greeting.`,
+      `IMPORTANT: You MUST address the patient by their first name (${firstName}) in the greeting.`,
       'Then in the same message ask whether their contact details are still the same.',
       'Keep the response to 2 sentences maximum.',
       'Use British English spelling.',

@@ -163,8 +163,9 @@ export class ConversationsService {
       }
     }
 
-    // When a returning patient provides a new postcode in qualifying phase, save it to context
-    if (conversation.isReturningPatient && conversation.phase === 'qualifying') {
+    // Save validated postcode to context whenever a valid postcode is detected in any message.
+    // This ensures PatientHistory captures the postcode for both new and returning patients.
+    if (['greeting', 'qualifying'].includes(conversation.phase)) {
       const serviceAreas = clinic.serviceAreas?.map((sa: any) => sa.postcodePrefix) ?? [];
       const postcodeResult = this.postcodeValidationService.validate(userMessage, serviceAreas);
       if (postcodeResult.status === 'valid' && postcodeResult.postcode) {
