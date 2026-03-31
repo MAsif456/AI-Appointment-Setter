@@ -8,6 +8,7 @@ import { ConversationSchema } from './schemas/conversation.schema';
 import { MessageSchema } from './schemas/message.schema';
 import { AppointmentSchema } from './schemas/appointment.schema';
 import { AuditLogSchema } from './schemas/audit-log.schema';
+import { PatientHistorySchema } from './schemas/patient-history.schema';
 
 import { seedUsers } from './seeds/user.seed';
 import { seedClinics } from './seeds/clinic.seed';
@@ -16,6 +17,7 @@ import { seedConversations } from './seeds/conversation.seed';
 import { seedMessages } from './seeds/message.seed';
 import { seedAppointments } from './seeds/appointment.seed';
 import { seedAuditLogs } from './seeds/audit-log.seed';
+import { seedPatientHistory } from './seeds/patient-history.seed';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/appointhealth';
 
@@ -33,6 +35,7 @@ async function seedDatabase() {
     const MessageModel = connection.model('Message', MessageSchema);
     const AppointmentModel = connection.model('Appointment', AppointmentSchema);
     const AuditLogModel = connection.model('AuditLog', AuditLogSchema);
+    const PatientHistoryModel = connection.model('PatientHistory', PatientHistorySchema);
 
     console.log('Clearing database...');
 
@@ -53,6 +56,7 @@ async function seedDatabase() {
     await seedMessages(MessageModel, clinics, leads, conversations);
     await seedAppointments(AppointmentModel, clinics, leads, conversations);
     await seedAuditLogs(AuditLogModel, clinics, adminUser);
+    await seedPatientHistory(PatientHistoryModel, clinics, leads, conversations);
 
     console.log('==========================================');
     console.log('DATABASE SEEDED SUCCESSFULLY!');
@@ -64,10 +68,11 @@ async function seedDatabase() {
     console.log(`Login: admin@lunaxdigital.com / admin123\n`);
     // Print conversation IDs for reference
     console.log('Conversation IDs:');
-    console.log(`   Sarah Williams (Confirmed): ${conversations[0]._id}`);
-    console.log(`   John Davies (Qualified):    ${conversations[1]._id}`);
-    console.log(`   Rachel Green (Booking/Live): ${conversations[2]._id}`);
-    console.log(`   Lisa Evans (Declined):      ${conversations[3]._id}\n`);
+    console.log(`   Sarah Williams (Confirmed):          ${conversations[0]._id}`);
+    console.log(`   John Davies (Qualified):             ${conversations[1]._id}`);
+    console.log(`   Rachel Green (Booking/Live):         ${conversations[2]._id}`);
+    console.log(`   Lisa Evans (Declined):               ${conversations[3]._id}`);
+    console.log(`   James Morgan (Returning patient):    ${conversations[4]._id}\n`);
 
   } catch (error) {
 

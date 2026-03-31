@@ -58,6 +58,37 @@ export const DECLINE_CANCEL_KEYWORDS = [
   "i'll keep it", "i'll still come", "actually no", 'on second thought',
 ];
 
+/** Keywords indicating a returning patient confirms their details are unchanged. */
+export const DETAILS_UNCHANGED_KEYWORDS = [
+  'yes', 'same', 'nothing changed', "hasn't changed", 'all the same',
+  'still the same', 'no changes', 'correct', "that's right", 'all correct',
+  'yep', 'yeah', 'yea', 'right', 'aye', 'ok', 'okay',
+];
+
+/** Keywords indicating a returning patient says their details have changed. */
+export const DETAILS_CHANGED_KEYWORDS = [
+  'moved', 'new address', 'different postcode', 'changed', 'new number',
+  'different number', 'updated', 'no longer', 'different details', 'different area',
+  'no', 'nope', 'not the same', 'they have changed', 'details have changed',
+];
+
+/**
+ * Checks whether a message matches any of the given keywords with context-aware precision.
+ *
+ * - Single-word keywords: only match when the full trimmed message IS that word exactly.
+ *   This prevents "yes I have back pain" triggering DETAILS_UNCHANGED via the 'yes' keyword.
+ * - Multi-word phrases (keywords containing a space): use substring matching (includes),
+ *   since partial phrase matches are intentional (e.g. "nothing changed" inside a sentence).
+ *
+ * @param lower - The already-lowercased, trimmed message.
+ * @param keywords - The keyword list to test against.
+ */
+export function matchesKeywords(lower: string, keywords: string[]): boolean {
+  return keywords.some((kw) =>
+    kw.includes(' ') ? lower.includes(kw) : lower === kw,
+  );
+}
+
 /** Default SMS message type used for ContactCreate events where no channel is known. */
 export const DEFAULT_MESSAGE_TYPE = "SMS";
 
@@ -86,6 +117,8 @@ export interface OrchestratorContext {
     email?: string;
     issue?: string;
   };
+  /** True when a PatientHistory record was matched at conversation start. */
+  isReturningPatient?: boolean;
 }
 
 /** Static response returned when a message looks like a postcode but is not a valid UK format. */
@@ -100,4 +133,6 @@ export type IntentResult =
   | { intent: "CANCEL" }
   | { intent: "CONFIRM_CANCEL" }
   | { intent: "DECLINE_CANCEL" }
+  | { intent: "DETAILS_UNCHANGED" }
+  | { intent: "DETAILS_CHANGED" }
   | { intent: "UNKNOWN" };

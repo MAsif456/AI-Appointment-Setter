@@ -1,0 +1,60 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+
+export type PatientHistoryDocument = PatientHistory & Document;
+
+/**
+ * Stores one record per patient per clinic after a successful booking.
+ * Used to identify returning patients at conversation start and skip
+ * previously completed qualification steps.
+ *
+ * Compound indexes on { clinicId, phone } and { clinicId, email } ensure
+ * fast lookups without cross-clinic bleed.
+ */
+@Schema({ timestamps: true })
+export class PatientHistory {
+  /** Clinic this history record belongs to — scopes all lookups. */
+  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  clinicId: Types.ObjectId;
+
+  /** Normalised phone number used as the primary lookup key. */
+  @Prop({ required: true, trim: true })
+  phone: string;
+
+  /** Email address used as the secondary lookup key (optional). */
+  @Prop({ lowercase: true, trim: true })
+  email?: string;
+
+  /** Lead's first name for personalised greeting generation. */
+  @Prop({ required: true, trim: true })
+  firstName: string;
+
+  /** Lead's last name (optional). */
+  @Prop({ trim: true })
+  lastName?: string;
+
+  /** The validated postcode from the most recent booking — loaded into context
+   *  when a returning patient skips qualification. */
+  @Prop({ trim: true, uppercase: true })
+  validatedPostcode?: string;
+
+  /** Reference to the conversation that resulted in the most recent booking. */
+  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  previousConversationId?: Types.ObjectId;
+
+  /** Date of the most recent completed booking — used for stale data expiry checks. */
+  @Prop({ required: true })
+  lastBookedAt: Date;
+
+  // timestamps: createdAt, updatedAt (automatic)
+}
+
+export const PatientHistorySchema = SchemaFactory.createForClass(PatientHistory);
+
+// Primary lookup path: phone + clinic (high-confidence match).
+// unique: true means each patient has exactly one record per clinic — re-bookings upsert.
+PatientHistorySchema.index({ clinicId: 1, phone: 1 }, { unique: true });
+
+// Secondary lookup path: email + clinic (medium-confidence match).
+// sparse: true skips documents where email is absent.
+PatientHistorySchema.index({ clinicId: 1, email: 1 }, { sparse: true });

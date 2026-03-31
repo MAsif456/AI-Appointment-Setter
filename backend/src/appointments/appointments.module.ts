@@ -11,11 +11,13 @@ import {
   Conversation,
   ConversationSchema,
 } from '../database/schemas/conversation.schema';
+import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import {
   IdempotencyKey,
   IdempotencyKeySchema,
 } from './idempotency-key.schema';
 import { GhlModule } from '../ghl/ghl.module';
+import { PatientHistoryModule } from '../patient-history/patient-history.module';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsController } from './appointments.controller';
 import { SlotsService } from './services/slots.service';
@@ -28,11 +30,13 @@ import { IdempotencyInterceptor } from './idempotency.interceptor';
       { name: Appointment.name, schema: AppointmentSchema },
       { name: Clinic.name, schema: ClinicSchema },
       { name: Conversation.name, schema: ConversationSchema },
+      { name: Lead.name, schema: LeadSchema },
       { name: IdempotencyKey.name, schema: IdempotencyKeySchema },
     ]),
     GhlModule,
     HttpModule,
     ConfigModule,
+    PatientHistoryModule,
   ],
   controllers: [AppointmentsController],
   providers: [

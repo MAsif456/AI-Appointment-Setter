@@ -171,6 +171,8 @@ export class WebhooksService {
       name: clinic.name,
       tone,
       greetingTemplate: clinic.aiConfig?.greetingTemplate || undefined,
+      returningPatientGreetingTemplate: clinic.aiConfig?.returningPatientGreetingTemplate || undefined,
+      patientDataExpiryDays: clinic.aiConfig?.patientDataExpiryDays ?? 365,
       serviceAreas: clinic.serviceAreas?.map((sa) => sa.postcodePrefix) ?? [],
       customInstructions: clinic.aiConfig?.customInstructions || undefined,
       ghlLocationId: clinic.ghlLocationId,

@@ -25,12 +25,17 @@ export default function BookingChat({ leadName, clinicName }: BookingChatProps) 
         const res = await fetch(`${API_BASE}/conversations`);
         const data = await res.json();
 
-        // Find the conversation matching this lead by name and clinic
-        const match = data.find((c: any) => {
+        // Find all conversations matching this lead by name and clinic
+        const matches = data.filter((c: any) => {
           const name = `${c.leadId?.firstName ?? ''} ${c.leadId?.lastName ?? ''}`.trim();
           const clinic = c.clinicId?.name ?? '';
           return name === leadName && clinic === clinicName;
         });
+        // Prefer returning patient conversation; otherwise pick most recent
+        const match = matches.find((c: any) => c.isReturningPatient)
+          ?? matches.sort((a: any, b: any) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )[0];
 
         if (match) {
           setConversationId(match._id);

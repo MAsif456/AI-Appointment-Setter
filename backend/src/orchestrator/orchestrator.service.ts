@@ -15,6 +15,7 @@ import { CancellationService } from "../cancellation/cancellation.service";
 import { ConversationsService } from "../ghl/conversations.service";
 import { MessagesService } from "../ghl/messages.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
+import { PatientHistoryService } from "../patient-history/patient-history.service";
 import {
   GhlContactCreatePayload,
   GhlInboundMessagePayload,
@@ -27,6 +28,9 @@ import {
   CANCEL_KEYWORDS,
   CONFIRM_KEYWORDS,
   DECLINE_CANCEL_KEYWORDS,
+  DETAILS_UNCHANGED_KEYWORDS,
+  DETAILS_CHANGED_KEYWORDS,
+  matchesKeywords,
   OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
@@ -45,6 +49,10 @@ import {
   handleDeclineCancel,
   handleCancellationReason,
 } from "./orchestrator.cancel-handlers";
+import {
+  handleDetailsUnchanged,
+  handleDetailsChanged,
+} from "./orchestrator.returning-patient-handlers";
 
 export { FALLBACK_MESSAGE };
 export type { OrchestratorMessage, OrchestratorContext, IntentResult };
@@ -61,6 +69,7 @@ export class OrchestratorService {
     private readonly messagesService: MessagesService,
     private readonly ghlApiService: GhlApiService,
     private readonly postcodeValidationService: PostcodeValidationService,
+    private readonly patientHistoryService: PatientHistoryService,
   ) {}
 
   async handleNewLead(
@@ -73,6 +82,7 @@ export class OrchestratorService {
       conversationsService: this.conversationsService,
       messagesService: this.messagesService,
       ghlApiService: this.ghlApiService,
+      patientHistoryService: this.patientHistoryService,
       logger: this.logger,
       correlationId,
     });
@@ -97,11 +107,33 @@ export class OrchestratorService {
 
   /**
    * Detects the intent of an inbound message based on its content and the current phase.
-   * Phase-gating: PROVIDE_POSTCODE / INVALID_POSTCODE_FORMAT only in 'qualifying',
-   * WANT_TO_BOOK only in 'qualified'.
+   *
+   * Phase-gating rules:
+   *   - DETAILS_UNCHANGED / DETAILS_CHANGED: only in 'greeting' phase for returning patients.
+   *   - PROVIDE_POSTCODE / INVALID_POSTCODE_FORMAT: only in 'qualifying' phase.
+   *   - WANT_TO_BOOK: only in 'qualified' phase.
+   *   - Cancellation intents: only in 'booked', 'cancelling', 'cancelling_warned' phases.
+   *
+   * @param messageContent - The raw message text from the lead.
+   * @param currentPhase - The conversation's current phase value.
+   * @param context - Optional context used to gate returning-patient intents.
    */
-  detectIntent(messageContent: string, currentPhase: string): IntentResult {
+  detectIntent(
+    messageContent: string,
+    currentPhase: string,
+    context?: Pick<OrchestratorContext, 'isReturningPatient'>,
+  ): IntentResult {
     const lower = messageContent.toLowerCase();
+
+    // Returning patient detail confirmation — only when in greeting phase with a matched patient
+    if (currentPhase === "greeting" && context?.isReturningPatient) {
+      if (matchesKeywords(lower, DETAILS_UNCHANGED_KEYWORDS)) {
+        return { intent: "DETAILS_UNCHANGED" };
+      }
+      if (matchesKeywords(lower, DETAILS_CHANGED_KEYWORDS)) {
+        return { intent: "DETAILS_CHANGED" };
+      }
+    }
 
     if (currentPhase === "qualifying") {
       const postcodeMatch = messageContent.match(POSTCODE_REGEX);
@@ -196,6 +228,14 @@ export class OrchestratorService {
       return this.groqService.generateResponse(
         buildSingleTurnPrompt(bookingContext, context, clinicConfig),
       );
+    }
+
+    // Returning patient detail confirmation — static responses, no AI call needed
+    if (intent.intent === "DETAILS_UNCHANGED") {
+      return handleDetailsUnchanged();
+    }
+    if (intent.intent === "DETAILS_CHANGED") {
+      return handleDetailsChanged();
     }
 
     // Cancellation intents — delegated to extracted handlers
