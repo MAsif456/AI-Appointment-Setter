@@ -21,7 +21,9 @@ export default function LoginPage() {
   // Check for session expiration message
   useEffect(() => {
     if (searchParams.get('expired') === 'true') {
-      setError('Please log in again with your email and password.');
+      setError('Your session has expired. Please log in again.');
+      
+      window.history.replaceState({}, '', '/login');
     }
   }, [searchParams]);
 
@@ -56,15 +58,9 @@ export default function LoginPage() {
       await login(email, password);
       // Redirect is handled by AuthContext
     } catch (err: any) {
-      // DEBUG: Log the full error
-    console.log('Full error object:', err);
-    console.log('Error response:', err.response);
-    console.log('Error response data:', err.response?.data);
-    console.log('Error message:', err.response?.data?.message);
       setError(err.response?.data?.message || 'Invalid email or password');
       setSuccess('');
       // Clear inputs
-      setEmail('');
       setPassword('');
     } finally {
       setLoading(false);

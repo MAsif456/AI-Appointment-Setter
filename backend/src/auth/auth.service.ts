@@ -54,8 +54,8 @@ export class AuthService {
       passwordHash,
       role: dto.role,
       assignedClinics: dto.assignedClinics?.map(id => new Types.ObjectId(id)) || [],
-      isActive: false,
       isVerified: false,
+      isActive: false,
       verificationToken,
       verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
@@ -108,11 +108,12 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.userModel.findOne({ email: dto.email.toLowerCase() });
 
-    if (!user || !user.isActive) throw new UnauthorizedException('Invalid email or password');
-    if (!user.isVerified) throw new UnauthorizedException('Please verify your email before logging in.');
+    if (!user) { throw new UnauthorizedException('Invalid email or password');}
+    if (!user.isVerified) { throw new UnauthorizedException('Please verify your email before logging in.');}
+    if (!user || !user.isActive) { throw new UnauthorizedException('Invalid email or password');}
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isPasswordValid) throw new UnauthorizedException('Invalid email or password');
+    if (!isPasswordValid) { throw new UnauthorizedException('Invalid email or password');}
 
     user.lastLoginAt = new Date();
     await user.save();

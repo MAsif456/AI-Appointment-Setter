@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/apiAxios';
 import UserModal from './UserModal';
 import styles from '../settings.module.css';
+import { Shield, Users as UserIcon } from 'lucide-react';
 
 export interface StaffUser {
   _id: string;
@@ -37,9 +38,9 @@ export default function UserManagement() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   /** Shows a toast notification that auto-dismisses after 4 seconds */
-  const showToast = (type: 'success' | 'error', message: string) => {
+  const showToast = (type: 'success' | 'error', message: string, duration = 4000) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), duration);
   };
 
   const fetchUsers = useCallback(async () => {
@@ -71,11 +72,11 @@ export default function UserManagement() {
     }
   };
 
-  const onModalSuccess = (message: string) => {
-    setShowAdd(false);
-    setEditUser(null);
-    fetchUsers();
-    showToast('success', message);
+  const onModalSuccess = (message: string, duration = 4000) => {
+  setShowAdd(false);
+  setEditUser(null);
+  fetchUsers();
+  showToast('success', message, duration);
   };
 
   return (
@@ -86,7 +87,7 @@ export default function UserManagement() {
           <p className={styles.sectionDesc}>Manage staff accounts and permissions</p>
         </div>
         <button className={styles.primaryButton} onClick={() => setShowAdd(true)}>
-          <Plus size={16} /> Add Staff Member
+          <UserPlus size={18} /> Add Staff Member
         </button>
       </div>
 
@@ -104,7 +105,7 @@ export default function UserManagement() {
         ) : (
           users.map(u => (
             <div key={u._id} className={styles.userCard}>
-              <div className={styles.userAvatar}>{u.role === 'admin' ? '🛡' : '👤'}</div>
+              <div className={styles.userAvatar}> {u.role === 'admin' ? <Shield size={20} /> : <UserIcon size={20} />}</div>
               <div className={styles.userCardInfo}>
                 <div className={styles.userCardName}>{u.name}</div>
                 <div className={styles.userCardEmail}>{u.email}</div>
@@ -151,7 +152,12 @@ export default function UserManagement() {
 
       {showAdd && (
         <UserModal mode="add" clinics={clinics} onClose={() => setShowAdd(false)}
-          onSuccess={() => onModalSuccess('User created. A verification link has been sent.')} />
+        onSuccess={() =>
+          onModalSuccess(
+            'User created. Ask the user to check their email to verify their account.',
+            8000
+          )
+        } />
       )}
 
       {editUser && (
