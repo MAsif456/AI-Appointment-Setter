@@ -13,6 +13,7 @@ import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
@@ -29,6 +30,12 @@ const mockCancellationService = {
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
+const mockSecurityPipeline = {
+  processInbound: jest.fn().mockImplementation((msg: string) =>
+    Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+  ),
+  validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+};
 
 const clinicConfig: ClinicConfig = {
   clinicId: '507f1f77bcf86cd799439013',
@@ -63,6 +70,7 @@ describe('OrchestratorService — cancellation responses', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
       ],
     }).compile();
 
