@@ -72,6 +72,23 @@ export const DETAILS_CHANGED_KEYWORDS = [
   'no', 'nope', 'not the same', 'they have changed', 'details have changed',
 ];
 
+/**
+ * Checks whether a message matches any of the given keywords with context-aware precision.
+ *
+ * - Single-word keywords: only match when the full trimmed message IS that word exactly.
+ *   This prevents "yes I have back pain" triggering DETAILS_UNCHANGED via the 'yes' keyword.
+ * - Multi-word phrases (keywords containing a space): use substring matching (includes),
+ *   since partial phrase matches are intentional (e.g. "nothing changed" inside a sentence).
+ *
+ * @param lower - The already-lowercased, trimmed message.
+ * @param keywords - The keyword list to test against.
+ */
+export function matchesKeywords(lower: string, keywords: string[]): boolean {
+  return keywords.some((kw) =>
+    kw.includes(' ') ? lower.includes(kw) : lower === kw,
+  );
+}
+
 /** Default SMS message type used for ContactCreate events where no channel is known. */
 export const DEFAULT_MESSAGE_TYPE = "SMS";
 

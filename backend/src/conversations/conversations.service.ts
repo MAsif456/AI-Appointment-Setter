@@ -16,7 +16,7 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
-import { FALLBACK_AI_UNAVAILABLE, DETAILS_UNCHANGED_KEYWORDS, DETAILS_CHANGED_KEYWORDS } from '../orchestrator/orchestrator.types';
+import { FALLBACK_AI_UNAVAILABLE, DETAILS_UNCHANGED_KEYWORDS, DETAILS_CHANGED_KEYWORDS, matchesKeywords } from '../orchestrator/orchestrator.types';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { resolveSlotSelectionIntent } from './slot-selection.resolver';
@@ -140,10 +140,12 @@ export class ConversationsService {
     );
     if (cancelResult) return cancelResult;
 
-    // Returning patient detail confirmation — update context/phase then fall through to AI
+    // Returning patient detail confirmation — LiveChat API path.
+    // NOTE: The GHL webhook path handles the same signals in orchestrator.inbound-message.ts.
+    // See that file for an explanation of why both paths exist.
     if (conversation.isReturningPatient && conversation.phase === 'greeting') {
-      const lower = userMessage.toLowerCase();
-      if (DETAILS_UNCHANGED_KEYWORDS.some(kw => lower.includes(kw))) {
+      const lower = userMessage.toLowerCase().trim();
+      if (matchesKeywords(lower, DETAILS_UNCHANGED_KEYWORDS)) {
         // Copy stored postcode into active context so booking flow can use it
         const storedPostcode = conversation.context?.get('returningPatientPostcode') as string | undefined;
         if (storedPostcode) {
@@ -155,7 +157,7 @@ export class ConversationsService {
         await this.persistence.updateConversationMeta(conversation, 'ai', 'booking');
         // Fall through to normal AI flow — no intermediate acknowledgement message
       }
-      if (DETAILS_CHANGED_KEYWORDS.some(kw => lower.includes(kw))) {
+      if (matchesKeywords(lower, DETAILS_CHANGED_KEYWORDS)) {
         await this.persistence.updateConversationMeta(conversation, 'ai', 'qualifying');
         const reply = handleDetailsChanged();
         await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
@@ -249,6 +251,11 @@ export class ConversationsService {
     // Preserve returning patient postcode across reset so the AI doesn't re-ask for it
     const returningPostcode = conversation.context?.get('returningPatientPostcode') as string | undefined;
 
+    // NOTE: isReturningPatient, previousConversationId, and returningPatientConfidence
+    // are intentionally NOT reset here. A conversation reset (e.g. re-booking after a
+    // failed flow) should still recognise the patient as returning so the greeting
+    // correctly offers to reuse their details on file. These flags are set once at
+    // conversation start by PatientHistoryService.findReturningPatient.
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       $set: {
         phase: 'greeting', messageCount: 0, offeredSlots: [], slotHistory: [],

@@ -111,13 +111,17 @@ export class PatientHistoryService {
    */
   async persistHistory(
     clinicId: string,
-    phone: string,
+    phone: string | undefined,
     email: string | undefined,
     firstName: string,
     lastName: string | undefined,
     validatedPostcode: string | undefined,
     conversationId: Types.ObjectId,
   ): Promise<void> {
+    if (!phone) {
+      this.logger.warn(`persistHistory called without a phone number — clinicId: ${clinicId}. Skipping.`);
+      return;
+    }
     try {
       const clinicObjectId = new Types.ObjectId(clinicId);
       const normalisedPhone = this.normalisePhone(phone);

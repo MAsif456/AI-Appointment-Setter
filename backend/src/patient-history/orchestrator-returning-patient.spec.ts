@@ -170,23 +170,38 @@ describe('OrchestratorService - returning patient flow', () => {
     expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'qualifying');
   });
 
-  it('detects DETAILS_UNCHANGED intent when phase is greeting and patient is returning', () => {
-    const intent = orchestratorService.detectIntent('yes same', 'greeting', { isReturningPatient: true });
+  it('detects DETAILS_UNCHANGED intent when phase is greeting and patient is returning (exact single-word)', () => {
+    const intent = orchestratorService.detectIntent('yes', 'greeting', { isReturningPatient: true });
     expect(intent.intent).toBe('DETAILS_UNCHANGED');
   });
 
-  it('detects DETAILS_CHANGED intent when phase is greeting and patient is returning', () => {
-    const intent = orchestratorService.detectIntent('I have moved', 'greeting', { isReturningPatient: true });
+  it('detects DETAILS_UNCHANGED intent when phase is greeting and patient is returning (multi-word phrase mid-sentence)', () => {
+    const intent = orchestratorService.detectIntent('actually nothing changed for me', 'greeting', { isReturningPatient: true });
+    expect(intent.intent).toBe('DETAILS_UNCHANGED');
+  });
+
+  it('detects DETAILS_CHANGED intent when phase is greeting and patient is returning (exact single-word)', () => {
+    const intent = orchestratorService.detectIntent('moved', 'greeting', { isReturningPatient: true });
+    expect(intent.intent).toBe('DETAILS_CHANGED');
+  });
+
+  it('detects DETAILS_CHANGED intent when phase is greeting and patient is returning (multi-word phrase)', () => {
+    const intent = orchestratorService.detectIntent('details have changed', 'greeting', { isReturningPatient: true });
     expect(intent.intent).toBe('DETAILS_CHANGED');
   });
 
   it('does not detect DETAILS_UNCHANGED when isReturningPatient is false', () => {
-    const intent = orchestratorService.detectIntent('yes same', 'greeting', { isReturningPatient: false });
+    const intent = orchestratorService.detectIntent('yes', 'greeting', { isReturningPatient: false });
     expect(intent.intent).toBe('UNKNOWN');
   });
 
   it('does not detect DETAILS_CHANGED when isReturningPatient is false', () => {
-    const intent = orchestratorService.detectIntent('I have moved', 'greeting', { isReturningPatient: false });
+    const intent = orchestratorService.detectIntent('moved', 'greeting', { isReturningPatient: false });
+    expect(intent.intent).toBe('UNKNOWN');
+  });
+
+  it('does not detect DETAILS_UNCHANGED when single-word keyword appears mid-sentence', () => {
+    const intent = orchestratorService.detectIntent('yes I have back pain', 'greeting', { isReturningPatient: true });
     expect(intent.intent).toBe('UNKNOWN');
   });
 });

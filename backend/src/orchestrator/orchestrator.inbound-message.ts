@@ -245,6 +245,13 @@ export async function handleInboundMessageFlow(
       await conversationsService.updatePhase(conversationObjectId, "booked");
     }
   } else if (intent.intent === "DETAILS_UNCHANGED") {
+    // DETAILS_UNCHANGED / DETAILS_CHANGED intents are also handled in
+    // conversations.service.ts (sendMessage) for the LiveChat API path.
+    // Both paths must stay in sync because:
+    //   - This file handles GHL webhook events (SMS / WhatsApp / Facebook leads
+    //     arriving via the /webhooks endpoint through OrchestratorService).
+    //   - conversations.service.ts handles direct API calls from the LiveChat widget
+    //     routed through ConversationsController (/conversations/:id/message).
     // Copy the historical postcode into validatedPostcode so downstream booking
     // services can use it without knowing whether the patient is new or returning.
     const postcode = conversation.context?.get("returningPatientPostcode");

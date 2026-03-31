@@ -30,6 +30,7 @@ import {
   DECLINE_CANCEL_KEYWORDS,
   DETAILS_UNCHANGED_KEYWORDS,
   DETAILS_CHANGED_KEYWORDS,
+  matchesKeywords,
   OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
@@ -126,10 +127,10 @@ export class OrchestratorService {
 
     // Returning patient detail confirmation — only when in greeting phase with a matched patient
     if (currentPhase === "greeting" && context?.isReturningPatient) {
-      if (DETAILS_UNCHANGED_KEYWORDS.some((kw) => lower.includes(kw))) {
+      if (matchesKeywords(lower, DETAILS_UNCHANGED_KEYWORDS)) {
         return { intent: "DETAILS_UNCHANGED" };
       }
-      if (DETAILS_CHANGED_KEYWORDS.some((kw) => lower.includes(kw))) {
+      if (matchesKeywords(lower, DETAILS_CHANGED_KEYWORDS)) {
         return { intent: "DETAILS_CHANGED" };
       }
     }

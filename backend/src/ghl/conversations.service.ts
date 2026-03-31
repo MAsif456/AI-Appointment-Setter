@@ -173,7 +173,7 @@ export class ConversationsService {
       returningPatientConfidence?: string;
     },
   ): Promise<void> {
-    await this.conversationModel.findByIdAndUpdate(conversationId, flags).exec();
+    await this.conversationModel.findByIdAndUpdate(conversationId, { $set: flags }).exec();
     this.logger.log(
       `Conversation ${conversationId} flagged as returning patient (confidence: ${flags.returningPatientConfidence ?? 'unknown'})`,
     );
