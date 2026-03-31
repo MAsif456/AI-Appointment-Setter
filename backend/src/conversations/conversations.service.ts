@@ -16,13 +16,16 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
-import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
+import { FALLBACK_AI_UNAVAILABLE, DETAILS_UNCHANGED_KEYWORDS, DETAILS_CHANGED_KEYWORDS } from '../orchestrator/orchestrator.types';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { resolveSlotSelectionIntent } from './slot-selection.resolver';
 import { handleBooking } from './conversations.booking.handler';
 import { handleCancellationIntercept } from './conversations.cancellation.handler';
 import { handleDayOverview, buildAndSendReply } from './conversations.reply.handler';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { handleDetailsChanged } from '../orchestrator/orchestrator.returning-patient-handlers';
+import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 
 @Injectable()
 export class ConversationsService {
@@ -41,6 +44,8 @@ export class ConversationsService {
     private readonly abuseHandler: AbuseHandlerService,
     private readonly cancellationService: CancellationService,
     private readonly persistence: ConversationsPersistenceService,
+    private readonly patientHistoryService: PatientHistoryService,
+    private readonly postcodeValidationService: PostcodeValidationService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -80,8 +85,21 @@ export class ConversationsService {
       }
     }
 
-    const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
-    const greeting = await this.chatService.startConversation(leadInfo, clinicConfig);
+    const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic, conversation);
+
+    let greeting: string | null;
+    if (conversation.isReturningPatient) {
+      const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
+      const returningPatient = await this.patientHistoryService.findReturningPatient(
+        lead.phone, lead.email, clinicConfig.clinicId, expiryDays,
+      );
+      greeting = returningPatient
+        ? await this.chatService.startReturningPatientConversation(leadInfo, clinicConfig, returningPatient)
+        : await this.chatService.startConversation(leadInfo, clinicConfig);
+    } else {
+      greeting = await this.chatService.startConversation(leadInfo, clinicConfig);
+    }
+
     const finalGreeting = greeting ?? FALLBACK_AI_UNAVAILABLE;
     if (!greeting) this.logger.warn('Greeting generation failed — using fallback');
     await this.persistence.saveMessage(conversation, clinic, lead, 'ai', finalGreeting);
@@ -122,6 +140,41 @@ export class ConversationsService {
     );
     if (cancelResult) return cancelResult;
 
+    // Returning patient detail confirmation — update context/phase then fall through to AI
+    if (conversation.isReturningPatient && conversation.phase === 'greeting') {
+      const lower = userMessage.toLowerCase();
+      if (DETAILS_UNCHANGED_KEYWORDS.some(kw => lower.includes(kw))) {
+        // Copy stored postcode into active context so booking flow can use it
+        const storedPostcode = conversation.context?.get('returningPatientPostcode') as string | undefined;
+        if (storedPostcode) {
+          await this.conversationModel.findByIdAndUpdate(conversation._id, {
+            $set: { 'context.validatedPostcode': storedPostcode },
+          });
+          conversation.context?.set('validatedPostcode', storedPostcode);
+        }
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'booking');
+        // Fall through to normal AI flow — no intermediate acknowledgement message
+      }
+      if (DETAILS_CHANGED_KEYWORDS.some(kw => lower.includes(kw))) {
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'qualifying');
+        const reply = handleDetailsChanged();
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+    }
+
+    // When a returning patient provides a new postcode in qualifying phase, save it to context
+    if (conversation.isReturningPatient && conversation.phase === 'qualifying') {
+      const serviceAreas = clinic.serviceAreas?.map((sa: any) => sa.postcodePrefix) ?? [];
+      const postcodeResult = this.postcodeValidationService.validate(userMessage, serviceAreas);
+      if (postcodeResult.status === 'valid' && postcodeResult.postcode) {
+        await this.conversationModel.findByIdAndUpdate(conversation._id, {
+          $set: { 'context.validatedPostcode': postcodeResult.postcode },
+        });
+        conversation.context?.set('validatedPostcode', postcodeResult.postcode);
+      }
+    }
+
     const history: ChatMessage[] = [
       ...messages.map(m => ({
         role: m.sender === 'ai' ? 'assistant' as const : 'user' as const,
@@ -129,7 +182,7 @@ export class ConversationsService {
       })),
       { role: 'user', content: userMessage },
     ];
-    const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic);
+    const { leadInfo, clinicConfig } = buildContextFromDb(lead, clinic, conversation);
 
     if (resolvedUrgency !== lead.urgency) {
       await this.leadModel.findByIdAndUpdate(lead._id, { urgency: resolvedUrgency });
@@ -191,11 +244,22 @@ export class ConversationsService {
     const conversation = await this.conversationModel.findById(conversationId);
     if (!conversation) throw new NotFoundException('Conversation not found');
     await this.messageModel.deleteMany({ conversationId: conversation._id });
+
+    // Preserve returning patient postcode across reset so the AI doesn't re-ask for it
+    const returningPostcode = conversation.context?.get('returningPatientPostcode') as string | undefined;
+
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
-      phase: 'greeting', messageCount: 0, offeredSlots: [], slotHistory: [],
-      directedHostilityCount: 0, abuseOfferPending: false,
-      lastMessageAt: null, lastMessageFrom: null, awaitingDaySelection: false,
-      lastRequestedDay: null, lastRequestedDateStart: null, lastRequestedDateEnd: null,
+      $set: {
+        phase: 'greeting', messageCount: 0, offeredSlots: [], slotHistory: [],
+        directedHostilityCount: 0, abuseOfferPending: false,
+        lastMessageAt: null, lastMessageFrom: null, awaitingDaySelection: false,
+        lastRequestedDay: null, lastRequestedDateStart: null, lastRequestedDateEnd: null,
+        appointmentId: null,
+        ...(returningPostcode ? {
+          'context.returningPatientPostcode': returningPostcode,
+          'context.validatedPostcode': returningPostcode,
+        } : {}),
+      },
     });
     await this.leadModel.findByIdAndUpdate(conversation.leadId, { urgency: 'unknown' });
   }

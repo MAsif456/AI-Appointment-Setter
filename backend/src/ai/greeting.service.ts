@@ -119,6 +119,7 @@ export class GreetingService {
     const parts: string[] = [
       `You are the receptionist for ${clinicConfig.name}.`,
       `${openingInstruction}`,
+      `IMPORTANT: You MUST address the patient by their first name (${leadInfo.firstName}) in the greeting.`,
       'Then in the same message ask whether their contact details are still the same.',
       'Keep the response to 2 sentences maximum.',
       'Use British English spelling.',

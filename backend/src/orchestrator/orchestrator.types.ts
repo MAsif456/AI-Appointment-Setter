@@ -62,13 +62,14 @@ export const DECLINE_CANCEL_KEYWORDS = [
 export const DETAILS_UNCHANGED_KEYWORDS = [
   'yes', 'same', 'nothing changed', "hasn't changed", 'all the same',
   'still the same', 'no changes', 'correct', "that's right", 'all correct',
-  'yep', 'yeah', 'yea', 'right', 'aye',
+  'yep', 'yeah', 'yea', 'right', 'aye', 'ok', 'okay',
 ];
 
 /** Keywords indicating a returning patient says their details have changed. */
 export const DETAILS_CHANGED_KEYWORDS = [
   'moved', 'new address', 'different postcode', 'changed', 'new number',
   'different number', 'updated', 'no longer', 'different details', 'different area',
+  'no', 'nope', 'not the same', 'they have changed', 'details have changed',
 ];
 
 /** Default SMS message type used for ContactCreate events where no channel is known. */

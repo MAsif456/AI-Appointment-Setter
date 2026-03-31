@@ -5,6 +5,7 @@ import { LeadInfo } from './interfaces/lead-info.interface';
 import { ClinicConfig } from './interfaces/clinic-config.interface';
 import { buildSystemPrompt, SlotPromptOptions } from './system-prompt-builder';
 import { UrgencyContext } from './urgency-detector.types';
+import { ReturningPatientResult } from '../patient-history/patient-history.service';
 
 /** Represents a single message in the chat history */
 export interface ChatMessage {
@@ -42,6 +43,21 @@ export class ChatService {
     clinicConfig: ClinicConfig,
   ): Promise<string | null> {
     return this.greetingService.generateGreeting(leadInfo, clinicConfig);
+  }
+
+  /**
+   * Generates a returning patient greeting for a lead with prior history.
+   * @param leadInfo - The lead's personal details
+   * @param clinicConfig - The clinic's configuration
+   * @param returningPatient - The prior history record with confidence level
+   * @returns The greeting string, or null on failure
+   */
+  async startReturningPatientConversation(
+    leadInfo: LeadInfo,
+    clinicConfig: ClinicConfig,
+    returningPatient: ReturningPatientResult,
+  ): Promise<string | null> {
+    return this.greetingService.generateReturningPatientGreeting(leadInfo, clinicConfig, returningPatient);
   }
 
   /**
