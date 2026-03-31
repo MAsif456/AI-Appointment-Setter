@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { BackArrowIcon } from '@/components/Icons';
 import styles from './LiveChat.module.css';
@@ -26,10 +26,13 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
   const [lead, setLead] = useState<LeadDetails | null>(null);
   const [clinic, setClinic] = useState<ClinicDetails | null>(null);
   const [phase, setPhase] = useState('greeting');
+  const startedRef = useRef(false);
 
 
   /** Loads conversation data from the API and triggers the greeting */
   const initConversation = useCallback(async () => {
+    if (startedRef.current) return;
+    startedRef.current = true;
     setLoading(true);
     setError(null);
 

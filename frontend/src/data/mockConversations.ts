@@ -92,4 +92,15 @@ export const mockConversations: Conversation[] = [
     isHighPriority: false,
     requiresIntervention: false,
   },
+  {
+    id: 'conv_005',
+    patientName: 'James Morgan',
+    phone: '07700 900321',
+    clinic: 'Cardiff Physiotherapy Centre',
+    leadSource: 'Google Ads',
+    phase: 'Booking',
+    lastMessage: 'No messages yet',
+    isHighPriority: false,
+    requiresIntervention: false,
+  },
 ];

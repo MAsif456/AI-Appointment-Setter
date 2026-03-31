@@ -16,6 +16,8 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
 import { CancellationService } from '../cancellation/cancellation.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 
 describe('ConversationsService – slot selection detection', () => {
   let service: ConversationsService;
@@ -133,6 +135,8 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: EscalationService, useValue: mockEscalationService },
         { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
+        PostcodeValidationService,
       ],
     }).compile();
 
