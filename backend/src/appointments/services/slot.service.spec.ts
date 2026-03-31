@@ -105,13 +105,13 @@ describe('SlotsService - US-12', () => {
       expect(result).toEqual([]);
     });
 
-    it('should handle GHL API errors gracefully', async () => {
+    it('should throw CalendarUnavailableError on GHL API failure', async () => {
       mockClinicModel.findById.mockResolvedValue(mockClinic);
       mockGHLCalendarService.fetchAvailableSlots.mockRejectedValue(new Error('API Error'));
 
-      const result = await service.fetchAvailableSlots(mockClinic._id, new Date(), new Date());
-
-      expect(result).toEqual([]);
+      await expect(
+        service.fetchAvailableSlots(mockClinic._id, new Date(), new Date()),
+      ).rejects.toThrow('GHL Calendar unavailable: API Error');
     });
 
     it('should filter slots before business hours', async () => {

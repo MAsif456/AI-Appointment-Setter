@@ -3,6 +3,25 @@ import { Document, Types } from 'mongoose';
 
 export type ConversationDocument = Conversation & Document;
 
+/** Audit record for a cancelled appointment — preserves history for analytics. */
+@Schema({ _id: false })
+export class CancelledAppointment {
+  @Prop({ type: Types.ObjectId, ref: 'Appointment', required: true })
+  appointmentId: Types.ObjectId;
+  @Prop({ required: true })
+  ghlAppointmentId: string;
+  @Prop({ required: true })
+  appointmentDate: Date;
+  @Prop({ required: true })
+  displayText: string; // 'Tuesday 15th March at 2:00 PM'
+  @Prop({ required: true })
+  cancelledAt: Date;
+  @Prop({ default: 'lead' })
+  cancelledBy: string; // 'lead' or 'clinic'
+  @Prop()
+  cancellationReason?: string;
+}
+
 @Schema({ _id: false })
 export class OfferedSlot {
   @Prop({ required: true })
@@ -40,7 +59,7 @@ export class Conversation {
 
   @Prop({ 
     type: String, 
-    enum: ['greeting', 'qualifying', 'qualified', 'booking', 'booked', 'confirmed', 'rescheduling', 'cancelled', 'declined', 'stalled', 'closed', 'escalated'], 
+    enum: ['greeting', 'qualifying', 'qualified', 'booking', 'booked', 'confirmed', 'cancelling', 'cancelling_warned', 'rescheduling', 'cancelled', 'declined', 'stalled', 'closed', 'escalated'],
     default: 'greeting' 
   })
   phase: string;
@@ -116,7 +135,19 @@ export class Conversation {
   @Prop({ type: Types.ObjectId, ref: 'Appointment' })
   appointmentId?: Types.ObjectId;
 
-  // Patient Rating 
+  /** Reason the lead gave for cancelling (optional, collected before finalising). */
+  @Prop()
+  cancellationReason?: string;
+
+  /** True when the system has asked for a cancellation reason and is awaiting a response. */
+  @Prop({ default: false })
+  awaitingCancellationReason: boolean;
+
+  /** Audit trail of all cancelled appointments — supports analytics and repeat-canceller detection. */
+  @Prop({ type: [CancelledAppointment], default: [] })
+  cancelledAppointments: CancelledAppointment[];
+
+  // Patient Rating
   @Prop({ type: PatientRating })
   patientRating?: PatientRating;
 

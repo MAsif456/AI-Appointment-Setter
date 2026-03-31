@@ -14,28 +14,23 @@
  *   - Message content: payload.message.body  (nested)
  *   - Event type: payload.type  (custom key added in GHL Automation)
  */
-import { Injectable, Logger } from '@nestjs/common';
-import { Types } from 'mongoose';
-import { ClinicsService } from '../clinics/clinics.service';
-import { ClinicDocument } from '../database/schemas/clinic.schema';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { OrchestratorService } from '../orchestrator/orchestrator.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Types } from "mongoose";
+import { ClinicsService } from "../clinics/clinics.service";
+import { ClinicDocument } from "../database/schemas/clinic.schema";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { OrchestratorService } from "../orchestrator/orchestrator.service";
+import { generateCorrelationId } from "../common/correlation-id";
 import {
   GhlWebhookPayload,
   GhlContactCreatePayload,
   GhlInboundMessagePayload,
-} from './dto/ghl-webhook.dto';
+} from "./dto/ghl-webhook.dto";
 
-/** Response shape returned to GHL after processing any webhook event. */
 export interface WebhookResponse {
   success: boolean;
 }
 
-/**
- * Handles all routing logic for GHL webhook events.
- * Depends on ClinicsService to resolve location.id → clinic document.
- * Delegates conversation orchestration to OrchestratorService.
- */
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
@@ -49,7 +44,7 @@ export class WebhooksService {
    * Entry point for all incoming GHL webhook events.
    *
    * Processing steps:
-   *   1. Log the full raw payload for debugging purposes.
+   *   1. Extract and log metadata only (type + locationId) — no PII in logs.
    *   2. Extract location.id — warn and return early if absent.
    *   3. Look up the clinic by GHL Location ID.
    *   4. If clinic is not found, log and return 200 without processing.
@@ -63,18 +58,25 @@ export class WebhooksService {
    * @param payload - The raw JSON request body sent by GHL.
    * @returns Always resolves to { success: true }.
    */
-  async handleGhlWebhook(payload: Record<string, unknown>): Promise<WebhookResponse> {
-    this.logger.log(`GHL webhook received: ${JSON.stringify(payload)}`);
+  async handleGhlWebhook(
+    payload: Record<string, unknown>,
+  ): Promise<WebhookResponse> {
+    const correlationId = generateCorrelationId();
+    const ghlType = typeof payload.type === "string" ? payload.type : "unknown";
+    const location = payload.location as Record<string, unknown> | undefined;
+    const ghlLocationId =
+      typeof location?.id === "string" ? location.id : "unknown";
+    this.logger.log(
+      `[${correlationId}] GHL webhook received: type=${ghlType}, locationId=${ghlLocationId}`,
+    );
 
     try {
       const ghlPayload = payload as GhlWebhookPayload;
-
-      /** GHL sends the location ID nested under location.id, not at root level. */
       const locationId = ghlPayload.location?.id;
       const { type } = ghlPayload;
 
       if (!locationId) {
-        this.logger.warn('GHL webhook payload missing locationId field');
+        this.logger.warn("GHL webhook payload missing locationId field");
         return { success: true };
       }
 
@@ -86,24 +88,33 @@ export class WebhooksService {
       }
 
       if (!clinic.isActive) {
-        this.logger.log('Clinic is inactive, ignoring webhook');
+        this.logger.log("Clinic is inactive, ignoring webhook");
         return { success: true };
       }
 
       const clinicConfig = this.buildClinicConfig(clinic);
 
       switch (type) {
-        case 'ContactCreate':
-          await this.handleContactCreate(payload as GhlContactCreatePayload, clinic.name, clinicConfig);
+        case "ContactCreate":
+          await this.handleContactCreate(
+            payload as GhlContactCreatePayload,
+            clinic.name,
+            clinicConfig,
+            correlationId,
+          );
           break;
-        case 'InboundMessage':
-          await this.handleInboundMessage(payload as GhlInboundMessagePayload, clinic.name, clinicConfig);
+        case "InboundMessage":
+          await this.handleInboundMessage(
+            payload as GhlInboundMessagePayload,
+            clinic.name,
+            clinicConfig,
+            correlationId,
+          );
           break;
         default:
           this.logger.warn(`Unrecognised GHL event type: ${type}`);
       }
     } catch (err) {
-      /** Log the error but still return 200 to prevent GHL retry storms. */
       this.logger.error(
         `Error processing GHL webhook: ${(err as Error).message}`,
         (err as Error).stack,
@@ -113,64 +124,48 @@ export class WebhooksService {
     return { success: true };
   }
 
-  /**
-   * Handles a ContactCreate event.
-   * Contact fields arrive at root level in snake_case format per GHL standard data.
-   * Delegates the full AI greeting flow to OrchestratorService.
-   *
-   * @param payload - The ContactCreate webhook payload from GHL.
-   * @param clinicName - The name of the matched clinic, used in log output.
-   * @param clinicConfig - The resolved clinic configuration for the orchestrator.
-   */
   private async handleContactCreate(
     payload: GhlContactCreatePayload,
     clinicName: string,
     clinicConfig: ClinicConfig,
+    correlationId: string,
   ): Promise<void> {
     const { first_name, last_name, phone, email, issue } = payload;
-    this.logger.log(`Routing lead to clinic: ${clinicName}`);
+    this.logger.log(`[${correlationId}] Routing lead to clinic: ${clinicName}`);
     this.logger.log(
-      `Lead details — name: ${first_name ?? ''} ${last_name ?? ''}, phone: ${phone ?? 'N/A'}, email: ${email ?? 'N/A'}, issue: ${issue ?? 'N/A'}`,
+      `[${correlationId}] Lead details — name: ${first_name ?? ""} ${last_name ?? ""}, phone: ${phone ?? "N/A"}, email: ${email ?? "N/A"}, issue: ${issue ?? "N/A"}`,
     );
-    await this.orchestratorService.handleNewLead(payload, clinicConfig);
+    await this.orchestratorService.handleNewLead(
+      payload,
+      clinicConfig,
+      correlationId,
+    );
   }
 
-  /**
-   * Handles an InboundMessage event.
-   * Message content arrives nested under payload.message.body per GHL standard data.
-   * Delegates the intent detection and AI response flow to OrchestratorService.
-   *
-   * @param payload - The InboundMessage webhook payload from GHL.
-   * @param clinicName - The name of the matched clinic, used in log output.
-   * @param clinicConfig - The resolved clinic configuration for the orchestrator.
-   */
   private async handleInboundMessage(
     payload: GhlInboundMessagePayload,
     clinicName: string,
     clinicConfig: ClinicConfig,
+    correlationId: string,
   ): Promise<void> {
     const { id: contactId, conversationId } = payload;
     const messageBody = payload.message?.body;
-    this.logger.log(`Routing message to clinic: ${clinicName}`);
     this.logger.log(
-      `Message details — contactId: ${contactId ?? 'N/A'}, conversationId: ${conversationId ?? 'N/A'}, content: ${messageBody ?? 'N/A'}`,
+      `[${correlationId}] Routing message to clinic: ${clinicName}`,
     );
-    await this.orchestratorService.handleInboundMessage(payload, clinicConfig);
+    this.logger.log(
+      `[${correlationId}] Message details — contactId: ${contactId ?? "N/A"}, conversationId: ${conversationId ?? "N/A"}, content: ${messageBody ?? "N/A"}`,
+    );
+    await this.orchestratorService.handleInboundMessage(
+      payload,
+      clinicConfig,
+      correlationId,
+    );
   }
 
-  /**
-   * Converts a ClinicDocument from MongoDB into the ClinicConfig interface
-   * expected by the AI and orchestrator services.
-   *
-   * Maps the stored tone value ('friendly' | 'professional' | 'balanced') to the
-   * AI interface's capitalised format ('Friendly' | 'Professional').
-   * Treats 'balanced' and any unknown value as 'Friendly'.
-   *
-   * @param clinic - The full clinic document from MongoDB.
-   * @returns A ClinicConfig ready to pass to AI and orchestration services.
-   */
   private buildClinicConfig(clinic: ClinicDocument): ClinicConfig {
-    const tone = clinic.aiConfig?.tone === 'professional' ? 'Professional' : 'Friendly';
+    const tone =
+      clinic.aiConfig?.tone === "professional" ? "Professional" : "Friendly";
     return {
       clinicId: (clinic._id as Types.ObjectId).toString(),
       name: clinic.name,
