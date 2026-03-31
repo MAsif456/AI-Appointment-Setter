@@ -17,7 +17,6 @@ export default function ConditionalLayout({
 
   // Check if current route is a public authentication route
   const isPublicRoute = pathname.startsWith('/login') ||
-                       pathname.startsWith('/signup') ||
                        pathname.startsWith('/verify-email') ||
                        pathname.startsWith('/forgot-password') ||
                        pathname.startsWith('/reset-password');

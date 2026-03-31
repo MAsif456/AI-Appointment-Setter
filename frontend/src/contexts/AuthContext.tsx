@@ -24,7 +24,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PUBLIC_ROUTES = ['/login', '/verify-email', '/forgot-password', '/reset-password'];
-const ADMIN_ONLY_ROUTES = ['/settings/users'];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -75,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
     const isPublic = PUBLIC_ROUTES.some(r => pathname.startsWith(r));
-    const isAdminOnly = ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r));
 
     if (!isPublic && !user) {
       router.push('/login');
@@ -84,9 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isPublic && user) {
       router.push('/');
       return;
-    }
-    if (isAdminOnly && user?.role !== 'admin') {
-      router.push('/');
     }
   }, [user, loading, pathname, router]);
 
