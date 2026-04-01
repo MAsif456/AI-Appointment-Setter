@@ -23,4 +23,13 @@ export interface LeadInfo {
 
   /** GoHighLevel contact ID */
   contactId?: string;
+
+  /** Postcode already validated in a previous or current conversation */
+  validatedPostcode?: string;
+
+  /** Whether this lead has a prior booking history at this clinic */
+  isReturningPatient?: boolean;
+
+  /** Whether the returning patient just provided a new postcode (details changed flow) */
+  detailsJustUpdated?: boolean;
 }

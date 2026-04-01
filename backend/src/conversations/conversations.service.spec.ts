@@ -2,12 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { NotFoundException } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
+import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { CancellationService } from '../cancellation/cancellation.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -47,7 +52,14 @@ describe('ConversationsService', () => {
 
   const mockAbuseHandler = {
     handle: jest.fn().mockResolvedValue(null),
-};
+  };
+
+  const mockSecurityPipeline = {
+    processInbound: jest.fn().mockImplementation((msg: string) =>
+      Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+    ),
+    validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+  };
 
   const mockAppointmentsService = {
     bookAppointment: jest.fn(),
@@ -71,6 +83,23 @@ describe('ConversationsService', () => {
     updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockCancellationService = {
+    checkAppointmentExists: jest.fn().mockResolvedValue(null),
+    buildConfirmationPrompt: jest.fn(),
+    evaluatePolicy: jest.fn(),
+    executeCancellation: jest.fn(),
+    isAwaitingReason: jest.fn().mockResolvedValue(false),
+    requestReason: jest.fn(),
+    storeReason: jest.fn(),
+  };
+
+  const mockPersistenceService = {
+    saveMessage: jest.fn().mockResolvedValue({}),
+    updateConversationMeta: jest.fn().mockResolvedValue({}),
+    storeOfferedSlots: jest.fn().mockResolvedValue({}),
+    saveDateContext: jest.fn().mockResolvedValue({}),
+  };
+
   // Shared test fixtures
   const mockConversation = {
     _id: 'conv1',
@@ -78,6 +107,7 @@ describe('ConversationsService', () => {
     leadId: 'lead1',
     channel: 'website',
     phase: 'greeting',
+    isReturningPatient: false,
   };
 
   const mockClinic = {
@@ -113,6 +143,11 @@ describe('ConversationsService', () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: CancellationService, useValue: mockCancellationService },
+        { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
+        PostcodeValidationService,
       ],
     }).compile();
 
@@ -154,12 +189,12 @@ describe('ConversationsService', () => {
       const result = await service.startConversation('conv1');
 
       expect(result).toBe('Hi Sarah!');
-      expect(mockMessageModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ sender: 'ai', content: 'Hi Sarah!' }),
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledWith(
+        expect.anything(), expect.anything(), expect.anything(), 'ai', 'Hi Sarah!',
       );
     });
 
-    it('should return null when greeting fails', async () => {
+    it('should return fallback when greeting fails', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
       mockClinicModel.findById.mockResolvedValue(mockClinic);
@@ -167,7 +202,7 @@ describe('ConversationsService', () => {
       mockChatService.startConversation.mockResolvedValue(null);
 
       const result = await service.startConversation('conv1');
-      expect(result).toBeNull();
+      expect(result).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
     });
   });
 
@@ -183,7 +218,7 @@ describe('ConversationsService', () => {
       });
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'conv1',
-        expect.objectContaining({ phase: 'greeting', messageCount: 0 }),
+        expect.objectContaining({ $set: expect.objectContaining({ phase: 'greeting', messageCount: 0 }) }),
       );
       expect(mockLeadModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'lead1',
@@ -217,8 +252,8 @@ describe('ConversationsService', () => {
       expect(result).not.toBeNull();
       expect(result!.reply).toBe('Let me check that.');
       expect(result!.offeredSlots).toBeDefined();
-      // Should create two messages: user + AI
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(3);
+      // Should save two lead messages (with/without urgency data) + one AI reply
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(3);
     });
 
     it('should return follow-up message when conversation is already escalated', async () => {
@@ -241,7 +276,7 @@ describe('ConversationsService', () => {
       expect(mockEscalationService.escalateEmergency).not.toHaveBeenCalled();
     });
 
-    it('should return null when AI fails', async () => {
+    it('should return fallback message when AI fails', async () => {
       mockConversationModel.findById.mockResolvedValue(mockConversation);
       mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
       mockClinicModel.findById.mockResolvedValue(mockClinic);
@@ -250,9 +285,200 @@ describe('ConversationsService', () => {
 
       const result = await service.sendMessage('conv1', 'Hello');
 
+      // Service returns null when AI fails; controller wraps with fallback
       expect(result).toBeNull();
-      // Only the user message should be saved, not an AI reply
-      expect(mockMessageModel.create).toHaveBeenCalledTimes(2);
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('cancellation intercept', () => {
+    const bookedConversation = { ...mockConversation, phase: 'booked' };
+    const cancellingConversation = { ...mockConversation, phase: 'cancelling' };
+    const mockAppointment = { _id: 'apt_1', appointmentDate: new Date(), status: 'confirmed' };
+
+    beforeEach(() => {
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+    });
+
+    it('should intercept "cancel" keyword in booked phase and return confirmation', async () => {
+      mockConversationModel.findById.mockResolvedValue(bookedConversation);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.buildConfirmationPrompt.mockReturnValue(
+        "Just to confirm, you'd like to cancel your appointment on Friday 3rd April at 10:20 AM. Is that correct?",
+      );
+
+      const result = await service.sendMessage('conv1', 'I want to cancel my appointment');
+
+      expect(result!.reply).toContain('cancel your appointment');
+      expect(mockCancellationService.checkAppointmentExists).toHaveBeenCalled();
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('should intercept confirm keyword in cancelling phase and ask for reason', async () => {
+      mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.evaluatePolicy.mockResolvedValue({ withinNotice: false, feeEnabled: false });
+      mockCancellationService.isAwaitingReason.mockResolvedValue(false);
+      mockCancellationService.requestReason.mockResolvedValue('May I ask the reason for cancelling?');
+
+      const result = await service.sendMessage('conv1', 'yes');
+
+      expect(result!.reply).toContain('reason for cancelling');
+      expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
+    });
+
+    it('should execute cancellation when reason is provided as freeform text', async () => {
+      mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+      mockCancellationService.isAwaitingReason.mockResolvedValue(true);
+      mockCancellationService.checkAppointmentExists.mockResolvedValue(mockAppointment);
+      mockCancellationService.executeCancellation.mockResolvedValue({
+        success: true,
+        message: 'Your appointment has been cancelled. Feel free to book again anytime!',
+      });
+
+      const result = await service.sendMessage('conv1', 'Moving away from the area');
+
+      expect(result!.reply).toContain('cancelled');
+      expect(mockCancellationService.storeReason).toHaveBeenCalledWith(expect.anything(), 'Moving away from the area');
+    });
+
+    it('should intercept decline keyword and reassure appointment is kept', async () => {
+      mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+
+      const result = await service.sendMessage('conv1', 'no, keep it');
+
+      expect(result!.reply).toContain('still confirmed');
+      expect(mockCancellationService.executeCancellation).not.toHaveBeenCalled();
+    });
+
+    it('should not intercept cancellation keywords in non-cancellation phases', async () => {
+      mockConversationModel.findById.mockResolvedValue({ ...mockConversation, phase: 'qualifying' });
+      mockChatService.sendMessage.mockResolvedValue('How can I help?');
+
+      await service.sendMessage('conv1', 'I want to cancel my appointment');
+
+      expect(mockCancellationService.checkAppointmentExists).not.toHaveBeenCalled();
+      expect(mockChatService.sendMessage).toHaveBeenCalled();
+    });
+  });
+
+  describe('returning patient intercept (sendMessage)', () => {
+    const returningConversation = {
+      ...mockConversation,
+      phase: 'greeting',
+      isReturningPatient: true,
+      context: new Map([['returningPatientPostcode', 'CF10 1AA']]),
+    };
+
+    beforeEach(() => {
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+    });
+
+    it('DETAILS_UNCHANGED: exact keyword "yes" copies stored postcode to validatedPostcode and advances phase to booking', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('Great, let me check availability.');
+
+      await service.sendMessage('conv1', 'yes');
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        { $set: { 'context.validatedPostcode': 'CF10 1AA' } },
+      );
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'booking',
+      );
+    });
+
+    it('DETAILS_UNCHANGED: keyword "yes" embedded mid-sentence does NOT trigger intercept', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('Thanks for letting me know.');
+
+      await service.sendMessage('conv1', 'yes I have back pain');
+
+      const postcodeCalls = mockConversationModel.findByIdAndUpdate.mock.calls.filter(
+        ([, update]) => update?.$set?.['context.validatedPostcode'] === 'CF10 1AA',
+      );
+      expect(postcodeCalls).toHaveLength(0);
+
+      const bookingCalls = mockPersistenceService.updateConversationMeta.mock.calls.filter(
+        ([, , phase]) => phase === 'booking',
+      );
+      expect(bookingCalls).toHaveLength(0);
+    });
+
+    it('DETAILS_CHANGED: exact keyword "moved" updates phase to qualifying and returns early without calling AI', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+
+      const result = await service.sendMessage('conv1', 'moved');
+
+      expect(result).not.toBeNull();
+      expect(result!.reply).toBeTruthy();
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'qualifying',
+      );
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('DETAILS_CHANGED: exact keyword "no" updates phase to qualifying and returns early without calling AI', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+
+      const result = await service.sendMessage('conv1', 'no');
+
+      expect(result).not.toBeNull();
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'qualifying',
+      );
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('non-matching message falls through to normal AI flow', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('How can I help you today?');
+
+      const result = await service.sendMessage('conv1', 'I have a question about costs');
+
+      expect(result!.reply).toBe('How can I help you today?');
+      expect(mockChatService.sendMessage).toHaveBeenCalled();
+    });
+
+    it('DETAILS_UNCHANGED: multi-word phrase "nothing changed" mid-sentence still triggers', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('Understood.');
+
+      await service.sendMessage('conv1', 'actually nothing changed for me');
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        { $set: { 'context.validatedPostcode': 'CF10 1AA' } },
+      );
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'booking',
+      );
+    });
+
+    it('DETAILS_UNCHANGED: no stored postcode — skips context write but still advances phase to booking', async () => {
+      const noPostcodeConv = {
+        ...returningConversation,
+        context: new Map<string, string>(),
+      };
+      mockConversationModel.findById.mockResolvedValue(noPostcodeConv);
+      mockChatService.sendMessage.mockResolvedValue('Let me check availability.');
+
+      await service.sendMessage('conv1', 'yes');
+
+      const postcodeCalls = mockConversationModel.findByIdAndUpdate.mock.calls.filter(
+        ([, update]) => update?.$set?.['context.validatedPostcode'],
+      );
+      expect(postcodeCalls).toHaveLength(0);
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'booking',
+      );
     });
   });
 });

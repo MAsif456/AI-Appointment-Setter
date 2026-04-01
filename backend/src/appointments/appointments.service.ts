@@ -10,7 +10,9 @@ import {
   Conversation,
   ConversationDocument,
 } from '../database/schemas/conversation.schema';
+import { Lead, LeadDocument } from '../database/schemas/lead.schema';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import {
   buildConfirmationMessage,
@@ -35,7 +37,9 @@ export class AppointmentsService {
  * @param {Model<AppointmentDocument>} appointmentModel - Mongoose model for appointments.
  * @param {Model<ClinicDocument>} clinicModel - Mongoose model for clinics.
  * @param {Model<ConversationDocument>} conversationModel - Mongoose model for conversations.
+ * @param {Model<LeadDocument>} leadModel - Mongoose model for leads (used for patient history).
  * @param {GhlApiService} ghlApiService - Service that interfaces with GHL's API.
+ * @param {PatientHistoryService} patientHistoryService - Persists returning patient history after booking.
  */
   constructor(
     @InjectModel(Appointment.name)
@@ -44,7 +48,10 @@ export class AppointmentsService {
     private readonly clinicModel: Model<ClinicDocument>,
     @InjectModel(Conversation.name)
     private readonly conversationModel: Model<ConversationDocument>,
+    @InjectModel(Lead.name)
+    private readonly leadModel: Model<LeadDocument>,
     private readonly ghlApiService: GhlApiService,
+    private readonly patientHistoryService: PatientHistoryService,
   ) {}
 
   /**
@@ -93,6 +100,25 @@ export class AppointmentsService {
         'context.appointmentTime': time,
       },
     });
+
+    // Persist patient history so this lead can be recognised as returning in future conversations.
+    // Load the lead to get phone, email, and name — these are the lookup keys.
+    const conversation = await this.conversationModel
+      .findById(dto.conversationId)
+      .exec();
+    const lead = await this.leadModel.findById(dto.leadId).lean().exec();
+    if (lead) {
+      await this.patientHistoryService.persistHistory(
+        dto.clinicId,
+        lead.phone,
+        lead.email,
+        lead.firstName,
+        lead.lastName,
+        conversation?.context?.get('validatedPostcode'),
+        new Types.ObjectId(dto.conversationId),
+      );
+    }
+
     const confirmationMessage = buildConfirmationMessage({
       clinicName: clinic.name,
       clinicAddress: clinic.address,

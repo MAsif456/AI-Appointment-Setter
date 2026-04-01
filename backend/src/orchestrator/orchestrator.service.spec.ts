@@ -10,12 +10,23 @@ import { GroqService } from '../ai/groq.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { CancellationService } from '../cancellation/cancellation.service';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+
+const mockSecurityPipeline = {
+  processInbound: jest.fn().mockImplementation((msg: string) =>
+    Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+  ),
+  validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+};
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
+const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
@@ -31,12 +42,15 @@ describe('OrchestratorService', () => {
         OrchestratorService,
         { provide: GreetingService, useValue: mockGreetingService },
         { provide: GroqService, useValue: mockGroqService },
+        { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: SlotProvider, useValue: mockSlotProvider },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 

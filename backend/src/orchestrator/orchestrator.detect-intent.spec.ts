@@ -16,12 +16,23 @@ import { GroqService } from '../ai/groq.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { CancellationService } from '../cancellation/cancellation.service';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+
+const mockSecurityPipeline = {
+  processInbound: jest.fn().mockImplementation((msg: string) =>
+    Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+  ),
+  validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+};
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
+const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
@@ -37,12 +48,15 @@ describe('OrchestratorService — detectIntent', () => {
         OrchestratorService,
         { provide: GreetingService, useValue: mockGreetingService },
         { provide: GroqService, useValue: mockGroqService },
+        { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: SlotProvider, useValue: mockSlotProvider },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 
@@ -275,6 +289,90 @@ describe('OrchestratorService — detectIntent', () => {
 
     it('should return UNKNOWN when the message contains spaces and punctuation (Hi there!)', () => {
       expect(service.detectIntent('Hi there!', 'qualifying').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('CANCEL', () => {
+    it('should detect "cancel" in the booked phase', () => {
+      expect(service.detectIntent('I need to cancel my appointment', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should detect "cancel my booking" in the booked phase', () => {
+      expect(service.detectIntent('Please cancel my booking', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should detect "can\'t come" in the booked phase', () => {
+      expect(service.detectIntent("I can't come anymore", 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should detect "I want to cancel" in the booked phase', () => {
+      expect(service.detectIntent('I want to cancel', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should be case-insensitive for cancel keywords', () => {
+      expect(service.detectIntent('CANCEL MY APPOINTMENT', 'booked').intent).toBe('CANCEL');
+    });
+
+    it('should NOT detect CANCEL in the qualifying phase', () => {
+      expect(service.detectIntent('cancel my appointment', 'qualifying').intent).toBe('UNKNOWN');
+    });
+
+    it('should NOT detect CANCEL in the booking phase', () => {
+      expect(service.detectIntent('cancel my appointment', 'booking').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('CONFIRM_CANCEL', () => {
+    it('should detect "yes" in the cancelling phase', () => {
+      expect(service.detectIntent('Yes', 'cancelling').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should detect "please cancel" in the cancelling phase', () => {
+      expect(service.detectIntent('Yes, please cancel', 'cancelling').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should detect "go ahead" in the cancelling_warned phase', () => {
+      expect(service.detectIntent('Go ahead', 'cancelling_warned').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should detect "sure" in the cancelling_warned phase', () => {
+      expect(service.detectIntent('Sure, cancel it', 'cancelling_warned').intent).toBe('CONFIRM_CANCEL');
+    });
+
+    it('should NOT detect CONFIRM_CANCEL in the booked phase', () => {
+      expect(service.detectIntent('yes', 'booked').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('DECLINE_CANCEL', () => {
+    it('should detect "no" in the cancelling phase', () => {
+      expect(service.detectIntent('No, keep it', 'cancelling').intent).toBe('DECLINE_CANCEL');
+    });
+
+    it('should detect "changed my mind" in the cancelling_warned phase', () => {
+      expect(service.detectIntent("I've changed my mind", 'cancelling_warned').intent).toBe('DECLINE_CANCEL');
+    });
+
+    it('should detect "never mind" in the cancelling phase', () => {
+      expect(service.detectIntent('Never mind, keep it', 'cancelling').intent).toBe('DECLINE_CANCEL');
+    });
+
+    it('should NOT detect DECLINE_CANCEL in the booked phase', () => {
+      expect(service.detectIntent('no', 'booked').intent).toBe('UNKNOWN');
+    });
+  });
+
+  describe('Graceful re-entry from cancelled', () => {
+    it('should detect WANT_TO_BOOK when lead in cancelled phase says "book"', () => {
+      expect(service.detectIntent('I want to book again', 'cancelled').intent).toBe('WANT_TO_BOOK');
+    });
+
+    it('should detect WANT_TO_BOOK when lead in cancelled phase says "appointment"', () => {
+      expect(service.detectIntent('Can I make another appointment?', 'cancelled').intent).toBe('WANT_TO_BOOK');
+    });
+
+    it('should return UNKNOWN for non-booking message in cancelled phase', () => {
+      expect(service.detectIntent('Hello', 'cancelled').intent).toBe('UNKNOWN');
     });
   });
 });

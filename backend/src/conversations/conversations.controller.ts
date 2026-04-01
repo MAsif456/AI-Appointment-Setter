@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Param, Body, Logger } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
+import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
 
 /**
  * DTO for sending a message in an ongoing conversation.
@@ -73,9 +74,14 @@ export class ConversationsController {
    */
   @Post(':id/start')
   async start(@Param('id') id: string) {
-    this.logger.log(`Starting conversation: ${id}`);
-    const greeting = await this.conversationsService.startConversation(id);
-    return { greeting };
+    try {
+      this.logger.log(`Starting conversation: ${id}`);
+      const greeting = await this.conversationsService.startConversation(id);
+      return { greeting };
+    } catch (error) {
+      this.logger.error(`Start conversation failed for ${id}:`, (error as Error).stack);
+      return { greeting: FALLBACK_AI_UNAVAILABLE };
+    }
   }
 
 
@@ -105,19 +111,24 @@ export class ConversationsController {
     @Param('id') id: string,
     @Body() body: SendMessageDto,
   ) {
-    this.logger.log(`Message in conversation ${id}: "${body.message}"`);
-    const result = await this.conversationsService.sendMessage(id, body.message);
-    if (!result) return { reply: null, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null };
+    try {
+      this.logger.log(`Message in conversation ${id}: "${body.message}"`);
+      const result = await this.conversationsService.sendMessage(id, body.message);
+      if (!result) return { reply: FALLBACK_AI_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null };
 
-    // Include updated phase so the frontend can reflect changes immediately
-    const { conversation } = await this.conversationsService.getConversation(id);
-    return {
-      reply: result.reply,
-      offeredSlots: result.offeredSlots,
-      slotSelection: result.slotSelection,
-      bookingResult: result.bookingResult ?? null,
-      phase: conversation.phase,
-    };
+      // Include updated phase so the frontend can reflect changes immediately
+      const { conversation } = await this.conversationsService.getConversation(id);
+      return {
+        reply: result.reply,
+        offeredSlots: result.offeredSlots,
+        slotSelection: result.slotSelection,
+        bookingResult: result.bookingResult ?? null,
+        phase: conversation.phase,
+      };
+    } catch (error) {
+      this.logger.error(`Send message failed for conversation ${id}:`, (error as Error).stack);
+      return { reply: FALLBACK_AI_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null };
+    }
   }
 }
 

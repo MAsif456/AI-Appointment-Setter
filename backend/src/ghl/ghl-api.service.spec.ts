@@ -8,7 +8,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 
 describe('GhlApiService', () => {
   let service: GhlApiService;
-  let httpService: { post: jest.Mock; get: jest.Mock };
+  let httpService: { post: jest.Mock; get: jest.Mock; put: jest.Mock; delete: jest.Mock };
   let configService: { get: jest.Mock };
 
 /**
@@ -32,6 +32,8 @@ describe('GhlApiService', () => {
     httpService = {
       post: jest.fn(),
       get: jest.fn(),
+      put: jest.fn(),
+      delete: jest.fn(),
     };
 
     configService = {
@@ -164,6 +166,83 @@ describe('GhlApiService', () => {
           '2026-03-17T14:00:00Z', '2026-03-17T14:30:00Z',
         ),
       ).rejects.toThrow('Calendar API error');
+    });
+  });
+
+  describe('cancelAppointment', () => {
+    it('should delete an appointment via GHL DELETE endpoint', async () => {
+      const responseData = { succeeded: true };
+      httpService.delete.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const result = await service.cancelAppointment('apt_123');
+
+      expect(result).toEqual(responseData);
+      expect(httpService.delete).toHaveBeenCalledWith(
+        '/calendars/events/apt_123',
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer test-private-token' }),
+        }),
+      );
+    });
+
+    it('should return null on failure (null-on-failure pattern)', async () => {
+      httpService.delete.mockReturnValue(throwError(() => new Error('GHL down')));
+
+      const result = await service.cancelAppointment('apt_123');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('addContactTag', () => {
+    it('should add a tag to a contact via GHL API', async () => {
+      const responseData = { tags: ['cancelled'] };
+      httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const result = await service.addContactTag('contact_123', 'cancelled');
+
+      expect(result).toEqual(responseData);
+      expect(httpService.post).toHaveBeenCalledWith(
+        '/contacts/contact_123/tags',
+        { tags: ['cancelled'] },
+        expect.objectContaining({
+          headers: expect.objectContaining({ Version: '2021-07-28' }),
+        }),
+      );
+    });
+
+    it('should return null on failure', async () => {
+      httpService.post.mockReturnValue(throwError(() => new Error('Tag error')));
+
+      const result = await service.addContactTag('contact_123', 'cancelled');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('removeContactTag', () => {
+    it('should remove a tag from a contact via GHL API', async () => {
+      const responseData = { tags: [] };
+      httpService.delete.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const result = await service.removeContactTag('contact_123', 'appointment-booked');
+
+      expect(result).toEqual(responseData);
+      expect(httpService.delete).toHaveBeenCalledWith(
+        '/contacts/contact_123/tags',
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer test-private-token' }),
+          data: { tags: ['appointment-booked'] },
+        }),
+      );
+    });
+
+    it('should return null on failure', async () => {
+      httpService.delete.mockReturnValue(throwError(() => new Error('Remove error')));
+
+      const result = await service.removeContactTag('contact_123', 'appointment-booked');
+
+      expect(result).toBeNull();
     });
   });
 });

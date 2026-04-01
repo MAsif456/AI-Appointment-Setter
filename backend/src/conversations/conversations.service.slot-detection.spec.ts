@@ -8,12 +8,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConversationsService } from './conversations.service';
+import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { ChatService } from '../ai/chat.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { CancellationService } from '../cancellation/cancellation.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 
 describe('ConversationsService – slot selection detection', () => {
   let service: ConversationsService;
@@ -99,6 +104,27 @@ describe('ConversationsService – slot selection detection', () => {
     notifyClinicStaff: jest.fn(),
     updateGhlTags: jest.fn().mockResolvedValue(undefined),
   };
+  const mockSecurityPipeline = {
+    processInbound: jest.fn().mockImplementation((msg: string) =>
+      Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+    ),
+    validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+  };
+  const mockCancellationService = {
+    checkAppointmentExists: jest.fn().mockResolvedValue(null),
+    buildConfirmationPrompt: jest.fn(),
+    evaluatePolicy: jest.fn(),
+    executeCancellation: jest.fn(),
+    isAwaitingReason: jest.fn().mockResolvedValue(false),
+    requestReason: jest.fn(),
+    storeReason: jest.fn(),
+  };
+  const mockPersistenceService = {
+    saveMessage: jest.fn().mockResolvedValue({}),
+    updateConversationMeta: jest.fn().mockResolvedValue({}),
+    storeOfferedSlots: jest.fn().mockResolvedValue({}),
+    saveDateContext: jest.fn().mockResolvedValue({}),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -114,6 +140,11 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: CancellationService, useValue: mockCancellationService },
+        { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
+        PostcodeValidationService,
       ],
     }).compile();
 

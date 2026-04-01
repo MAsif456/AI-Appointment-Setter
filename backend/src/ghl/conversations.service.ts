@@ -143,6 +143,43 @@ export class ConversationsService {
   }
 
   /**
+   * Flags a conversation for human follow-up after a service failure.
+   * Sets requiresHumanIntervention and records the reason.
+   */
+  async flagForHumanIntervention(
+    conversationId: Types.ObjectId,
+    reason: string,
+  ): Promise<void> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      requiresHumanIntervention: true,
+      humanInterventionReason: reason,
+      escalatedAt: new Date(),
+      escalationReason: reason,
+    });
+    this.logger.log(`Conversation ${conversationId} flagged: ${reason}`);
+  }
+
+  /**
+   * Updates the returning patient flags on a conversation document.
+   * Called immediately after a PatientHistory match is found at conversation start.
+   * @param {Types.ObjectId} conversationId - The conversation to update.
+   * @param flags - The returning patient fields to write.
+   */
+  async updateReturningPatientFlags(
+    conversationId: Types.ObjectId,
+    flags: {
+      isReturningPatient: boolean;
+      previousConversationId?: Types.ObjectId;
+      returningPatientConfidence?: string;
+    },
+  ): Promise<void> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, { $set: flags }).exec();
+    this.logger.log(
+      `Conversation ${conversationId} flagged as returning patient (confidence: ${flags.returningPatientConfidence ?? 'unknown'})`,
+    );
+  }
+
+  /**
    * Stores a key/value pair in the conversation's context Map.
    * @param {Types.ObjectId} conversationId - The conversation ID.
    * @param {string} key - The context key, e.g. "validatedPostcode".

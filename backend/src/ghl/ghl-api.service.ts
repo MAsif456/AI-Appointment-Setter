@@ -1,103 +1,88 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { lastValueFrom } from 'rxjs';
-import { SendMessageDto } from './dto/send-message.dto';
-import { CircuitBreaker } from './circuit-breaker';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { lastValueFrom } from "rxjs";
+import { SendMessageDto } from "./dto/send-message.dto";
+import { CircuitBreaker, CircuitState } from "./circuit-breaker";
+import { retryWithBackoff } from "../common/retry-utils";
 
 @Injectable()
 export class GhlApiService {
   private readonly logger = new Logger(GhlApiService.name);
-  private readonly maxRetries = 3;
+  private readonly messagingCircuitBreaker: CircuitBreaker;
   private readonly appointmentCircuitBreaker: CircuitBreaker;
 
   /**
    * Constructs a GhlApiService instance.
-   * Initialises a circuit breaker for appointment creation calls to protect
-   * against cascading failures when the GHL API is unresponsive.
-   *
-   * @param {HttpService} httpService - The HTTP service to use for making requests.
-   * @param {ConfigService} configService - The ConfigService to use for getting configuration values.
+   * Initialises per-service circuit breakers to protect against cascading
+   * failures when the GHL API is unresponsive.
    */
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
+    this.messagingCircuitBreaker = new CircuitBreaker({
+      failureThreshold: 3,
+      resetTimeoutMs: 30_000,
+      name: "GHL-Messaging",
+    });
     this.appointmentCircuitBreaker = new CircuitBreaker({
       failureThreshold: 3,
       resetTimeoutMs: 30_000,
-      name: 'GHL-Appointments',
+      name: "GHL-Appointments",
     });
   }
 
-  /**
-   * Gets the HTTP headers required for making requests to the GHL API.
-   *
-   * The headers include the GHL private token, the API version, and the content type.
-   *
-   * @returns {Record<string, string>} - The HTTP headers.
-   */
+  /** Returns auth + version headers for GHL API requests. */
   private getHeaders(): Record<string, string> {
     return {
-      Authorization: `Bearer ${this.configService.get<string>('GHL_PRIVATE_TOKEN')}`,
-      Version: '2021-07-28',
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.configService.get<string>("GHL_PRIVATE_TOKEN")}`,
+      Version: "2021-07-28",
+      "Content-Type": "application/json",
     };
   }
 
   /**
-   * Sends a message to the GHL API with retry.
+   * Sends a message to the GHL API with retry and circuit breaker protection.
+   * Uses exponential backoff with full jitter to prevent thundering herd.
    *
    * @param {SendMessageDto} dto - The message to send.
-   *
    * @returns {Promise<any>} - The result of the message send.
-   *
-   * The function will retry up to `maxRetries` times if the request fails.
-   * If all retries fail, the function will throw an error.
    */
   async sendMessageWithRetry(dto: SendMessageDto): Promise<any> {
     const payload = {
       type: dto.type,
       contactId: dto.contactId,
       message: dto.message,
-      status: 'pending',
+      status: "pending",
     };
 
-    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
-      try {
-        const { data } = await lastValueFrom(
-          this.httpService.post('/conversations/messages', payload, {
-            headers: this.getHeaders(),
-          }),
-        );
-        return data;
-      } catch (error) {
-        if (attempt === this.maxRetries) {
-          this.logger.error(
-            `GHL send failed after ${this.maxRetries} attempts`,
-            {
-              contactId: dto.contactId,
-              message: dto.message,
-              error: error.message,
-            },
+    return this.messagingCircuitBreaker.execute(() =>
+      retryWithBackoff(
+        async () => {
+          const { data } = await lastValueFrom(
+            this.httpService.post("/conversations/messages", payload, {
+              headers: this.getHeaders(),
+            }),
           );
-          throw error;
-        }
-        const delay = Math.pow(2, attempt) * 1000;
-        this.logger.warn(
-          `GHL send attempt ${attempt} failed, retrying in ${delay}ms`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
+          return data;
+        },
+        {
+          maxRetries: 3,
+          baseDelayMs: 1000,
+          maxDelayMs: 4000,
+          onRetry: (attempt, error, delayMs) => {
+            this.logger.warn(
+              `GHL send attempt ${attempt} failed — contactId: ${dto.contactId}, ` +
+                `retrying in ${Math.round(delayMs)}ms. Error: ${error.message}`,
+            );
+          },
+        },
+      ),
+    );
   }
 
-  /**
-   * Fetches a conversation from the GHL API by its ID.
-   * @param {string} conversationId - The ID of the conversation to fetch.
-   * @returns {Promise<any>} - A promise that resolves with the conversation data.
-   * @throws {AxiosError} - If the request fails.
-   */
+  /** Fetches a conversation from GHL by its ID. */
   async getConversation(conversationId: string): Promise<any> {
     const { data } = await lastValueFrom(
       this.httpService.get(`/conversations/${conversationId}`, {
@@ -107,20 +92,14 @@ export class GhlApiService {
     return data;
   }
 
-  /**
-   * Creates a new conversation with the given contact and location IDs.
-   *
-   * @param {string} contactId - The ID of the contact to create the conversation for.
-   * @param {string} locationId - The ID of the location to create the conversation for.
-   * @returns {Promise<any>} - A promise that resolves with the created conversation data.
-   */
+  /** Creates a new GHL conversation for a contact at a location. */
   async createConversation(
     contactId: string,
     locationId: string,
   ): Promise<any> {
     const { data } = await lastValueFrom(
       this.httpService.post(
-        '/conversations/',
+        "/conversations/",
         { contactId, locationId },
         { headers: this.getHeaders() },
       ),
@@ -130,30 +109,57 @@ export class GhlApiService {
 
   /**
    * Cancels an appointment in the GHL Calendar by its GHL appointment ID.
-   * Throws on failure so the caller can decide whether to proceed.
+   * Returns the response data, or null on failure.
    */
-  async cancelAppointment(appointmentId: string): Promise<void> {
-    await lastValueFrom(
-      this.httpService.delete(`/calendars/events/appointments/${appointmentId}`, {
-        headers: this.getHeaders(),
-      }),
-    ).catch((error) => {
+  async cancelAppointment(appointmentId: string): Promise<any | null> {
+    try {
+      const { data } = await lastValueFrom(
+        this.httpService.delete(`/calendars/events/${appointmentId}`, {
+          headers: this.getHeaders(),
+        }),
+      );
+      return data;
+    } catch (error) {
       this.logger.error(`Cancel appointment ${appointmentId} failed: ${(error as Error).message}`);
-      throw error;
-    });
+      return null;
+    }
   }
 
   /**
-   * Adds one or more tags to a GHL contact.
-   * Errors are logged and re-thrown so callers can handle non-critical failures gracefully.
+   * Adds a tag to a GHL contact.
+   * Returns the response data, or null on failure.
    */
-  async addContactTag(contactId: string, tags: string[]): Promise<void> {
-    await lastValueFrom(
-      this.httpService.post(`/contacts/${contactId}/tags`, { tags }, { headers: this.getHeaders() }),
-    ).catch((error) => {
-      this.logger.error(`Add tags to contact ${contactId} failed: ${(error as Error).message}`);
-      throw error;
-    });
+  async addContactTag(contactId: string, tag: string): Promise<any | null> {
+    try {
+      const { data } = await lastValueFrom(
+        this.httpService.post(`/contacts/${contactId}/tags`, { tags: [tag] }, { headers: this.getHeaders() }),
+      );
+      return data;
+    } catch (error) {
+      this.logger.error(`Add tag to contact ${contactId} failed: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Removes a tag from a contact in GHL.
+   * @param {string} contactId - The GHL contact ID.
+   * @param {string} tag - The tag to remove.
+   * @returns {Promise<any | null>} - The response data, or null on failure.
+   */
+  async removeContactTag(contactId: string, tag: string): Promise<any | null> {
+    try {
+      const { data } = await lastValueFrom(
+        this.httpService.delete(
+          `/contacts/${contactId}/tags`,
+          { headers: this.getHeaders(), data: { tags: [tag] } },
+        ),
+      );
+      return data;
+    } catch (error) {
+      this.logger.warn(`GHL remove tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
+      return null;
+    }
   }
 
   /**
@@ -193,19 +199,27 @@ export class GhlApiService {
     return this.appointmentCircuitBreaker.execute(async () => {
       const { data } = await lastValueFrom(
         this.httpService.post(
-          '/calendars/events/appointments',
+          "/calendars/events/appointments",
           {
             calendarId,
             locationId,
             contactId,
             startTime,
             endTime,
-            appointmentStatus: 'confirmed',
+            appointmentStatus: "confirmed",
           },
           { headers: this.getHeaders() },
         ),
       );
       return data;
     });
+  }
+
+  /** Returns the current state of each GHL circuit breaker for health monitoring. */
+  getCircuitBreakerStates(): Record<string, CircuitState> {
+    return {
+      messaging: this.messagingCircuitBreaker.getState(),
+      appointments: this.appointmentCircuitBreaker.getState(),
+    };
   }
 }

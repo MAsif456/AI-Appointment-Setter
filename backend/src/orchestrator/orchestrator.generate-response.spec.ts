@@ -19,14 +19,25 @@ import { GroqService } from '../ai/groq.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { SlotProvider } from '../ai/slot-provider';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { INVALID_POSTCODE_RESPONSE, NO_APPOINTMENT_RESPONSE } from './orchestrator.types';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
+
+const mockSecurityPipeline = {
+  processInbound: jest.fn().mockImplementation((msg: string) =>
+    Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+  ),
+  validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+};
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
+const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
@@ -60,12 +71,15 @@ describe('OrchestratorService — generateResponse', () => {
         OrchestratorService,
         { provide: GreetingService, useValue: mockGreetingService },
         { provide: GroqService, useValue: mockGroqService },
+        { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: SlotProvider, useValue: mockSlotProvider },
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
+        { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 
@@ -214,17 +228,19 @@ describe('OrchestratorService — generateResponse', () => {
       };
       await service.generateResponse({ intent: 'UNKNOWN' }, contextWithHistory, baseClinicConfig);
       const messages = mockGroqService.generateChatResponse.mock.calls[0][0] as Array<{ role: string; content: string }>;
-      expect(messages).toHaveLength(3); // system + 2 history
+      expect(messages).toHaveLength(4); // system + 2 history + sandwich defense system
       expect(messages[1].content).toBe('Hi, how can I help?');
-      expect(messages[2].content).toBe('I have back pain.');
+      expect(messages[2].content).toContain('I have back pain.'); // wrapped in <user_message> tags
     });
 
-    it('should send only the system prompt when there is no conversation history', async () => {
+    it('should send system prompt plus sandwich defense when there is no conversation history', async () => {
       mockGroqService.generateChatResponse.mockResolvedValue('Response');
       await service.generateResponse({ intent: 'UNKNOWN' }, baseContext, baseClinicConfig);
       const messages = mockGroqService.generateChatResponse.mock.calls[0][0] as Array<{ role: string; content: string }>;
-      expect(messages).toHaveLength(1);
+      expect(messages).toHaveLength(2); // system prompt + sandwich defense
       expect(messages[0].role).toBe('system');
+      expect(messages[1].role).toBe('system');
+      expect(messages[1].content).toContain('Stay in character');
     });
   });
 

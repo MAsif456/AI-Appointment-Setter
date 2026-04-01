@@ -6,6 +6,8 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { Appointment } from '../database/schemas/appointment.schema';
 import { Clinic } from '../database/schemas/clinic.schema';
 import { Conversation } from '../database/schemas/conversation.schema';
+import { Lead } from '../database/schemas/lead.schema';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
 describe('AppointmentsService', () => {
@@ -51,6 +53,7 @@ describe('AppointmentsService', () => {
     };
     conversationModel = {
       findByIdAndUpdate: jest.fn().mockResolvedValue({}),
+      findById: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
     };
     ghlApiService = {
       createAppointment: jest.fn().mockResolvedValue(mockGhlResponse),
@@ -62,6 +65,8 @@ describe('AppointmentsService', () => {
         { provide: getModelToken(Appointment.name), useValue: appointmentModel },
         { provide: getModelToken(Clinic.name), useValue: clinicModel },
         { provide: getModelToken(Conversation.name), useValue: conversationModel },
+        { provide: getModelToken(Lead.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
+        { provide: PatientHistoryService, useValue: { persistHistory: jest.fn().mockResolvedValue(undefined) } },
         { provide: GhlApiService, useValue: ghlApiService },
       ],
     }).compile();

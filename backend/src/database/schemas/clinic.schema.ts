@@ -44,6 +44,17 @@ export class AIConfiguration {
   })
   greetingTemplate: string;
 
+  /** Optional greeting template used when a returning patient is detected.
+   *  Supports the same {{placeholder}} variables as greetingTemplate. */
+  @Prop({ maxlength: 500 })
+  returningPatientGreetingTemplate?: string;
+
+  /** Number of days before a patient history record is considered stale.
+   *  When stale, the system still recognises the patient but flags the data
+   *  for re-confirmation rather than skipping qualification silently. */
+  @Prop({ default: 365, min: 1 })
+  patientDataExpiryDays: number;
+
   @Prop({
     type: [QualificationQuestion],
     default: [
@@ -111,12 +122,14 @@ export class FollowUpSettings {
 export class CancellationPolicy {
   @Prop({ default: false })
   feeEnabled: boolean;
-
   @Prop()
   feeAmount?: number;
-
+  @Prop()
+  feeDescription?: string; // Human-readable fee, e.g. "£50" or "50%"
   @Prop({ default: 24 })
-  noticeHours: number; 
+  noticeHours: number;
+  @Prop({ maxlength: 500 })
+  cancellationMessage?: string; // Optional warning template with {{placeholders}}
 }
 
 @Schema({ timestamps: true })

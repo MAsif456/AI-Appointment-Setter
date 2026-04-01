@@ -90,10 +90,12 @@ describe('ChatService', () => {
         mockGroqService.generateChatResponse.mock.calls[0][0];
       expect(sentMessages[0].role).toBe('system');
       expect(sentMessages[0].content).toContain('Cardiff Physiotherapy Centre');
-      expect(sentMessages[sentMessages.length - 1].role).toBe('user');
-      expect(sentMessages[sentMessages.length - 1].content).toBe(
-        'My postcode is CF24 0XX',
-      );
+      // Sandwich defense: last message is a system reinforcement,
+      // user message is second-to-last (wrapped in delimiters)
+      expect(sentMessages[sentMessages.length - 1].role).toBe('system');
+      expect(sentMessages[sentMessages.length - 1].content).toContain('Stay in character');
+      expect(sentMessages[sentMessages.length - 2].role).toBe('user');
+      expect(sentMessages[sentMessages.length - 2].content).toContain('My postcode is CF24 0XX');
     });
 
     it('should return null when Groq fails', async () => {
@@ -116,8 +118,8 @@ describe('ChatService', () => {
 
       const sentMessages =
         mockGroqService.generateChatResponse.mock.calls[0][0];
-      // system + 3 history + 1 new user message = 5
-      expect(sentMessages).toHaveLength(5);
+      // system + 3 history + 1 new user message + 1 sandwich defense system = 6
+      expect(sentMessages).toHaveLength(6);
     });
 
     it('should inject slot section into system prompt when options provided', async () => {
