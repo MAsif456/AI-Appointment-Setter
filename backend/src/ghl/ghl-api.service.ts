@@ -129,6 +129,51 @@ export class GhlApiService {
   }
 
   /**
+   * Cancels an appointment in the GHL Calendar by its GHL appointment ID.
+   * Throws on failure so the caller can decide whether to proceed.
+   */
+  async cancelAppointment(appointmentId: string): Promise<void> {
+    await lastValueFrom(
+      this.httpService.delete(`/calendars/events/appointments/${appointmentId}`, {
+        headers: this.getHeaders(),
+      }),
+    ).catch((error) => {
+      this.logger.error(`Cancel appointment ${appointmentId} failed: ${(error as Error).message}`);
+      throw error;
+    });
+  }
+
+  /**
+   * Adds one or more tags to a GHL contact.
+   * Errors are logged and re-thrown so callers can handle non-critical failures gracefully.
+   */
+  async addContactTag(contactId: string, tags: string[]): Promise<void> {
+    await lastValueFrom(
+      this.httpService.post(`/contacts/${contactId}/tags`, { tags }, { headers: this.getHeaders() }),
+    ).catch((error) => {
+      this.logger.error(`Add tags to contact ${contactId} failed: ${(error as Error).message}`);
+      throw error;
+    });
+  }
+
+  /**
+   * Updates a single custom field on a GHL contact.
+   * Errors are logged and re-thrown so callers can handle non-critical failures gracefully.
+   */
+  async updateContactCustomField(contactId: string, fieldKey: string, fieldValue: string): Promise<void> {
+    await lastValueFrom(
+      this.httpService.put(
+        `/contacts/${contactId}`,
+        { customFields: [{ key: fieldKey, value: fieldValue }] },
+        { headers: this.getHeaders() },
+      ),
+    ).catch((error) => {
+      this.logger.error(`Update custom field ${fieldKey} for contact ${contactId} failed: ${(error as Error).message}`);
+      throw error;
+    });
+  }
+
+  /**
    * Creates an appointment in the GHL Calendar.
    *
    * @param {string} calendarId - The GHL calendar ID.
