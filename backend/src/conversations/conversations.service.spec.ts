@@ -11,6 +11,8 @@ import { EscalationService } from '../ai/escalation.service';
 import { AbuseHandlerService } from './abuse-handler.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { CancellationService } from '../cancellation/cancellation.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 
 describe('ConversationsService', () => {
   let service: ConversationsService;
@@ -105,6 +107,7 @@ describe('ConversationsService', () => {
     leadId: 'lead1',
     channel: 'website',
     phase: 'greeting',
+    isReturningPatient: false,
   };
 
   const mockClinic = {
@@ -143,6 +146,8 @@ describe('ConversationsService', () => {
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
+        PostcodeValidationService,
       ],
     }).compile();
 
@@ -213,7 +218,7 @@ describe('ConversationsService', () => {
       });
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'conv1',
-        expect.objectContaining({ phase: 'greeting', messageCount: 0 }),
+        expect.objectContaining({ $set: expect.objectContaining({ phase: 'greeting', messageCount: 0 }) }),
       );
       expect(mockLeadModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'lead1',
@@ -357,6 +362,123 @@ describe('ConversationsService', () => {
 
       expect(mockCancellationService.checkAppointmentExists).not.toHaveBeenCalled();
       expect(mockChatService.sendMessage).toHaveBeenCalled();
+    });
+  });
+
+  describe('returning patient intercept (sendMessage)', () => {
+    const returningConversation = {
+      ...mockConversation,
+      phase: 'greeting',
+      isReturningPatient: true,
+      context: new Map([['returningPatientPostcode', 'CF10 1AA']]),
+    };
+
+    beforeEach(() => {
+      mockMessageModel.find.mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+    });
+
+    it('DETAILS_UNCHANGED: exact keyword "yes" copies stored postcode to validatedPostcode and advances phase to booking', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('Great, let me check availability.');
+
+      await service.sendMessage('conv1', 'yes');
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        { $set: { 'context.validatedPostcode': 'CF10 1AA' } },
+      );
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'booking',
+      );
+    });
+
+    it('DETAILS_UNCHANGED: keyword "yes" embedded mid-sentence does NOT trigger intercept', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('Thanks for letting me know.');
+
+      await service.sendMessage('conv1', 'yes I have back pain');
+
+      const postcodeCalls = mockConversationModel.findByIdAndUpdate.mock.calls.filter(
+        ([, update]) => update?.$set?.['context.validatedPostcode'] === 'CF10 1AA',
+      );
+      expect(postcodeCalls).toHaveLength(0);
+
+      const bookingCalls = mockPersistenceService.updateConversationMeta.mock.calls.filter(
+        ([, , phase]) => phase === 'booking',
+      );
+      expect(bookingCalls).toHaveLength(0);
+    });
+
+    it('DETAILS_CHANGED: exact keyword "moved" updates phase to qualifying and returns early without calling AI', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+
+      const result = await service.sendMessage('conv1', 'moved');
+
+      expect(result).not.toBeNull();
+      expect(result!.reply).toBeTruthy();
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'qualifying',
+      );
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('DETAILS_CHANGED: exact keyword "no" updates phase to qualifying and returns early without calling AI', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+
+      const result = await service.sendMessage('conv1', 'no');
+
+      expect(result).not.toBeNull();
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'qualifying',
+      );
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('non-matching message falls through to normal AI flow', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('How can I help you today?');
+
+      const result = await service.sendMessage('conv1', 'I have a question about costs');
+
+      expect(result!.reply).toBe('How can I help you today?');
+      expect(mockChatService.sendMessage).toHaveBeenCalled();
+    });
+
+    it('DETAILS_UNCHANGED: multi-word phrase "nothing changed" mid-sentence still triggers', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+      mockChatService.sendMessage.mockResolvedValue('Understood.');
+
+      await service.sendMessage('conv1', 'actually nothing changed for me');
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'conv1',
+        { $set: { 'context.validatedPostcode': 'CF10 1AA' } },
+      );
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'booking',
+      );
+    });
+
+    it('DETAILS_UNCHANGED: no stored postcode — skips context write but still advances phase to booking', async () => {
+      const noPostcodeConv = {
+        ...returningConversation,
+        context: new Map<string, string>(),
+      };
+      mockConversationModel.findById.mockResolvedValue(noPostcodeConv);
+      mockChatService.sendMessage.mockResolvedValue('Let me check availability.');
+
+      await service.sendMessage('conv1', 'yes');
+
+      const postcodeCalls = mockConversationModel.findByIdAndUpdate.mock.calls.filter(
+        ([, update]) => update?.$set?.['context.validatedPostcode'],
+      );
+      expect(postcodeCalls).toHaveLength(0);
+      expect(mockPersistenceService.updateConversationMeta).toHaveBeenCalledWith(
+        expect.anything(), 'ai', 'booking',
+      );
     });
   });
 });

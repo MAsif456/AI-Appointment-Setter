@@ -15,6 +15,8 @@ import { AbuseHandlerService } from './abuse-handler.service';
 import { AbuseDetectionService } from './abuse-detection.service';
 import { SecurityModule } from '../security/security.module';
 import { CancellationModule } from '../cancellation/cancellation.module';
+import { PatientHistoryModule } from '../patient-history/patient-history.module';
+import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 
 
 @Module({
@@ -30,9 +32,10 @@ import { CancellationModule } from '../cancellation/cancellation.module';
     GhlModule,
     SecurityModule,
     CancellationModule,
+    PatientHistoryModule,
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService, ConversationsPersistenceService, EscalationService, AbuseHandlerService, AbuseDetectionService],
+  providers: [ConversationsService, ConversationsPersistenceService, EscalationService, AbuseHandlerService, AbuseDetectionService, PostcodeValidationService],
   exports: [ConversationsService],
 })
 export class ConversationsModule {

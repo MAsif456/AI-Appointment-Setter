@@ -68,6 +68,23 @@ export async function seedLeads(LeadModel: any, clinics: any[]) {
       ghlContactId: 'contact_lisa_001',
       ghlTags: ['outside-area'],
     },
+    // James Morgan — returning patient (pre-seeded with PatientHistory for demo)
+    {
+      clinicId: clinics[0]._id,
+      firstName: 'James',
+      lastName: 'Morgan',
+      phone: '07700 900321',
+      email: 'james.morgan@email.com',
+      postcode: 'CF14 1AB',
+      postcodeStatus: 'valid',
+      issue: 'Lower back pain',
+      urgency: 'unknown',
+      patientType: 'new',
+      leadSource: 'google_ads',
+      preferredChannel: 'sms',
+      ghlContactId: 'ERd1J6xvmKszX65k6b7S',
+      ghlTags: [],
+    },
   ]);
 
   console.log(`Created ${leads.length} leads\n`);

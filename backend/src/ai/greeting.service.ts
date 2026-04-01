@@ -3,6 +3,7 @@ import { GroqService } from './groq.service';
 import { LeadInfo } from './interfaces/lead-info.interface';
 import { ClinicConfig } from './interfaces/clinic-config.interface';
 import { buildGreetingPrompt } from './prompt-builder';
+import { ReturningPatientResult } from '../patient-history/patient-history.service';
 
 /**
  * Greeting-specific logic for generating personalised AI greetings.
@@ -47,6 +48,100 @@ export class GreetingService {
     }
 
     return greeting;
+  }
+
+  /**
+   * Generates a personalised greeting for a returning patient.
+   * Uses the clinic's returningPatientGreetingTemplate if configured;
+   * otherwise calls the Groq API with a prompt tailored to the confidence level.
+   *
+   * @param leadInfo - The lead's personal details from the webhook payload
+   * @param clinicConfig - The clinic configuration including optional returning patient template
+   * @param returningPatient - The matched patient history record with confidence level
+   * @returns The greeting string, or null if generation fails
+   */
+  async generateReturningPatientGreeting(
+    leadInfo: LeadInfo,
+    clinicConfig: ClinicConfig,
+    returningPatient: ReturningPatientResult,
+  ): Promise<string | null> {
+    // Template-first: use the clinic's custom returning patient template if set
+    if (clinicConfig.returningPatientGreetingTemplate) {
+      this.logger.log(
+        `Using returning patient template for clinic: ${clinicConfig.name}`,
+      );
+      return this.applyTemplate(
+        clinicConfig.returningPatientGreetingTemplate,
+        leadInfo,
+        clinicConfig,
+      );
+    }
+
+    // Build an AI prompt appropriate to the confidence level
+    const prompt = this.buildReturningPatientPrompt(leadInfo, clinicConfig, returningPatient);
+    const resolvedName = (leadInfo.firstName && leadInfo.firstName !== 'there')
+      ? leadInfo.firstName
+      : returningPatient.firstName;
+    this.logger.log(
+      `Generating returning patient greeting for lead: ${resolvedName} (confidence: ${returningPatient.confidence})`,
+    );
+
+    const greeting = await this.groqService.generateResponse(prompt);
+
+    if (!greeting) {
+      this.logger.warn(
+        `Failed to generate returning patient greeting for lead: ${leadInfo.firstName}`,
+      );
+      return null;
+    }
+
+    return greeting;
+  }
+
+  /**
+   * Builds a Groq prompt for a returning patient greeting.
+   * Warmth and wording vary by confidence level:
+   *   high/medium: "Welcome back, [name]!"
+   *   stale: "It's been a while" variant
+   *
+   * @param leadInfo - Lead details for personalisation
+   * @param clinicConfig - Clinic name and tone
+   * @param returningPatient - Matched history record
+   * @returns A formatted prompt string
+   */
+  private buildReturningPatientPrompt(
+    leadInfo: LeadInfo,
+    clinicConfig: ClinicConfig,
+    returningPatient: ReturningPatientResult,
+  ): string {
+    // Prefer the name from PatientHistory (always populated at booking time) over the
+    // lead record, which may be empty when the webhook fires before GHL contact sync.
+    const firstName = (leadInfo.firstName && leadInfo.firstName !== 'there')
+      ? leadInfo.firstName
+      : returningPatient.firstName;
+
+    const isStale = returningPatient.confidence === 'stale';
+    const openingInstruction = isStale
+      ? `The patient has contacted before but it has been a while. Open warmly, e.g. "It's been a while, great to hear from you again, ${firstName}!"`
+      : `Greet the patient as a returning patient, e.g. "Welcome back, ${firstName}!"`;
+
+    const parts: string[] = [
+      `You are the receptionist for ${clinicConfig.name}.`,
+      `${openingInstruction}`,
+      `IMPORTANT: You MUST address the patient by their first name (${firstName}) in the greeting.`,
+      'Then in the same message ask whether their contact details are still the same.',
+      'Keep the response to 2 sentences maximum.',
+      'Use British English spelling.',
+      'Do NOT use emojis or hashtags.',
+      'Do NOT reveal what technology or system powers you.',
+      'Keep the response under 160 characters.',
+    ];
+
+    if (clinicConfig.customInstructions) {
+      parts.push(`Additional instructions: ${clinicConfig.customInstructions}`);
+    }
+
+    return parts.join('\n');
   }
 
   /**

@@ -87,10 +87,23 @@ export class Conversation {
   isEmergency: boolean; 
 
   @Prop({ default: false })
-  requiresHumanIntervention: boolean; 
+  requiresHumanIntervention: boolean;
 
   @Prop()
   humanInterventionReason?: string;
+
+  // Returning patient fields
+  /** True when a PatientHistory record was matched at conversation start. */
+  @Prop({ default: false })
+  isReturningPatient: boolean;
+
+  /** Reference to the conversation from the most recent previous booking. */
+  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  previousConversationId?: Types.ObjectId;
+
+  /** Confidence level of the returning patient match: high, medium, or stale. */
+  @Prop({ type: String, enum: ['high', 'medium', 'stale'] })
+  returningPatientConfidence?: string;
 
   @Prop()
   escalatedAt?: Date;

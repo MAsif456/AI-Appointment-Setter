@@ -22,6 +22,7 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
 import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 
@@ -72,6 +73,7 @@ describe('OrchestratorService — generateResponse', () => {
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 

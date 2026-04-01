@@ -22,6 +22,7 @@ import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
 
 const mockSecurityPipeline = {
   processInbound: jest.fn().mockImplementation((msg: string) =>
@@ -69,6 +70,7 @@ describe('OrchestratorService — handleNewLead', () => {
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],
     }).compile();
 

@@ -160,6 +160,26 @@ export class ConversationsService {
   }
 
   /**
+   * Updates the returning patient flags on a conversation document.
+   * Called immediately after a PatientHistory match is found at conversation start.
+   * @param {Types.ObjectId} conversationId - The conversation to update.
+   * @param flags - The returning patient fields to write.
+   */
+  async updateReturningPatientFlags(
+    conversationId: Types.ObjectId,
+    flags: {
+      isReturningPatient: boolean;
+      previousConversationId?: Types.ObjectId;
+      returningPatientConfidence?: string;
+    },
+  ): Promise<void> {
+    await this.conversationModel.findByIdAndUpdate(conversationId, { $set: flags }).exec();
+    this.logger.log(
+      `Conversation ${conversationId} flagged as returning patient (confidence: ${flags.returningPatientConfidence ?? 'unknown'})`,
+    );
+  }
+
+  /**
    * Stores a key/value pair in the conversation's context Map.
    * @param {Types.ObjectId} conversationId - The conversation ID.
    * @param {string} key - The context key, e.g. "validatedPostcode".
