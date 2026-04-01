@@ -21,13 +21,17 @@ import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
-import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
+import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
+import { INVALID_POSTCODE_RESPONSE, NO_APPOINTMENT_RESPONSE } from './orchestrator.types';
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
+const mockSlotProvider = { getAvailableSlots: jest.fn() };
+const mockAppointmentsService = { bookAppointment: jest.fn() };
 
 /** Reusable active clinic config covering CF and NP postcode areas. */
 const baseClinicConfig: ClinicConfig = {
@@ -59,6 +63,8 @@ describe('OrchestratorService — generateResponse', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
       ],
     }).compile();
@@ -228,6 +234,64 @@ describe('OrchestratorService — generateResponse', () => {
       expect(result).toBe(INVALID_POSTCODE_RESPONSE);
       expect(mockGroqService.generateResponse).not.toHaveBeenCalled();
       expect(mockGroqService.generateChatResponse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('RESCHEDULE intent', () => {
+    const bookedContext: OrchestratorContext = {
+      ...baseContext,
+      phase: 'booked',
+      currentAppointment: {
+        ghlAppointmentId: 'ghl_appt_001',
+        appointmentDate: 'Monday 5th April',
+        appointmentTime: '2:00 PM',
+      },
+    };
+
+    it('should return NO_APPOINTMENT_RESPONSE when no appointment is in context', async () => {
+      const result = await service.generateResponse({ intent: 'RESCHEDULE' }, baseContext, baseClinicConfig);
+      expect(result).toBe(NO_APPOINTMENT_RESPONSE);
+      expect(mockGroqService.generateResponse).not.toHaveBeenCalled();
+    });
+
+    it('should include the current appointment date and time in the prompt', async () => {
+      mockGroqService.generateResponse.mockResolvedValue('ok');
+      await service.generateResponse({ intent: 'RESCHEDULE' }, bookedContext, baseClinicConfig);
+      const prompt = mockGroqService.generateResponse.mock.calls[0][0] as string;
+      expect(prompt).toContain('Monday 5th April');
+      expect(prompt).toContain('2:00 PM');
+    });
+  });
+
+  describe('CANCEL_RESCHEDULE intent', () => {
+    const reschedulingContext: OrchestratorContext = {
+      ...baseContext,
+      phase: 'rescheduling',
+      currentAppointment: {
+        ghlAppointmentId: 'ghl_appt_001',
+        appointmentDate: 'Monday 5th April',
+        appointmentTime: '2:00 PM',
+      },
+    };
+
+    it('should call Groq with a prompt containing the appointment date and time', async () => {
+      mockGroqService.generateResponse.mockResolvedValue('Your Monday 5th April appointment is confirmed.');
+      await service.generateResponse({ intent: 'CANCEL_RESCHEDULE' }, reschedulingContext, baseClinicConfig);
+      const prompt = mockGroqService.generateResponse.mock.calls[0][0] as string;
+      expect(prompt).toContain('Monday 5th April');
+      expect(prompt).toContain('2:00 PM');
+    });
+
+    it('should still call Groq even when no appointment is in context', async () => {
+      mockGroqService.generateResponse.mockResolvedValue('ok');
+      await service.generateResponse({ intent: 'CANCEL_RESCHEDULE' }, baseContext, baseClinicConfig);
+      expect(mockGroqService.generateResponse).toHaveBeenCalled();
+    });
+
+    it('should return the Groq-generated confirmation message', async () => {
+      mockGroqService.generateResponse.mockResolvedValue('Great — your Monday 5th April at 2:00 PM appointment is kept!');
+      const result = await service.generateResponse({ intent: 'CANCEL_RESCHEDULE' }, reschedulingContext, baseClinicConfig);
+      expect(result).toBe('Great — your Monday 5th April at 2:00 PM appointment is kept!');
     });
   });
 
