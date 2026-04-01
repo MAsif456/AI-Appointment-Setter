@@ -19,6 +19,7 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 import { PatientHistoryService } from './patient-history.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 
 const CLINIC_A = '507f1f77bcf86cd799439011';
@@ -90,6 +91,12 @@ describe('OrchestratorService - returning patient flow', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: PatientHistoryService, useValue: mockPatientHistoryService },
+        { provide: SecurityPipelineService, useValue: {
+          processInbound: jest.fn().mockImplementation((msg: string) =>
+            Promise.resolve({ allowed: true, sanitisedMessage: msg, threatScore: 0, flags: [] }),
+          ),
+          validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
+        } },
         PostcodeValidationService,
       ],
     }).compile();

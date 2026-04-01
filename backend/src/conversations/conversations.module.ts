@@ -13,6 +13,7 @@ import { ConversationsService } from './conversations.service';
 import { ConversationsPersistenceService } from './conversations.persistence.service';
 import { AbuseHandlerService } from './abuse-handler.service';
 import { AbuseDetectionService } from './abuse-detection.service';
+import { SecurityModule } from '../security/security.module';
 import { CancellationModule } from '../cancellation/cancellation.module';
 import { PatientHistoryModule } from '../patient-history/patient-history.module';
 import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
@@ -29,6 +30,7 @@ import { PostcodeValidationService } from '../orchestrator/postcode-validation.s
     AiModule,
     AppointmentsModule,
     GhlModule,
+    SecurityModule,
     CancellationModule,
     PatientHistoryModule,
   ],

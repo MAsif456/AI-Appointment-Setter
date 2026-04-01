@@ -16,6 +16,7 @@ import { UrgencyPipeline } from '../ai/urgency-pipeline';
 import { EscalationService } from '../ai/escalation.service';
 import { PATIENT_EMERGENCY_FOLLOWUP } from '../ai/urgency-messages';
 import { AbuseHandlerService } from './abuse-handler.service';
+import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { FALLBACK_AI_UNAVAILABLE, DETAILS_UNCHANGED_KEYWORDS, DETAILS_CHANGED_KEYWORDS, matchesKeywords } from '../orchestrator/orchestrator.types';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ConversationsPersistenceService } from './conversations.persistence.service';
@@ -42,6 +43,7 @@ export class ConversationsService {
     private readonly urgencyPipeline: UrgencyPipeline,
     private readonly escalationService: EscalationService,
     private readonly abuseHandler: AbuseHandlerService,
+    private readonly securityPipeline: SecurityPipelineService,
     private readonly cancellationService: CancellationService,
     private readonly persistence: ConversationsPersistenceService,
     private readonly patientHistoryService: PatientHistoryService,
@@ -131,6 +133,21 @@ export class ConversationsService {
 
     const abuseHandled = await this.abuseHandler.handle(conversation, clinic, lead, userMessage);
     if (abuseHandled) return abuseHandled;
+
+    // Security pipeline: sanitise input, detect injection, enforce boundaries
+    const securityResult = await this.securityPipeline.processInbound(
+      userMessage,
+      conversationId,
+      (conversation.clinicId as any).toString(),
+      conversation.phase,
+      (conversation.leadId as any).toString(),
+    );
+    if (!securityResult.allowed) {
+      const fallback = securityResult.fallbackResponse ?? "I'm here to help you book an appointment. How can I assist?";
+      await this.persistence.saveMessage(conversation, clinic, lead, 'ai', fallback);
+      await this.persistence.updateConversationMeta(conversation, 'ai', undefined);
+      return { reply: fallback, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
 
     const cancelResult = await handleCancellationIntercept(
       conversation, clinic, lead, userMessage,
