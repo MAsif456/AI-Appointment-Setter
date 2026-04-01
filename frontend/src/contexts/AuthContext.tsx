@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import api from '@/lib/apiAxios';
 
@@ -23,7 +23,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PUBLIC_ROUTES = ['/login', '/verify-email', '/forgot-password', '/reset-password'];
+const PUBLIC_ROUTES = ['/login', '/forgot-password'];
+const TOKEN_ROUTES = ['/verify-email', '/reset-password'];
+
+/** How often to validate the token against the backend (ms) */
+const TOKEN_POLL_MS = 1_000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Load user on mount
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     const savedUser = localStorage.getItem('user');
@@ -46,26 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  /**
-   * Listens for localStorage changes made in OTHER browser tabs.
-   * When accessToken is removed (logout) in another tab, this tab
-   * clears state and redirects to login automatically.
-   */
+  // Multi-tab logout via storage events
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'accessToken' && e.newValue === null) {
-        // Another tab logged out — sync this tab
         setUser(null);
         router.push('/login');
       }
       if (e.key === 'user' && e.newValue) {
-        // Another tab updated the user (e.g. after role change)
-        try {
-          setUser(JSON.parse(e.newValue));
-        } catch { /* ignore */ }
+        try { setUser(JSON.parse(e.newValue)); } catch { /* ignore */ }
       }
     };
-
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [router]);
@@ -74,16 +68,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
     const isPublic = PUBLIC_ROUTES.some(r => pathname.startsWith(r));
-
-    if (!isPublic && !user) {
-      router.push('/login');
-      return;
-    }
-    if (isPublic && user) {
-      router.push('/');
-      return;
-    }
+    const isTokenRoute = TOKEN_ROUTES.some(r => pathname.startsWith(r));
+    if (isTokenRoute) return;
+    if (!isPublic && !user) { router.push('/login'); return; }
+    if (isPublic && user) { router.push('/'); }
   }, [user, loading, pathname, router]);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    setUser(null);
+    router.push('/login');
+  }, [router]);
+
+  /**
+   * Polls GET /auth/me every 30 seconds while the user is logged in.
+   * If the backend returns a 401 (e.g. because tokenVersion changed after
+   * a role update), the axios interceptor fires which clears localStorage
+   * and redirects to /login?expired=true — logging the affected user out
+   * immediately without them needing to click anything.
+   *
+   * Only polls when the browser tab is visible to avoid unnecessary requests.
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    const validateToken = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        await api.get('/auth/me');
+      } catch {
+        // 401 is handled by the axios interceptor in apiAxios.ts
+        // which clears localStorage and redirects to /login?expired=true
+      }
+    };
+
+    const interval = setInterval(validateToken, TOKEN_POLL_MS);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
@@ -92,14 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
     router.push('/');
-  };
-
-  const logout = () => {
-    // Removing accessToken triggers the storage event in other open tabs
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/login');
   };
 
   return (

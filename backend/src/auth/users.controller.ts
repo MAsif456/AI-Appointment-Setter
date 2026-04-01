@@ -12,8 +12,7 @@ import { AdminGuard } from '../auth/guards/admin.guard';
  * Admin-only endpoints for managing user accounts.
  * All routes require JwtAuthGuard + AdminGuard.
  *
- * User creation is handled by POST /auth/create-user in AuthController
- * since it is part of the auth flow (sends verification email).
+ * User creation is handled by POST /auth/create-user in AuthController.
  */
 @Controller('users')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -21,18 +20,15 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Returns a paginated list of all user accounts for the User Management page.
-   * @param page - Page number (1-based, default: 1). Shows 5 users per page.
+   * Returns a paginated list of all users.
+   * @param page - Page number (1-based, default 1). Shows 5 users per page.
    */
   @Get()
   async findAll(@Query('page') page = '1') {
     return this.usersService.findAll(parseInt(page, 10));
   }
 
-  /**
-   * Returns a single user by ID.
-   * @param id - The user's MongoDB ObjectId
-   */
+  /** Returns a single user by ID. */
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.usersService.findById(id);
@@ -40,21 +36,20 @@ export class UsersController {
 
   /**
    * Updates a user's name, email, role, or assigned clinics.
-   * @param id - The user's MongoDB ObjectId
-   * @param dto - Fields to update (all optional)
+   * Passes the requesting admin's ID so self-demotion can be blocked.
    */
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: any) {
+    return this.usersService.update(id, dto, req.user._id.toString());
   }
 
   /**
-   * Deletes a user account. Cannot delete your own account.
-   * @param id - The user's MongoDB ObjectId
+   * Deletes a user account.
+   * Cannot delete own account or the last admin.
    */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async delete(@Param('id') id: string, @Req() req) {
+  async delete(@Param('id') id: string, @Req() req: any) {
     return this.usersService.delete(id, req.user._id.toString());
   }
 }

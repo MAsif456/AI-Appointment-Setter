@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Pencil, Trash2, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, UserPlus, Shield, Users as UserIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/apiAxios';
 import UserModal from './UserModal';
+import DeleteConfirmModal from './DeleteConfirmModal';
 import styles from '../settings.module.css';
-import { Shield, Users as UserIcon } from 'lucide-react';
 
 export interface StaffUser {
   _id: string;
@@ -19,15 +19,17 @@ export interface StaffUser {
 
 export interface Clinic { _id: string; name: string; address?: string; }
 
+/** How often to silently re-fetch users to pick up verification status changes */
+const POLL_INTERVAL_MS = 10_000;
+
 /**
- * User Management tab — lists all users with pagination (5 per page),
- * and provides add, edit, and delete actions.
- * Only rendered for admin users.
+ * User Management tab — lists all users with pagination (5 per page).
+ * Polls every 10 seconds so verification status updates automatically
+ * when a staff member verifies their email without the admin needing to refresh.
  */
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<StaffUser[]>([]);
-  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [clinics, setClinics] = useState<Clinic[]>([]);
@@ -37,28 +39,38 @@ export default function UserManagement() {
   const [deleteUser, setDeleteUser] = useState<StaffUser | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  /** Shows a toast notification that auto-dismisses after 4 seconds */
   const showToast = (type: 'success' | 'error', message: string, duration = 4000) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), duration);
   };
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  /**
+   * Fetches users. Pass silent=true from the polling interval so the
+   * loading spinner doesn't flicker every 10 seconds.
+   */
+  const fetchUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get(`/users?page=${page}`);
       setUsers(res.data.users);
-      setTotal(res.data.total);
       setTotalPages(res.data.totalPages);
     } catch {
-      showToast('error', 'Failed to load users');
+      if (!silent) showToast('error', 'Failed to load users');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [page]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
   useEffect(() => { api.get('/clinics').then(r => setClinics(r.data)).catch(() => {}); }, []);
+
+  // Poll every 10 seconds to pick up verification status changes automatically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchUsers(true);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchUsers]);
 
   const handleDelete = async () => {
     if (!deleteUser) return;
@@ -69,14 +81,15 @@ export default function UserManagement() {
       fetchUsers();
     } catch (err: any) {
       showToast('error', err.response?.data?.message || 'Failed to delete user');
+      setDeleteUser(null);
     }
   };
 
   const onModalSuccess = (message: string, duration = 4000) => {
-  setShowAdd(false);
-  setEditUser(null);
-  fetchUsers();
-  showToast('success', message, duration);
+    setShowAdd(false);
+    setEditUser(null);
+    fetchUsers();
+    showToast('success', message, duration);
   };
 
   return (
@@ -105,7 +118,9 @@ export default function UserManagement() {
         ) : (
           users.map(u => (
             <div key={u._id} className={styles.userCard}>
-              <div className={styles.userAvatar}> {u.role === 'admin' ? <Shield size={20} /> : <UserIcon size={20} />}</div>
+              <div className={styles.userAvatar}>
+                {u.role === 'admin' ? <Shield size={20} /> : <UserIcon size={20} />}
+              </div>
               <div className={styles.userCardInfo}>
                 <div className={styles.userCardName}>{u.name}</div>
                 <div className={styles.userCardEmail}>{u.email}</div>
@@ -125,9 +140,9 @@ export default function UserManagement() {
                 <button className={styles.iconButton} onClick={() => setEditUser(u)} title="Edit user">
                   <Pencil size={16} />
                 </button>
-                {/* Prevent admin from deleting their own account */}
                 {u._id !== currentUser?._id && (
-                  <button className={`${styles.iconButton} ${styles.iconButtonDanger}`} onClick={() => setDeleteUser(u)} title="Delete user">
+                  <button className={`${styles.iconButton} ${styles.iconButtonDanger}`}
+                    onClick={() => setDeleteUser(u)} title="Delete user">
                     <Trash2 size={16} />
                   </button>
                 )}
@@ -137,7 +152,6 @@ export default function UserManagement() {
         )}
       </div>
 
-      {/* Pagination — only shown when there is more than one page */}
       {totalPages > 1 && (
         <div className={styles.pagination}>
           <button className={styles.pageButton} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
@@ -152,12 +166,7 @@ export default function UserManagement() {
 
       {showAdd && (
         <UserModal mode="add" clinics={clinics} onClose={() => setShowAdd(false)}
-        onSuccess={() =>
-          onModalSuccess(
-            'User created. Ask the user to check their email to verify their account.',
-            8000
-          )
-        } />
+          onSuccess={() => onModalSuccess('User created. Ask the user to check their email to verify their account.', 8000)} />
       )}
 
       {editUser && (
@@ -165,20 +174,8 @@ export default function UserManagement() {
           onSuccess={() => onModalSuccess('User updated successfully')} />
       )}
 
-      {/* Delete confirmation modal */}
       {deleteUser && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <h3 className={styles.modalTitle}>Delete User</h3>
-            <p className={styles.modalDesc}>
-              Are you sure you want to delete <strong>{deleteUser.name}</strong>? This cannot be undone.
-            </p>
-            <div className={styles.modalActions}>
-              <button className={styles.outlineButton} onClick={() => setDeleteUser(null)}>Cancel</button>
-              <button className={styles.dangerButton} onClick={handleDelete}>Delete</button>
-            </div>
-          </div>
-        </div>
+        <DeleteConfirmModal user={deleteUser} onConfirm={handleDelete} onCancel={() => setDeleteUser(null)} />
       )}
     </div>
   );

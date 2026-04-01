@@ -5,18 +5,20 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/apiAxios';
 import styles from '../settings.module.css';
-import { Shield, Users as UserIcon } from 'lucide-react';
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 /**
  * Account Settings tab — shows the logged-in user's profile info
  * and an inline change-password form that expands on demand.
+ * Password inputs show a red border when they have a validation error,
+ * matching the style used in UserModal and the Add Clinic form.
  */
 export default function AccountSettings() {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
+  const [currentPasswordError, setCurrentPasswordError] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showCurrent, setShowCurrent] = useState(false);
@@ -28,7 +30,6 @@ export default function AccountSettings() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  /** Validates new password complexity in real time */
   const handleNewPasswordChange = (value: string) => {
     setNewPassword(value);
     setPasswordError(
@@ -38,7 +39,6 @@ export default function AccountSettings() {
     );
   };
 
-  /** Validates confirm password matches in real time */
   const handleConfirmChange = (value: string) => {
     setConfirmPassword(value);
     setConfirmError(value && value !== newPassword ? 'Passwords do not match' : '');
@@ -47,12 +47,20 @@ export default function AccountSettings() {
   const resetForm = () => {
     setShowForm(false);
     setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    setCurrentPasswordError('');
     setError(''); setPasswordError(''); setConfirmError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Trigger validation on submit in case fields were never touched
+    if (!currentPassword) {
+      setCurrentPasswordError('Current password is required');
+      return;
+    }
     if (!PASSWORD_REGEX.test(newPassword) || newPassword !== confirmPassword) return;
+
     setLoading(true);
     setError('');
     setSuccess('');
@@ -78,7 +86,6 @@ export default function AccountSettings() {
       </div>
 
       <div className={styles.infoCard}>
-        {/* Profile fields — read only */}
         {[
           { label: 'Full Name', value: user?.name },
           { label: 'Email Address', value: user?.email },
@@ -100,7 +107,6 @@ export default function AccountSettings() {
 
         {success && <div className={styles.successAlert}>{success}</div>}
 
-        {/* Change password — hidden until button is clicked */}
         {!showForm ? (
           <button className={styles.outlineButton} onClick={() => setShowForm(true)}>
             Change Password
@@ -109,33 +115,46 @@ export default function AccountSettings() {
           <form onSubmit={handleSubmit} className={styles.passwordForm}>
             <div className={styles.passwordFormHeader}>
               <span className={styles.passwordFormTitle}>Change Password</span>
-              <button type="button" className={styles.cancelLink} onClick={resetForm}>
-                Cancel
-              </button>
+              <button type="button" className={styles.cancelLink} onClick={resetForm}>Cancel</button>
             </div>
 
             {error && <div className={styles.errorAlert}>{error}</div>}
 
-            {/* Current password field */}
+            {/* Current password — red border when empty on submit */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Current Password *</label>
               <div className={styles.passwordWrapper}>
-                <input type={showCurrent ? 'text' : 'password'} value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password" required className={styles.input} />
+                <input
+                  type={showCurrent ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    setCurrentPasswordError('');
+                  }}
+                  onBlur={() => { if (!currentPassword) setCurrentPasswordError('Current password is required'); }}
+                  placeholder="Enter current password"
+                  required
+                  className={`${styles.input} ${currentPasswordError ? styles.inputError : ''}`}
+                />
                 <button type="button" onClick={() => setShowCurrent(!showCurrent)} className={styles.eyeButton}>
                   {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {currentPasswordError && <p className={styles.fieldError}>{currentPasswordError}</p>}
             </div>
 
-            {/* New password field */}
+            {/* New password — red border when complexity not met */}
             <div className={styles.formGroup}>
               <label className={styles.label}>New Password *</label>
               <div className={styles.passwordWrapper}>
-                <input type={showNew ? 'text' : 'password'} value={newPassword}
+                <input
+                  type={showNew ? 'text' : 'password'}
+                  value={newPassword}
                   onChange={(e) => handleNewPasswordChange(e.target.value)}
-                  placeholder="Enter new password" required className={styles.input} />
+                  placeholder="Enter new password"
+                  required
+                  className={`${styles.input} ${passwordError ? styles.inputError : ''}`}
+                />
                 <button type="button" onClick={() => setShowNew(!showNew)} className={styles.eyeButton}>
                   {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -143,13 +162,18 @@ export default function AccountSettings() {
               {passwordError && <p className={styles.fieldError}>{passwordError}</p>}
             </div>
 
-            {/* Confirm new password field */}
+            {/* Confirm password — red border when passwords do not match */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Confirm New Password *</label>
               <div className={styles.passwordWrapper}>
-                <input type={showConfirm ? 'text' : 'password'} value={confirmPassword}
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
                   onChange={(e) => handleConfirmChange(e.target.value)}
-                  placeholder="Confirm new password" required className={styles.input} />
+                  placeholder="Confirm new password"
+                  required
+                  className={`${styles.input} ${confirmError ? styles.inputError : ''}`}
+                />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)} className={styles.eyeButton}>
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>

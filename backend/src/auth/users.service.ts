@@ -8,7 +8,19 @@ const PAGE_SIZE = 5;
 
 /**
  * Handles admin CRUD operations for user accounts.
- * Separated from AuthService (single responsibility) to keep both files under 200 lines.
+ * Separated from AuthService to keep both files under 200 lines.
+ *
+ * Deletion rules:
+ *   - You cannot delete your own account
+ *   - Admin accounts cannot be deleted directly — an admin must first be
+ *     demoted to staff by another admin, then deleted as a normal staff account
+ *   - The super admin account (isSuperAdmin: true) can never be demoted or deleted
+ *
+ * Role change rules:
+ *   - You cannot demote your own account
+ *   - The super admin can never be demoted
+ *   - tokenVersion is incremented on role change to immediately invalidate
+ *     the affected user's JWT on their next request
  */
 @Injectable()
 export class UsersService {
@@ -18,10 +30,6 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
-  /**
-   * Returns a paginated list of all users for the User Management page.
-   * @param page - 1-based page number (default: 1). Returns 5 users per page.
-   */
   async findAll(page = 1) {
     const skip = (page - 1) * PAGE_SIZE;
     const [users, total] = await Promise.all([
@@ -37,10 +45,6 @@ export class UsersService {
     return { users, total, totalPages: Math.ceil(total / PAGE_SIZE), currentPage: page };
   }
 
-  /**
-   * Returns a single user by ID excluding sensitive fields.
-   * @throws NotFoundException if the user does not exist
-   */
   async findById(id: string): Promise<UserDocument> {
     const user = await this.userModel
       .findById(id)
@@ -50,17 +54,44 @@ export class UsersService {
     return user;
   }
 
+  private async countAdmins(): Promise<number> {
+    return this.userModel.countDocuments({ role: 'admin' });
+  }
+
   /**
    * Updates a user's details.
-   * Staff switching to admin has assigned clinics cleared.
-   * @throws BadRequestException if switching to staff with no clinics
+   * @param id            - ID of the user being updated
+   * @param dto           - Fields to update
+   * @param requesterId   - ID of the admin making the request
    */
-  async update(id: string, dto: UpdateUserDto): Promise<UserDocument> {
+  async update(id: string, dto: UpdateUserDto, requesterId: string): Promise<UserDocument> {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('User not found');
 
     const newRole = dto.role ?? user.role;
     const newClinics = dto.assignedClinics ?? user.assignedClinics.map(c => c.toString());
+
+    // Super admin can never be demoted
+    if (user.isSuperAdmin && newRole === 'staff') {
+      throw new BadRequestException('The super admin account cannot be demoted.');
+    }
+
+    // An admin cannot demote their own account
+    if (id === requesterId && user.role === 'admin' && newRole === 'staff') {
+      throw new BadRequestException(
+        'You cannot change your own role. Ask another admin to do this.',
+      );
+    }
+
+    // Must keep at least one admin
+    if (user.role === 'admin' && newRole === 'staff') {
+      const adminCount = await this.countAdmins();
+      if (adminCount <= 1) {
+        throw new BadRequestException(
+          'Cannot demote the last admin. Promote another user to admin first.',
+        );
+      }
+    }
 
     if (newRole === 'staff' && newClinics.length === 0) {
       throw new BadRequestException('Staff members must have at least one clinic assigned');
@@ -68,28 +99,29 @@ export class UsersService {
 
     if (dto.name) user.name = dto.name;
     if (dto.email) user.email = dto.email.toLowerCase();
-    if (dto.role) user.role = dto.role;
     if (dto.assignedClinics !== undefined) {
-      user.assignedClinics = dto.role === 'admin'
+      user.assignedClinics = newRole === 'admin'
         ? []
-        : dto.assignedClinics.map(id => new Types.ObjectId(id));
+        : dto.assignedClinics.map(i => new Types.ObjectId(i));
+    }
+
+    // Increment tokenVersion when role changes so the user's JWT is rejected
+    // on their next API call, forcing an immediate re-login with new permissions
+    if (dto.role && dto.role !== user.role) {
+      user.role = dto.role;
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+      this.logger.log(`Role changed for user ${id} — tokenVersion: ${user.tokenVersion}`);
     }
 
     await user.save();
-    this.logger.log(`User ${id} updated`);
+    this.logger.log(`User ${id} updated by admin ${requesterId}`);
     return user;
   }
 
   /**
-   * Deletes a user account. Cannot delete own account.
-   *
-   * Security: Before deleting, we set isActive=false so the JWT strategy
-   * immediately rejects any in-flight requests from that user.
-   * The next API call the deleted staff member makes will get a 401,
-   * which the frontend axios interceptor handles by logging them out.
-   *
-   * @throws BadRequestException if attempting to delete own account
-   * @throws NotFoundException if the user does not exist
+   * Deletes a staff user account.
+   * Admin accounts cannot be deleted directly — they must be demoted to staff first.
+   * The super admin account can never be deleted.
    */
   async delete(id: string, requestingUserId: string): Promise<{ message: string }> {
     if (id === requestingUserId) {
@@ -99,14 +131,23 @@ export class UsersService {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('User not found');
 
-    // Deactivate first so any active session is rejected immediately
-    // by validateUser() in the JWT strategy before the document is gone
+    // Super admin is permanently protected
+    if (user.isSuperAdmin) {
+      throw new BadRequestException('The super admin account cannot be deleted.');
+    }
+
+    // Admin accounts cannot be deleted — demote first, then delete
+    if (user.role === 'admin') {
+      throw new BadRequestException(
+        'Admin accounts cannot be deleted directly. Demote the user to staff first, then delete.',
+      );
+    }
+
+    // Deactivate first so any active JWT is rejected immediately
     await this.userModel.findByIdAndUpdate(id, { isActive: false });
-
-    // Small delay to allow any in-flight requests to hit the deactivation check
     await new Promise(resolve => setTimeout(resolve, 100));
-
     await this.userModel.findByIdAndDelete(id);
+
     this.logger.log(`User ${id} deleted by admin ${requestingUserId}`);
     return { message: 'User deleted successfully' };
   }

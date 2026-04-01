@@ -6,7 +6,9 @@ export type UserDocument = User & Document;
 /**
  * User schema for Lunax Digital staff accounts.
  * Supports two roles: 'admin' (full access) and 'staff' (assigned clinics only).
- */
+ * isSuperAdmin is set only on the initial seeded admin. This account can
+ * never be demoted or deleted regardless of how many other admins exist,
+ * guaranteeing there is always a way back into the system. */
 
 @Schema({ timestamps: true })
 export class User {
@@ -29,17 +31,13 @@ export class User {
   isActive: boolean;
 
   // Notification preferences (for Settings page)
-  @Prop({ 
-  type: {
-    emailNotifications: { type: Boolean, default: true },
-    dailySummary: { type: Boolean, default: true },
-    stalled: { type: Boolean, default: true }
-  },
-  default: {
-    emailNotifications: true,
-    dailySummary: true,
-    stalled: true
-  }
+  @Prop({
+    type: {
+      emailNotifications: { type: Boolean, default: true },
+      dailySummary: { type: Boolean, default: true },
+      stalled: { type: Boolean, default: true },
+    },
+    default: { emailNotifications: true, dailySummary: true, stalled: true },
   })
   notificationPreferences: {
     emailNotifications: boolean;
@@ -52,18 +50,24 @@ export class User {
 
   @Prop()
   verificationToken?: string;
-  
+
   @Prop()
   verificationTokenExpires?: Date;
- 
+
   @Prop()
   passwordResetToken?: string;
- 
+
   @Prop()
   passwordResetExpires?: Date;
- 
+
   @Prop()
   lastLoginAt?: Date;
+
+  @Prop({ default: 0 })
+  tokenVersion: number;
+
+  @Prop({ default: false })
+  isSuperAdmin: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

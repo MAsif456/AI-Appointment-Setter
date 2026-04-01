@@ -65,8 +65,13 @@ describe('UsersController', () => {
       const dto: UpdateUserDto = { name: 'Updated Name' };
       const updated = { _id: 'user_1', name: 'Updated Name', role: 'staff' };
       mockUsersService.update.mockResolvedValue(updated);
-      const result = await controller.update('user_1', dto);
-      expect(mockUsersService.update).toHaveBeenCalledWith('user_1', dto);
+      const req = {
+        user: { _id: { toString: () => 'admin_1' },}
+      };
+
+      const result = await controller.update('user_1', dto, req as any);
+
+      expect(mockUsersService.update).toHaveBeenCalledWith( 'user_1', dto, 'admin_1' );
       expect(result).toEqual(updated);
     });
   });

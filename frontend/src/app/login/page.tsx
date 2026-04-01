@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import styles from './login.module.css';
 import Link from 'next/link';
-import {Eye, EyeOff} from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,7 +22,6 @@ export default function LoginPage() {
   useEffect(() => {
     if (searchParams.get('expired') === 'true') {
       setError('Your session has expired. Please log in again.');
-      
       window.history.replaceState({}, '', '/login');
     }
   }, [searchParams]);
@@ -32,20 +31,18 @@ export default function LoginPage() {
     if (searchParams.get('verified') === 'true') {
       setSuccess('Email verified successfully. You can now log in.');
     }
-
     if (searchParams.get('reset') === 'true') {
       setSuccess('Password reset successfully. Please log in.');
     }
   }, [searchParams]);
 
   const validateEmail = (value: string) => {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!regex.test(value)) {
-    setEmailError('Please enter a valid email address');
-  } else {
-    setEmailError('');
-  }
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!regex.test(value)) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,52 +53,40 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      // Redirect is handled by AuthContext
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid email or password');
       setSuccess('');
-      // Clear inputs
       setPassword('');
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Apply error border class when there is a login error.
+   * The error border is shown on both inputs when the login attempt fails,
+   * matching the red border style used on the Add Clinic form.
+   */
+  const inputErrorClass = error ? styles.inputError : '';
+
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        {/* Header */}
         <div className={styles.header}>
           <h1 className={styles.title}>
             AppointHealth <span className={styles.titleHighlight}>AI</span>
           </h1>
           <p className={styles.subtitle}>Welcome back</p>
-          <p className={styles.description}>
-            Sign in to manage your clinic clients
-          </p>
+          <p className={styles.description}>Sign in to manage your clinic clients</p>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className={styles.error}>
-            {error}
-          </div>
-        )}
-        
-        {/* Success Message */}
-        {success && (
-          <div className={styles.success}>
-            {success}
-          </div>
-        )}
+        {error && <div className={styles.error}>{error}</div>}
+        {success && <div className={styles.success}>{success}</div>}
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit} className={styles.form}>
           {/* Email Field */}
           <div className={styles.formGroup}>
-            <label htmlFor="email" className={styles.label}>
-              Email
-            </label>
+            <label htmlFor="email" className={styles.label}>Email</label>
             <input
               id="email"
               type="email"
@@ -115,27 +100,25 @@ export default function LoginPage() {
               }}
               placeholder=" "
               required
-              className={styles.input}
+              className={`${styles.input} ${inputErrorClass}`}
             />
             {emailError && <p className={styles.fieldError}>{emailError}</p>}
           </div>
 
           {/* Password Field */}
           <div className={styles.formGroup}>
-            <label htmlFor="password" className={styles.label}>
-              Password
-            </label>
+            <label htmlFor="password" className={styles.label}>Password</label>
             <div className={styles.passwordWrapper}>
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className={styles.input}
-                />
-                <button
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className={`${styles.input} ${inputErrorClass}`}
+              />
+              <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className={styles.eyeButton}
@@ -145,7 +128,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading || !!emailError || !email || !password}
@@ -155,12 +137,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Forgot Password Link */}
         <div className={styles.forgotPassword}>
           <Link href="/forgot-password" className={styles.forgotPasswordLink}>
             Forgot Password?
           </Link>
-        </div>          
+        </div>
       </div>
     </div>
   );

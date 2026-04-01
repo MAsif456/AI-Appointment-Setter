@@ -10,8 +10,7 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@
 
 /**
  * Handles the password reset form.
- * The reset token is extracted from the URL — the user never sees or types it.
- * They just enter their new password and confirm it.
+ * The reset token is extracted from the URL — the user never types it.
  */
 function ResetPasswordContent() {
   const [token, setToken] = useState('');
@@ -63,7 +62,6 @@ function ResetPasswordContent() {
     setLoading(true);
     setError('');
     try {
-      // Backend now takes { token, newPassword } — no email or code needed
       await api.post('/auth/reset-password', { token, newPassword });
       router.push('/login?reset=true');
     } catch (err: any) {
@@ -81,16 +79,20 @@ function ResetPasswordContent() {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <button type="button" className={styles.backButton} onClick={() => router.back()}>
+          {/* Navigate to forgot-password — not router.back() — because arriving
+              via an email link means there is no browser history to go back to */}
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => router.push('/forgot-password')}
+          >
             <ArrowLeft size={18} /> Back
           </button>
           <h1 className={styles.title}>
             AppointHealth <span className={styles.titleHighlight}>AI</span>
           </h1>
           <p className={styles.subtitle}>Set a new password</p>
-          <p className={styles.description}>
-            Enter your new password below.
-          </p>
+          <p className={styles.description}>Enter your new password below.</p>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}

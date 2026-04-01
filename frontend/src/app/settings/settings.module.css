@@ -110,6 +110,9 @@
 .label { font-size: 0.875rem; font-weight: 500; color: #374151; }
 .input { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; color: #0f172a; outline: none; transition: border-color 0.15s; width: 100%; box-sizing: border-box; }
 .input:focus { border-color: #2563eb; }
+/* Red border shown on inputs that have a validation error */
+.inputError { border-color: #dc2626 !important; background-color: #fff; }
+.inputError:focus { border-color: #dc2626 !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1); }
 .passwordWrapper { position: relative; }
 .passwordWrapper .input { padding-right: 40px; }
 .eyeButton { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; display: flex; align-items: center; }

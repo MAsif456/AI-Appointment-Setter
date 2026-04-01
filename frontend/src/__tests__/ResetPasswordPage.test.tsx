@@ -139,7 +139,7 @@ describe('ResetPasswordPage', () => {
   it('calls router.back when Back button is clicked', () => {
     render(<ResetPasswordPage />);
     fireEvent.click(screen.getByRole('button', { name: /Back/i }));
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/forgot-password');
   });
 
   // Password visibility toggle
