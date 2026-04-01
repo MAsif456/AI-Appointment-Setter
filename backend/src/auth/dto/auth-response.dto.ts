@@ -4,6 +4,7 @@ export class AuthResponseDto {
     name: string;
     email: string;
     role: string;
+    assignedClinics: string[];
   };
   accessToken: string;
 }

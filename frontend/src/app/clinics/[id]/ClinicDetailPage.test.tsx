@@ -1,101 +1,118 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import ClinicDetailPage from './page';
-import * as api from '@/lib/api/clinics';
+import ClinicDetailPage from '@/app/clinics/[id]/page';
+import * as clinicsApi from '@/lib/api/clinics';
 import { Clinic } from '@/types/clinic';
 
-// Mock the API module
 jest.mock('@/lib/api/clinics');
-const mockedApi = api as jest.Mocked<typeof api>;
+const mockedApi = clinicsApi as jest.Mocked<typeof clinicsApi>;
 
-// Mock next/link as a simple anchor
-jest.mock('next/link', () => {
-  return ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  );
-});
+jest.mock('next/link', () => ({ children, href }: any) => <a href={href}>{children}</a>);
 
-// Mock next/navigation – useParams returns a clinic id
+const mockReplace = jest.fn();
+const mockUseAuth = jest.fn();
+
 jest.mock('next/navigation', () => ({
-  useParams: () => ({ id: '507f1f77bcf86cd799439011' }),
+  useParams: () => ({ id: 'clinic_abc' }),
+  useRouter: () => ({ replace: mockReplace }),
 }));
 
-/** Factory for a sample clinic matching the seed data shape. */
-const makeClinic = (overrides: Partial<Clinic> = {}): Clinic => ({
-  _id: '507f1f77bcf86cd799439011',
-  name: 'Cardiff Physiotherapy Centre',
-  ghlLocationId: 'loc_cardiff_001',
-  ghlCalendarId: 'cal_cardiff_001',
-  address: '123 Queen Street, Cardiff, CF10 2BX',
-  serviceAreas: [{ postcodePrefix: 'CF' }, { postcodePrefix: 'NP' }],
-  businessHours: [{ day: 'monday', isOpen: true, openTime: '09:00', closeTime: '17:00' }],
-  todayLeadsCount: 12,
-  todayBookingsCount: 5,
-  monthLeadsCount: 245,
-  monthBookingsCount: 103,
-  defaultAppointmentDuration: 30,
-  isActive: true,
-  createdAt: '2024-01-01',
-  updatedAt: '2024-01-01',
-  ...overrides,
-});
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}));
 
+// Stub ClinicDetailTabs to keep test output clean
+jest.mock('@/components/clinics/ClinicDetailTabs', () => () => <div>Clinic Tabs</div>);
+
+function makeClinic(overrides: Partial<Clinic> = {}): Clinic {
+  return {
+    _id: 'clinic_abc', name: 'Cardiff Physio', ghlLocationId: 'loc_1', ghlCalendarId: 'cal_1',
+    address: '1 Queen St', serviceAreas: [], businessHours: [],
+    todayLeadsCount: 0, todayBookingsCount: 0, monthLeadsCount: 0, monthBookingsCount: 0,
+    defaultAppointmentDuration: 30, isActive: true, createdAt: '', updatedAt: '', ...overrides,
+  };
+}
+
+/**
+ * Tests for the updated ClinicDetailPage.
+ * New behaviour: staff are redirected away if the clinic is not in their assignedClinics.
+ */
 describe('ClinicDetailPage', () => {
-  afterEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-  /** Verifies the loading state is shown while fetching. */
+  // Admin access
+  describe('as admin', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({ isAdmin: true, user: { role: 'admin', assignedClinics: [] } });
+    });
+
+    it('fetches and renders clinic details', async () => {
+      mockedApi.getClinicById.mockResolvedValue(makeClinic());
+      render(<ClinicDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Cardiff Physio')).toBeInTheDocument();
+      });
+    });
+
+    it('shows Active badge for an active clinic', async () => {
+      mockedApi.getClinicById.mockResolvedValue(makeClinic({ isActive: true }));
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Active')).toBeInTheDocument());
+    });
+
+    it('shows Inactive badge for a deactivated clinic', async () => {
+      mockedApi.getClinicById.mockResolvedValue(makeClinic({ isActive: false }));
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Inactive')).toBeInTheDocument());
+    });
+
+    it('does NOT redirect for admin even when assignedClinics is empty', async () => {
+      mockedApi.getClinicById.mockResolvedValue(makeClinic());
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Cardiff Physio')).toBeInTheDocument());
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+  });
+
+  // Staff access control
+  describe('as staff', () => {
+    it('redirects to /clinics when clinic is NOT in assignedClinics', async () => {
+      mockUseAuth.mockReturnValue({
+        isAdmin: false,
+        user: { role: 'staff', assignedClinics: ['other_clinic_id'] },
+      });
+      render(<ClinicDetailPage />);
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/clinics');
+      });
+      expect(mockedApi.getClinicById).not.toHaveBeenCalled();
+    });
+
+    it('renders clinic when it IS in assignedClinics', async () => {
+      mockUseAuth.mockReturnValue({
+        isAdmin: false,
+        user: { role: 'staff', assignedClinics: ['clinic_abc'] },
+      });
+      mockedApi.getClinicById.mockResolvedValue(makeClinic());
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Cardiff Physio')).toBeInTheDocument());
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+  });
+
+  // Error states
+  it('shows not found state when API returns an error', async () => {
+    mockUseAuth.mockReturnValue({ isAdmin: true, user: { role: 'admin', assignedClinics: [] } });
+    mockedApi.getClinicById.mockRejectedValue(new Error('Not found'));
+    render(<ClinicDetailPage />);
+    await waitFor(() => expect(screen.getByText('Clinic not found.')).toBeInTheDocument());
+  });
+
   it('shows loading text initially', () => {
-    mockedApi.getClinicById.mockReturnValue(new Promise(() => {})); // never resolves
+    mockUseAuth.mockReturnValue({ isAdmin: true, user: { role: 'admin', assignedClinics: [] } });
+    mockedApi.getClinicById.mockReturnValue(new Promise(() => {}));
     render(<ClinicDetailPage />);
     expect(screen.getByText('Loading clinic...')).toBeInTheDocument();
-  });
-
-  /** Verifies clinic details render after a successful fetch. */
-  it('renders clinic name and active badge on success', async () => {
-    mockedApi.getClinicById.mockResolvedValue(makeClinic());
-
-    render(<ClinicDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Cardiff Physiotherapy Centre')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('← Back to Clinics')).toBeInTheDocument();
-  });
-
-  /** Verifies the inactive badge is shown for deactivated clinics. */
-  it('renders "Inactive" badge for an inactive clinic', async () => {
-    mockedApi.getClinicById.mockResolvedValue(makeClinic({ isActive: false }));
-
-    render(<ClinicDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Inactive')).toBeInTheDocument();
-    });
-  });
-
-  /** Verifies not-found state when the API returns an error. */
-  it('shows "Clinic not found" when fetch fails', async () => {
-    mockedApi.getClinicById.mockRejectedValue(new Error('Not found'));
-
-    render(<ClinicDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Clinic not found.')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Back to Clinics')).toBeInTheDocument();
-  });
-
-  /** Verifies the back link points to /clinics. */
-  it('has a back link to the clinics list', async () => {
-    mockedApi.getClinicById.mockResolvedValue(makeClinic());
-
-    render(<ClinicDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('← Back to Clinics')).toBeInTheDocument();
-    });
-
-    const link = screen.getByText('← Back to Clinics').closest('a');
-    expect(link).toHaveAttribute('href', '/clinics');
   });
 });

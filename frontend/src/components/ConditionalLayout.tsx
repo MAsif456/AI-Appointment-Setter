@@ -14,12 +14,15 @@ export default function ConditionalLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  
-  // Hide sidebar on login page
-  const showSidebar = pathname !== '/login';
 
-  if (!showSidebar) {
-    // Login page - no sidebar, no wrapper
+  // Check if current route is a public authentication route
+  const isPublicRoute = pathname.startsWith('/login') ||
+                       pathname.startsWith('/verify-email') ||
+                       pathname.startsWith('/forgot-password') ||
+                       pathname.startsWith('/reset-password');
+
+  // If it's a public route, render children without sidebar
+  if (isPublicRoute) {
     return <>{children}</>;
   }
 

@@ -22,7 +22,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect on 401 if it's NOT from the login endpoint
+    if (error.response?.status === 401 && error.config?.url !== '/auth/login') {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       window.location.href = '/login?expired=true';

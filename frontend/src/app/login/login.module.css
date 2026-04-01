@@ -16,35 +16,12 @@
   padding: 3rem 2.5rem;
 }
 
-/* Header Section */
-.header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
+.header { text-align: center; margin-bottom: 2.5rem; }
+.title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 0.75rem; }
+.titleHighlight { color: #2563eb; }
+.subtitle { font-size: 1.125rem; color: #4b5563; margin-bottom: 0.5rem; }
+.description { font-size: 0.875rem; color: #9ca3af; }
 
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.75rem;
-}
-
-.titleHighlight {
-  color: #2563eb;
-}
-
-.subtitle {
-  font-size: 1.125rem;
-  color: #4b5563;
-  margin-bottom: 0.5rem;
-}
-
-.description {
-  font-size: 0.875rem;
-  color: #9ca3af;
-}
-
-/* Error Message */
 .error {
   margin-bottom: 1.5rem;
   padding: 0.75rem 1rem;
@@ -55,17 +32,20 @@
   font-size: 0.875rem;
 }
 
-/* Form Styles */
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.success {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 0.5rem;
+  color: #16a34a;
+  font-size: 0.875rem;
 }
 
-.formGroup {
-  display: flex;
-  flex-direction: column;
-}
+.fieldError { color: #e53935; font-size: 13px; margin-top: 6px; }
+
+.form { display: flex; flex-direction: column; gap: 1.5rem; }
+.formGroup { display: flex; flex-direction: column; }
 
 .label {
   display: block;
@@ -85,11 +65,10 @@
   border-radius: 0.5rem;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
-.input::placeholder {
-  color: #9ca3af;
-}
+.input::placeholder { color: #9ca3af; }
 
 .input:focus {
   background-color: white;
@@ -97,7 +76,17 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Submit Button */
+/* Red border on both inputs when a login attempt fails — matches Add Clinic form style */
+.inputError {
+  border-color: #dc2626;
+  background-color: #fff;
+}
+
+.inputError:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
 .submitButton {
   width: 100%;
   padding: 0.875rem;
@@ -117,16 +106,9 @@
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.submitButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.submitButton:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Forgot Password Link */
-.forgotPassword {
-  text-align: center;
-  margin-top: 1.5rem;
-}
+.forgotPassword { text-align: center; margin-top: 1.5rem; }
 
 .forgotPasswordLink {
   font-size: 0.875rem;
@@ -136,50 +118,12 @@
   transition: color 0.2s ease;
 }
 
-.forgotPasswordLink:hover {
-  color: #1d4ed8;
-  text-decoration: underline;
-}
+.forgotPasswordLink:hover { color: #1d4ed8; text-decoration: underline; }
 
-/* Demo Credentials Box */
-.demoBox {
-  margin-top: 2rem;
-  padding: 1rem;
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 0.5rem;
-}
-
-.demoTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e40af;
-  margin-bottom: 0.5rem;
-}
-
-.demoText {
-  font-size: 0.875rem;
-  color: #1e40af;
-  margin: 0.25rem 0;
-}
-
-.demoText strong {
-  font-weight: 600;
-}
-
-/* Responsive Design */
 @media (max-width: 640px) {
-  .card {
-    padding: 2rem 1.5rem;
-  }
-
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
-  }
+  .card { padding: 2rem 1.5rem; }
+  .title { font-size: 1.75rem; }
+  .subtitle { font-size: 1rem; }
 }
 
 .passwordWrapper {
@@ -188,7 +132,7 @@
   align-items: center;
 }
 
-.showPasswordButton {
+.eyeButton {
   position: absolute;
   right: 10px;
   background: none;
@@ -196,8 +140,11 @@
   cursor: pointer;
   font-size: 0.9rem;
   color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.showPasswordButton:hover {
-  color: #000;
-}
+/* Hide Edge/IE native password reveal icon to avoid duplicate with our custom button */
+input::-ms-reveal,
+input::-ms-clear { display: none; }

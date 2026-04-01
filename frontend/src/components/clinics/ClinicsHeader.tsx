@@ -7,13 +7,14 @@ import styles from './ClinicsHeader.module.css';
 interface ClinicsHeaderProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  showAddButton?: boolean; 
 }
 
 /**
  * Renders the page title, search input, and "Add Clinic" button
  * at the top of the Clinics list page.
  */
-export default function ClinicsHeader({ searchTerm, onSearchChange }: ClinicsHeaderProps) {
+export default function ClinicsHeader({ searchTerm, onSearchChange, showAddButton }: ClinicsHeaderProps) {
   return (
     <div className={styles.header}>
       <h1 className={styles.title}>Clinics</h1>
@@ -41,10 +42,13 @@ export default function ClinicsHeader({ searchTerm, onSearchChange }: ClinicsHea
             onChange={(e) => onSearchChange(e.target.value)}
             className={styles.searchInput}
           />
-        </div>        {/* Add Clinic button – navigates to the new clinic form */}
-        <Link href="/clinics/new" className={styles.addButton}>
-          + Add Clinic
-        </Link>
+        </div>        
+        {/* Add Clinic button – navigates to the new clinic form */}
+        {showAddButton && (
+          <Link href="/clinics/new" className={styles.addButton}>
+            + Add Clinic
+          </Link>
+        )}
       </div>
     </div>
   );
