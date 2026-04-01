@@ -82,12 +82,17 @@ export class AppointmentsService {
       dto, ghlResponse.id, duration,
     );
 
+    const { date, time } = formatDateBritish(dto.startTime);
+
     await this.conversationModel.findByIdAndUpdate(dto.conversationId, {
       phase: 'booked',
       appointmentId: appointment._id,
+      $set: {
+        'context.ghlAppointmentId': ghlResponse.id,
+        'context.appointmentDate': date,
+        'context.appointmentTime': time,
+      },
     });
-
-    const { date, time } = formatDateBritish(dto.startTime);
     const confirmationMessage = buildConfirmationMessage({
       clinicName: clinic.name,
       clinicAddress: clinic.address,
