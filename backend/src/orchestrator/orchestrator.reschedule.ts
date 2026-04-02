@@ -113,11 +113,10 @@ async function executeReschedule(
   const leadId = (conversation.leadId as Types.ObjectId).toString();
   const ghlAppointmentId = conversation.context?.get('ghlAppointmentId') ?? '';
 
-  // Step 1: Cancel the old appointment
-  try {
-    await ghlApiService.cancelAppointment(ghlAppointmentId);
-  } catch (error) {
-    logger.error(`Failed to cancel appointment ${ghlAppointmentId} for contact ${contactId}: ${(error as Error).message}`);
+  // Step 1: Cancel the old appointment (returns null on failure)
+  const cancelled = await ghlApiService.cancelAppointment(ghlAppointmentId);
+  if (cancelled === null) {
+    logger.error(`Failed to cancel appointment ${ghlAppointmentId} for contact ${contactId}`);
     return {
       response: 'Sorry, there was an issue rescheduling your appointment. Please try again.',
       completedReschedule: false,
@@ -143,10 +142,9 @@ async function executeReschedule(
   }
 
   // Step 3: Non-critical GHL contact updates (tag + custom field)
-  try {
-    await ghlApiService.addContactTag(contactId, ['rescheduled']);
-  } catch (e) {
-    logger.warn(`Could not add "rescheduled" tag for contact ${contactId}: ${(e as Error).message}`);
+  const tagResult = await ghlApiService.addContactTag(contactId, 'rescheduled');
+  if (tagResult === null) {
+    logger.warn(`Could not add "rescheduled" tag for contact ${contactId}`);
   }
   const { date } = formatDateBritish(startTime);
   try {

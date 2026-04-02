@@ -159,7 +159,7 @@ describe('handleReschedulingSlotFlow', () => {
     it('should add the "rescheduled" tag to the contact', async () => {
       const deps = buildDeps();
       await handleReschedulingSlotFlow('The first one please', convWithSlots, 'contact_001', baseContext, clinicConfig, deps);
-      expect(deps.ghlApiService.addContactTag).toHaveBeenCalledWith('contact_001', ['rescheduled']);
+      expect(deps.ghlApiService.addContactTag).toHaveBeenCalledWith('contact_001', 'rescheduled');
     });
 
     it('should update the appointment_date custom field', async () => {
@@ -207,7 +207,7 @@ describe('handleReschedulingSlotFlow', () => {
     it('should not book when cancellation fails and should return a retry message', async () => {
       const deps = buildDeps({
         ghlApiService: {
-          cancelAppointment: jest.fn().mockRejectedValue(new Error('GHL timeout')),
+          cancelAppointment: jest.fn().mockResolvedValue(null),
           addContactTag: jest.fn(),
           updateContactCustomField: jest.fn(),
         } as any,
@@ -229,11 +229,11 @@ describe('handleReschedulingSlotFlow', () => {
       expect(result.response).toContain('issue booking');
     });
 
-    it('should still complete the reschedule even if adding the tag throws', async () => {
+    it('should still complete the reschedule even if adding the tag returns null', async () => {
       const deps = buildDeps({
         ghlApiService: {
           cancelAppointment: jest.fn().mockResolvedValue(undefined),
-          addContactTag: jest.fn().mockRejectedValue(new Error('Tag error')),
+          addContactTag: jest.fn().mockResolvedValue(null),
           updateContactCustomField: jest.fn().mockResolvedValue(undefined),
         } as any,
       });

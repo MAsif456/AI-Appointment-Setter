@@ -20,6 +20,8 @@ import { CancellationService } from '../cancellation/cancellation.service';
 import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
 import { PatientHistoryService } from './patient-history.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 
 const CLINIC_A = '507f1f77bcf86cd799439011';
@@ -97,6 +99,8 @@ describe('OrchestratorService - returning patient flow', () => {
           ),
           validateOutput: jest.fn().mockReturnValue({ safe: true, flags: [] }),
         } },
+        { provide: SlotProvider, useValue: { getAvailableSlots: jest.fn() } },
+        { provide: AppointmentsService, useValue: { bookAppointment: jest.fn() } },
         PostcodeValidationService,
       ],
     }).compile();
