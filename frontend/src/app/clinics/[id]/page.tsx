@@ -1,24 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Clinic } from '@/types/clinic';
 import { getClinicById } from '@/lib/api/clinics';
 import { useAuth } from '@/contexts/AuthContext';
-import ClinicDetailTabs from '@/components/clinics/ClinicDetailTabs';
+import ClinicDetailTabs, { type ClinicDetailTabsHandle } from '@/components/clinics/ClinicDetailTabs';
 import styles from './ClinicDetail.module.css';
 
-/**
- * Clinic detail page – shows the clinic name, status badge,
- * and tabbed sections (Overview, Settings, AI Configuration, etc.).
- */
 export default function ClinicDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { user, isAdmin } = useAuth();
   const router = useRouter();
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const tabsRef = useRef<ClinicDetailTabsHandle>(null);
+
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true') {
+      setIsEditing(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!id) return;
@@ -28,7 +33,6 @@ export default function ClinicDetailPage() {
       router.replace('/clinics');
       return;
     }
-
     getClinicById(id)
       .then(setClinic)
       .catch((err) => console.error('Error fetching clinic:', err))
@@ -52,22 +56,53 @@ export default function ClinicDetailPage() {
 
   return (
     <div>
-      {/* Back link */}
       <Link href="/clinics" className={styles.backLink}>
         ← Back to Clinics
       </Link>
 
-      {/* Heading with status badge */}
       <div className={styles.heading}>
-        <h1 className={styles.clinicName}>{clinic.name}</h1>
-        <span className={clinic.isActive ? styles.badgeActive : styles.badgeInactive}>
-          {clinic.isActive ? 'Active' : 'Inactive'}
-        </span>
+        <div className={styles.headingLeft}>
+          <h1 className={styles.clinicName}>{clinic.name}</h1>
+          <span className={clinic.isActive ? styles.badgeActive : styles.badgeInactive}>
+            {clinic.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        {isEditing ? (
+          <div className={styles.editingActions}>
+            <button className={styles.cancelButton} onClick={() => setIsEditing(false)}>
+              Cancel
+            </button>
+            <button className={styles.saveButton} onClick={() => tabsRef.current?.submitForm()}>
+              Save Settings
+            </button>
+          </div>
+        ) : (
+          <button className={styles.editButton} onClick={() => setIsEditing(true)}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Edit Settings
+          </button>
+        )}
       </div>
 
       <ClinicDetailTabs
+        ref={tabsRef}
         clinic={clinic}
         onClinicUpdated={(updated) => setClinic(updated)}
+        isEditing={isEditing}
+        onEditingChange={setIsEditing}
       />
     </div>
   );

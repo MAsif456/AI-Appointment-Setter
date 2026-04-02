@@ -196,6 +196,26 @@ describe('ClinicsService', () => {
     });
   });
 
+  describe('findByGhlLocationId', () => {
+    it('should return the clinic when the locationId matches', async () => {
+      const clinic = mockClinic();
+      model.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(clinic) });
+
+      const result = await service.findByGhlLocationId('loc_cardiff_001');
+
+      expect(model.findOne).toHaveBeenCalledWith({ ghlLocationId: 'loc_cardiff_001' });
+      expect(result).toEqual(clinic);
+    });
+
+    it('should throw NotFoundException when no clinic matches the locationId', async () => {
+      model.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(service.findByGhlLocationId('loc_unknown')).rejects.toThrow(
+        'Clinic with GHL locationId "loc_unknown" not found',
+      );
+    });
+  });
+
   describe('updateBasicSettings', () => {
     it('should update a clinic and return the saved document', async () => {
       const update: UpdateClinicSettingsDto = { name: 'New Name' };

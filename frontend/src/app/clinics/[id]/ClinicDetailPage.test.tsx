@@ -11,9 +11,19 @@ jest.mock('next/link', () => ({ children, href }: any) => <a href={href}>{childr
 const mockReplace = jest.fn();
 const mockUseAuth = jest.fn();
 
+// Mock next/navigation – useParams returns a clinic id, useSearchParams returns no edit flag
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'clinic_abc' }),
-  useRouter: () => ({ replace: mockReplace }),
+  useSearchParams: () => ({ get: () => null }),
+    useRouter: () => ({ replace: mockReplace }),
+}));
+
+// Mock ClinicDetailTabs to keep the page test focused on page-level behaviour
+jest.mock('@/components/clinics/ClinicDetailTabs', () => ({
+  __esModule: true,
+  default: require('react').forwardRef(function MockClinicDetailTabs() {
+    return <div data-testid="clinic-detail-tabs" />;
+  }),
 }));
 
 jest.mock('@/contexts/AuthContext', () => ({

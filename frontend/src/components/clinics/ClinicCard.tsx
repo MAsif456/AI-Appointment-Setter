@@ -46,7 +46,7 @@ export default function ClinicCard({ clinic, onToggleStatus }: ClinicCardProps) 
 
           {menuOpen && (
             <div className={styles.dropdown}>
-              <Link href={`/clinics/${clinic._id}/edit`} className={styles.dropdownItem}>
+              <Link href={`/clinics/${clinic._id}?edit=true`} className={styles.dropdownItem}>
                 Edit
               </Link>
               <button

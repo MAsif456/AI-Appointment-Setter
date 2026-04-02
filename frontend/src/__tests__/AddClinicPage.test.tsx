@@ -83,22 +83,22 @@ describe('AddClinicPage', () => {
     expect(screen.getByText('Clinic name must be at least 2 characters')).toBeTruthy();
   });
 
-  it('should reject ghlLocationId without loc_ prefix', () => {
+  it('should reject ghlLocationId with non-alphanumeric characters', () => {
     render(<AddClinicPage />);
     fireEvent.change(getField('clinicName'), { target: { value: 'Test Clinic' } });
-    fireEvent.change(getField('ghlLocationId'), { target: { value: 'bad_id' } });
+    fireEvent.change(getField('ghlLocationId'), { target: { value: 'bad id!' } });
     fireEvent.change(getField('ghlCalendarId'), { target: { value: 'cal_test_001' } });
     clickSave();
-    expect(screen.getByText(/must start with 'loc_'/i)).toBeTruthy();
+    expect(screen.getByText(/must be alphanumeric/i)).toBeTruthy();
   });
 
-  it('should reject ghlCalendarId without cal_ prefix', () => {
+  it('should reject ghlCalendarId with non-alphanumeric characters', () => {
     render(<AddClinicPage />);
     fireEvent.change(getField('clinicName'), { target: { value: 'Test Clinic' } });
     fireEvent.change(getField('ghlLocationId'), { target: { value: 'loc_test_001' } });
-    fireEvent.change(getField('ghlCalendarId'), { target: { value: 'bad_cal' } });
+    fireEvent.change(getField('ghlCalendarId'), { target: { value: 'bad cal!' } });
     clickSave();
-    expect(screen.getByText(/must start with 'cal_'/i)).toBeTruthy();
+    expect(screen.getByText(/must be alphanumeric/i)).toBeTruthy();
   });
 
   it('should reject invalid UK phone number', () => {
