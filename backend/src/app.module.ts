@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AiSettingsModule } from "./ai-settings/ai-settings.module";
@@ -14,6 +15,7 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { AppointmentsModule } from "./appointments/appointments.module";
 import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
+import { FollowUpModule } from "./follow-up/follow-up.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 
 @Module({
@@ -43,6 +45,8 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
     AppointmentsModule,
     CancellationModule,
     HealthModule,
+    ScheduleModule.forRoot(),
+    FollowUpModule,
   ],
   controllers: [AppController],
   providers: [
