@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Param, Body, Logger, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Logger } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 /**
  * DTO for sending a message in an ongoing conversation.
@@ -16,7 +15,6 @@ export interface SendMessageDto {
 
 
 @Controller('conversations')
-@UseGuards(JwtAuthGuard) 
 export class ConversationsController {
   private readonly logger = new Logger(ConversationsController.name);
 
@@ -28,17 +26,8 @@ export class ConversationsController {
    * @returns Array of conversations
    */
   @Get()
-  async list(@Request() req: any) {
-    const user = req.user; // { _id, email, role, assignedClinics }
-
-    // If admin → return all conversations
-    if (user.role === 'admin') {
-      return this.conversationsService.listConversations();
-    }
-    
-    // If staff → filter by assignedClinics
-    const clinicIds = user.assignedClinics || [];
-    return this.conversationsService.listConversations(clinicIds);
+  async list() {
+    return this.conversationsService.listConversations();
   }
 
   /**
@@ -47,21 +36,9 @@ export class ConversationsController {
    * @returns Conversation data with messages, clinic, and lead info
    */
   @Get(':id')
-  async get(@Param('id') id: string, @Request() req: any) {
+  async get(@Param('id') id: string) {
     const { conversation, messages, clinic, lead } =
       await this.conversationsService.getConversation(id);
-
-      // Verify user has access to this conversation's clinic
-      const user = req.user;
-      if (user.role === 'staff') {
-        const clinicId = conversation.clinicId.toString();
-        const assignedClinicIds = user.assignedClinics.map((id: any) => id.toString());
-        
-        if (!assignedClinicIds.includes(clinicId)) {
-          throw new ForbiddenException('You do not have access to this conversation');
-        }
-      }
-      // Admins can view all conversations (no check needed)
 
     return {
       conversation,
@@ -96,29 +73,17 @@ export class ConversationsController {
    * @returns The AI greeting, or null on failure
    */
   @Post(':id/start')
-  async start(@Param('id') id: string, @Request() req: any) {
+  async start(@Param('id') id: string) {
     try {
-      // check if user has access to this conversation's clinic before starting
-      const { conversation } = await this.conversationsService.getConversation(id);
-      const user = req.user;
-      if (user.role === 'staff') {
-        const clinicId = conversation.clinicId.toString();
-        const assignedClinicIds = user.assignedClinics.map((id: any) => id.toString());
-        if (!assignedClinicIds.includes(clinicId)) {
-          throw new ForbiddenException('You do not have access to this conversation');
-        }
-      }
       this.logger.log(`Starting conversation: ${id}`);
       const greeting = await this.conversationsService.startConversation(id);
-      if (!greeting || greeting === null || greeting === undefined) {
-        return { greeting: FALLBACK_AI_UNAVAILABLE };
-      }
       return { greeting };
     } catch (error) {
       this.logger.error(`Start conversation failed for ${id}:`, (error as Error).stack);
       return { greeting: FALLBACK_AI_UNAVAILABLE };
     }
   }
+
 
   /**
    * Resets a conversation by deleting all its messages and resetting the phase.
@@ -127,19 +92,7 @@ export class ConversationsController {
    * @returns Success status
    */
   @Post(':id/reset')
-  async reset(@Param('id') id: string, @Request() req: any) {
-
-    // Check authorization
-    const { conversation } = await this.conversationsService.getConversation(id);
-    const user = req.user;
-    if (user.role === 'staff') {
-      const clinicId = conversation.clinicId.toString();
-      const assignedClinicIds = user.assignedClinics.map((id: any) => id.toString());
-      if (!assignedClinicIds.includes(clinicId)) {
-        throw new ForbiddenException('You do not have access to this conversation');
-      }
-    }
-
+  async reset(@Param('id') id: string) {
     this.logger.log(`Resetting conversation: ${id}`);
     await this.conversationsService.resetConversation(id);
     return { success: true };
@@ -157,34 +110,20 @@ export class ConversationsController {
   async sendMessage(
     @Param('id') id: string,
     @Body() body: SendMessageDto,
-    @Request() req: any
   ) {
     try {
-
-      // ✅ Check authorization
-      const { conversation } = await this.conversationsService.getConversation(id);
-      const user = req.user;
-      if (user.role === 'staff') {
-        const clinicId = conversation.clinicId.toString();
-        const assignedClinicIds = user.assignedClinics.map((id: any) => id.toString());
-        if (!assignedClinicIds.includes(clinicId)) {
-          throw new ForbiddenException('You do not have access to this conversation');
-        }
-      }
-
       this.logger.log(`Message in conversation ${id}: "${body.message}"`);
       const result = await this.conversationsService.sendMessage(id, body.message);
       if (!result) return { reply: FALLBACK_AI_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null };
 
       // Include updated phase so the frontend can reflect changes immediately
-      const { conversation: updatedConversation } = await this.conversationsService.getConversation(id);
-
+      const { conversation } = await this.conversationsService.getConversation(id);
       return {
         reply: result.reply,
         offeredSlots: result.offeredSlots,
         slotSelection: result.slotSelection,
         bookingResult: result.bookingResult ?? null,
-        phase: updatedConversation.phase,
+        phase: conversation.phase,
       };
     } catch (error) {
       this.logger.error(`Send message failed for conversation ${id}:`, (error as Error).stack);

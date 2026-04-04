@@ -1,72 +1,65 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
-import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
-
-// Define mockOfferedSlots
-const mockOfferedSlots = [
-  {
-    dateTime: new Date('2026-03-17T14:00:00.000Z'),
-    displayText: 'Tuesday 17th March at 2pm',
-  },
-];
 
 describe('ConversationsController', () => {
   let controller: ConversationsController;
-  let mockService: any;
 
-  const mockRequest = {
-    user: {
-      _id: 'user1',
-      email: 'admin@example.com',
-      role: 'admin',
-      assignedClinics: [],
-    },
+  const mockService = {
+    listConversations: jest.fn(),
+    getConversation: jest.fn(),
+    startConversation: jest.fn(),
+    sendMessage: jest.fn(),
+    resetConversation: jest.fn(),
   };
 
   beforeEach(async () => {
-    mockService = {
-      listConversations: jest.fn().mockResolvedValue([]),
-      getConversation: jest.fn().mockResolvedValue({
-        conversation: { _id: 'conv1', phase: 'greeting', clinicId: 'clinic1' },
-        messages: [],
-        clinic: { _id: 'clinic1', name: 'Test Clinic' },
-        lead: { _id: 'lead1', firstName: 'Sarah' },
-      }),
-      startConversation: jest.fn().mockResolvedValue('Hi Sarah!'),
-      resetConversation: jest.fn().mockResolvedValue(undefined),
-      sendMessage: jest.fn().mockResolvedValue({
-        reply: 'Let me check.',
-        offeredSlots: mockOfferedSlots,
-        slotSelection: null,
-        bookingResult: null,
-      }),
-    };
-
-    const module = await Test.createTestingModule({
+    const module: TestingModule = await Test.createTestingModule({
       controllers: [ConversationsController],
       providers: [{ provide: ConversationsService, useValue: mockService }],
     }).compile();
 
     controller = module.get<ConversationsController>(ConversationsController);
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
   });
 
   describe('GET /conversations', () => {
     it('should return a list of conversations', async () => {
-      await controller.list(mockRequest);
-      expect(mockService.listConversations).toHaveBeenCalled();
+      const mockList = [{ _id: 'conv1', phase: 'greeting' }];
+      mockService.listConversations.mockResolvedValue(mockList);
+
+      const result = await controller.list();
+      expect(result).toEqual(mockList);
     });
   });
 
   describe('GET /conversations/:id', () => {
     it('should return conversation with messages and metadata', async () => {
-      const result = await controller.get('conv1', mockRequest);
-      expect(result.conversation).toBeDefined();
-      expect(mockService.getConversation).toHaveBeenCalledWith('conv1');
+      mockService.getConversation.mockResolvedValue({
+        conversation: { _id: 'conv1', phase: 'greeting' },
+        messages: [
+          { _id: 'msg1', sender: 'ai', content: 'Hello!', createdAt: new Date() },
+        ],
+        clinic: { _id: 'c1', name: 'Cardiff Physio', aiConfig: { tone: 'friendly' } },
+        lead: {
+          _id: 'l1',
+          firstName: 'Sarah',
+          lastName: 'Williams',
+          phone: '07700 900123',
+          email: 'sarah@email.com',
+          issue: 'Back Pain',
+          postcode: 'CF10 3AB',
+          leadSource: 'facebook',
+        },
+      });
+
+      const result = await controller.get('conv1');
+
+      expect(result.conversation._id).toBe('conv1');
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].sender).toBe('ai');
+      expect(result.clinic!.name).toBe('Cardiff Physio');
+      expect(result.lead!.firstName).toBe('Sarah');
     });
   });
 
@@ -74,26 +67,22 @@ describe('ConversationsController', () => {
     it('should return an AI greeting', async () => {
       mockService.startConversation.mockResolvedValue('Hi Sarah!');
 
-      const result = await controller.start('conv1', mockRequest);
+      const result = await controller.start('conv1');
       expect(result).toEqual({ greeting: 'Hi Sarah!' });
       expect(mockService.startConversation).toHaveBeenCalledWith('conv1');
     });
 
-    it('should return fallback greeting on failure', async () => {
-      // Mock the service to return null (indicating failure)
-      mockService.startConversation.mockResolvedValueOnce(null);
+    it('should return null greeting on failure', async () => {
+      mockService.startConversation.mockResolvedValue(null);
 
-      const result = await controller.start('conv1', mockRequest);
-      expect(result).toEqual({ 
-        greeting: FALLBACK_AI_UNAVAILABLE 
-      });
+      const result = await controller.start('conv1');
+      expect(result).toEqual({ greeting: null });
     });
 
     it('should return fallback greeting when service throws', async () => {
-      // Mock the service to throw an error
-      mockService.startConversation.mockRejectedValueOnce(new Error('DB error'));
+      mockService.startConversation.mockRejectedValue(new Error('DB error'));
 
-      const result = await controller.start('conv1', mockRequest);
+      const result = await controller.start('conv1');
       expect(result.greeting).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
     });
   });
@@ -102,7 +91,7 @@ describe('ConversationsController', () => {
     it('should reset the conversation and return success', async () => {
       mockService.resetConversation.mockResolvedValue(undefined);
 
-      const result = await controller.reset('conv1', mockRequest);
+      const result = await controller.reset('conv1');
       expect(result).toEqual({ success: true });
       expect(mockService.resetConversation).toHaveBeenCalledWith('conv1');
     });
@@ -110,22 +99,23 @@ describe('ConversationsController', () => {
 
   describe('POST /conversations/:id/messages', () => {
     it('should return an AI reply with offered slots', async () => {
-      // Mock getConversation to be called twice (auth check + phase fetch)
-      mockService.getConversation
-        .mockResolvedValueOnce({
-          conversation: { _id: 'conv1', phase: 'greeting', clinicId: 'clinic1' },
-          messages: [],
-          clinic: { _id: 'clinic1', name: 'Test Clinic' },
-          lead: { _id: 'lead1', firstName: 'Sarah' },
-        })
-        .mockResolvedValueOnce({
-          conversation: { _id: 'conv1', phase: 'greeting', clinicId: 'clinic1' },
-          messages: [],
-          clinic: { _id: 'clinic1', name: 'Test Clinic' },
-          lead: { _id: 'lead1', firstName: 'Sarah' },
-        });
+      const mockOfferedSlots = [
+        { dateTime: '2026-03-17T14:00:00.000Z', displayText: 'Tuesday 17th March at 2pm' },
+      ];
+      mockService.sendMessage.mockResolvedValue({
+        reply: 'Let me check.',
+        offeredSlots: mockOfferedSlots,
+        slotSelection: null,
+      });
+      mockService.getConversation.mockResolvedValue({
+        conversation: { phase: 'greeting' },
+        messages: [], clinic: null, lead: null,
+      });
 
-      const result = await controller.sendMessage('conv1', { message: 'Hi' }, mockRequest);
+      const result = await controller.sendMessage('conv1', {
+        message: 'My postcode is CF10 3AB',
+      });
+
       expect(result).toEqual({
         reply: 'Let me check.',
         offeredSlots: mockOfferedSlots,
@@ -133,28 +123,28 @@ describe('ConversationsController', () => {
         bookingResult: null,
         phase: 'greeting',
       });
+      expect(mockService.sendMessage).toHaveBeenCalledWith(
+        'conv1',
+        'My postcode is CF10 3AB',
+      );
     });
 
     it('should return fallback reply on failure', async () => {
-      // Add auth check mock
-      mockService.getConversation.mockResolvedValueOnce({
-        conversation: { _id: 'conv1', phase: 'greeting', clinicId: 'clinic1' },
-        messages: [],
-        clinic: { _id: 'clinic1', name: 'Test Clinic' },
-        lead: { _id: 'lead1', firstName: 'Sarah' },
-      });
-      mockService.sendMessage.mockResolvedValueOnce(null);
+      mockService.sendMessage.mockResolvedValue(null);
 
-      const result = await controller.sendMessage('conv1', { message: 'Hello' }, mockRequest);
+      const result = await controller.sendMessage('conv1', {
+        message: 'Hello',
+      });
       expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
       expect(result.bookingResult).toBeNull();
     });
 
     it('should return fallback reply when service throws', async () => {
-      // Mock getConversation to throw (auth check fails)
-      mockService.getConversation.mockRejectedValueOnce(new Error('Unexpected error'));
+      mockService.sendMessage.mockRejectedValue(new Error('Unexpected error'));
 
-      const result = await controller.sendMessage('conv1', { message: 'Hello' }, mockRequest);
+      const result = await controller.sendMessage('conv1', {
+        message: 'Hello',
+      });
       expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
       expect(result.offeredSlots).toEqual([]);
       expect(result.bookingResult).toBeNull();

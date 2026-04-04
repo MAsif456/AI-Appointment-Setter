@@ -1,7 +1,7 @@
 /** Manages live conversations: AI chat flow, slot offering, slot-selection, and auto-booking (US-15). */
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Conversation, ConversationDocument } from '../database/schemas/conversation.schema';
 import { Message, MessageDocument } from '../database/schemas/message.schema';
 import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
@@ -63,17 +63,9 @@ export class ConversationsService {
   }
 
   /** Lists all conversations with basic lead/clinic info. */
-  async listConversations(clinicIds?: string[]) {
-    // If clinicIds provided and empty → staff with no assigned clinics → return empty array
-  if (clinicIds !== undefined && clinicIds.length === 0) {
-    return [];
-  }
-  const filter = clinicIds && clinicIds.length > 0
-    ? { clinicId: { $in: clinicIds.map(id => new Types.ObjectId(id)) } }
-    : {}; // No filter = return all (for admins)
-
+  async listConversations() {
     return this.conversationModel
-      .find(filter)
+      .find()
       .populate('clinicId', 'name')
       .populate('leadId', 'firstName lastName phone')
       .sort({ lastMessageAt: -1 });
@@ -137,6 +129,7 @@ export class ConversationsService {
     await this.persistence.saveMessage(conversation, clinic, lead, 'lead', userMessage, {
       level: urgencyAssessment.level, score: urgencyAssessment.score,
     });
+    await this.persistence.saveMessage(conversation, clinic, lead, 'lead', userMessage);
 
     const abuseHandled = await this.abuseHandler.handle(conversation, clinic, lead, userMessage);
     if (abuseHandled) return abuseHandled;
