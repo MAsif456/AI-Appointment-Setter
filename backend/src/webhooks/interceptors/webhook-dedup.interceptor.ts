@@ -19,26 +19,27 @@ import {
 export class WebhookDedupInterceptor implements NestInterceptor {
   private readonly logger = new Logger(WebhookDedupInterceptor.name);
 
-/**
- * Constructor for WebhookDedupInterceptor.
- * @param {Model<WebhookEventDocument>} webhookEventModel - Mongoose model for webhook events.
- */
+  /**
+   * Constructor for WebhookDedupInterceptor.
+   * @param {Model<WebhookEventDocument>} webhookEventModel - Mongoose model for webhook events.
+   */
   constructor(
     @InjectModel(WebhookEvent.name)
     private readonly webhookEventModel: Model<WebhookEventDocument>,
   ) {}
 
-/**
- * Intercepts incoming HTTP requests and applies the idempotency key pattern.
- * If the request includes an `Idempotency-Key` header:
- *  1. If the key has been seen before AND the payload hash matches,
- *     the cached response is returned without re-executing the handler.
- *  2. If the key has been seen but the payload differs, a 409 Conflict is thrown
- *     (prevents key reuse with different data).
- *  3. If the key is new, the handler executes and the result is cached.
- *
- * Requests without the header pass through unmodified.
- */
+  /**
+   * Intercepts incoming HTTP requests and applies the idempotency key pattern.
+   *
+   * Uses an atomic findOneAndUpdate with $setOnInsert to eliminate the TOCTOU
+   * (time-of-check-to-time-of-use) race condition that existed in the previous
+   * findOne → create two-step approach. If two identical webhooks arrive within
+   * milliseconds, only the first claims the "in_progress" lock; the second sees
+   * the existing record and returns early.
+   *
+   * Ref: IETF draft-ietf-httpapi-idempotency-key-header-07
+   *   https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/
+   */
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context
       .switchToHttp()
@@ -47,9 +48,25 @@ export class WebhookDedupInterceptor implements NestInterceptor {
     const payloadHash = this.computeDedupKey(body);
     const startTime = Date.now();
 
-    return from(this.webhookEventModel.findOne({ payloadHash })).pipe(
+    // Atomic upsert: only the first request inserts; concurrent duplicates find the existing record
+    return from(
+      this.webhookEventModel.findOneAndUpdate(
+        { payloadHash },
+        {
+          $setOnInsert: {
+            payloadHash,
+            eventType: typeof body.type === "string" ? body.type : undefined,
+            locationId: (body.location as Record<string, unknown> | undefined)
+              ?.id as string | undefined,
+            disposition: "in_progress" as const,
+            ipAddress: request.ip,
+          },
+        },
+        { upsert: true, new: false },
+      ),
+    ).pipe(
       switchMap((existing) => {
-        if (existing && existing.disposition === "accepted") {
+        if (existing) {
           this.logger.log(
             `Duplicate webhook detected — hash prefix: ${payloadHash.slice(0, 12)}, ` +
               `event type: ${typeof body.type === "string" ? body.type : "unknown"}`,
@@ -59,12 +76,7 @@ export class WebhookDedupInterceptor implements NestInterceptor {
 
         return next.handle().pipe(
           tap(() => {
-            void this.storeAcceptedEvent(
-              payloadHash,
-              body,
-              request.ip,
-              startTime,
-            );
+            void this.finaliseAcceptedEvent(payloadHash, startTime);
           }),
         );
       }),
@@ -72,46 +84,39 @@ export class WebhookDedupInterceptor implements NestInterceptor {
   }
 
   /**
-   * Stores a webhook event in the database, marking it as accepted.
-   * @param {string} payloadHash - SHA256 hash of the webhook event payload.
-   * @param {Record<string, unknown>} body - Webhook event payload.
-   * @param {string | undefined} ip - IP address of the webhook sender.
+   * Transitions an in_progress webhook event to "accepted" after successful processing.
+   * @param {string} payloadHash - The dedup key identifying the event.
    * @param {number} startTime - Timestamp when the webhook event was received.
    */
-  private async storeAcceptedEvent(
+  private async finaliseAcceptedEvent(
     payloadHash: string,
-    body: Record<string, unknown>,
-    ip: string | undefined,
     startTime: number,
   ): Promise<void> {
     try {
-      await this.webhookEventModel.create({
-        payloadHash,
-        eventType: body.type as string | undefined,
-        locationId: (body.location as Record<string, unknown> | undefined)
-          ?.id as string | undefined,
-        disposition: "accepted",
-        ipAddress: ip,
-        processingMs: Date.now() - startTime,
-      });
+      await this.webhookEventModel.updateOne(
+        { payloadHash },
+        {
+          $set: {
+            disposition: "accepted",
+            processingMs: Date.now() - startTime,
+          },
+        },
+      );
     } catch (err: unknown) {
-      const mongoErr = err as { code?: number; message?: string };
-      if (mongoErr.code !== 11000) {
-        this.logger.error(
-          `Failed to store webhook event: ${mongoErr.message ?? "unknown error"}`,
-        );
-      }
+      const mongoErr = err as { message?: string };
+      this.logger.error(
+        `Failed to finalise webhook event: ${mongoErr.message ?? "unknown error"}`,
+      );
     }
   }
 
-  
   /**
    * Computes a deduplication key for the given webhook event payload.
    * If the payload contains a webhookDeliveryId field, it is used as the deduplication key,
    * prefixed with "ghl:". Otherwise, the SHA256 hash of the JSON stringified payload is used.
    * @param {Record<string, unknown>} body - Webhook event payload.
    * @returns {string} The deduplication key.
-   * 
+   *
    * Ref: https://hookdeck.com/docs/deduplication
    */
   private computeDedupKey(body: Record<string, unknown>): string {

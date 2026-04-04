@@ -56,9 +56,6 @@ export class WebhookExceptionFilter implements ExceptionFilter {
           ? exception.message
           : "Unknown error";
 
-    // TODO: Remove after confirming GHL payload format
-    this.logger.warn(`RAW PAYLOAD DUMP: ${JSON.stringify(request.body)}`);
-
     const disposition = this.mapDisposition(originalStatus);
     const responseStatus = this.mapResponseStatus(originalStatus);
 
@@ -108,7 +105,7 @@ export class WebhookExceptionFilter implements ExceptionFilter {
    *
    * @param originalStatus - The HTTP status code to map.
    * @returns The response status code.
-   * 
+   *
    * Ref: https://dev.to/digital_trubador/webhook-security-best-practices-for-production-2025-2026-384n
    */
   private mapResponseStatus(originalStatus: number): number {
