@@ -1,11 +1,11 @@
-import { Types } from 'mongoose';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { GhlApiService } from '../ghl/ghl-api.service';
-import { MessagesService } from '../ghl/messages.service';
-import { formatEmailHtml, formatEmailSubject } from '../ghl/email-formatter';
-import { channelToMessageType } from './orchestrator.prompts';
-import { OrchestratorContext, IntentResult } from './orchestrator.types';
-import { Logger } from '@nestjs/common';
+import { Types } from "mongoose";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { GhlApiService } from "../ghl/ghl-api.service";
+import { MessagesService } from "../ghl/messages.service";
+import { getChannelAdapter } from "../ghl/channel-adapter";
+import { channelToMessageType } from "./orchestrator.prompts";
+import { OrchestratorContext, IntentResult } from "./orchestrator.types";
+import { Logger } from "@nestjs/common";
 
 export interface BackgroundRetryDeps {
   ghlApiService: GhlApiService;
@@ -40,6 +40,7 @@ export function backgroundRetryAiResponse(
   conversationObjectId: Types.ObjectId,
   clinicObjectId: Types.ObjectId,
   leadObjectId: Types.ObjectId,
+  ghlConversationId?: string,
 ): void {
   const { ghlApiService, messagesService, logger, generateResponse } = deps;
 
@@ -47,20 +48,24 @@ export function backgroundRetryAiResponse(
     .then(async (retryResponse) => {
       if (!retryResponse) return;
       logger.log(`Background AI retry succeeded — contactId: ${contactId}`);
+      const adapter = getChannelAdapter(channel);
+      const formatted = adapter.formatOutbound(
+        retryResponse,
+        clinicConfig.name,
+        false,
+      );
       const result = await ghlApiService.sendMessageWithRetry({
         type: channelToMessageType(channel),
         contactId,
         message: retryResponse,
-        ...(channel === 'email' ? {
-          subject: formatEmailSubject(clinicConfig.name, false),
-          html: formatEmailHtml(retryResponse, clinicConfig.name),
-        } : {}),
+        ...(ghlConversationId ? { conversationId: ghlConversationId } : {}),
+        ...formatted,
       });
       await messagesService.addMessage(
         conversationObjectId,
         clinicObjectId,
         leadObjectId,
-        'ai',
+        "ai",
         retryResponse,
         channel,
         result?.id ?? result?.messageId,

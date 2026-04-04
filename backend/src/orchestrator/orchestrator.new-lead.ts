@@ -14,9 +14,10 @@ import { MessagesService } from "../ghl/messages.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { GhlContactCreatePayload } from "../webhooks/dto/ghl-webhook.dto";
+import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 import { channelToMessageType } from "./orchestrator.prompts";
-import { formatEmailHtml, formatEmailSubject } from "../ghl/email-formatter";
+import { getChannelAdapter } from "../ghl/channel-adapter";
 
 /** Dependencies injected by OrchestratorService. */
 export interface NewLeadDeps {
@@ -25,6 +26,7 @@ export interface NewLeadDeps {
   messagesService: MessagesService;
   ghlApiService: GhlApiService;
   patientHistoryService: PatientHistoryService;
+  securityPipeline: SecurityPipelineService;
   logger: Logger;
   correlationId?: string;
 }
@@ -44,9 +46,9 @@ export interface NewLeadDeps {
  *   7. Persist the AI greeting as a message in MongoDB.
  */
 function detectLeadChannel(payload: GhlContactCreatePayload): string {
-  if (payload.phone) return 'sms';
-  if (payload.email) return 'email';
-  return 'sms';
+  if (payload.phone) return "sms";
+  if (payload.email) return "email";
+  return "sms";
 }
 
 export async function handleNewLeadFlow(
@@ -60,6 +62,7 @@ export async function handleNewLeadFlow(
     messagesService,
     ghlApiService,
     patientHistoryService,
+    securityPipeline,
     logger,
     correlationId,
   } = deps;
@@ -183,17 +186,28 @@ export async function handleNewLeadFlow(
     );
   }
 
+  // Ref: OWASP Top 10 for LLM Applications 2025, LLM05 — Improper Output Handling
+  //   https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/
+  // AI outputs must be treated as untrusted; validate before delivery.
+  const outputCheck = securityPipeline.validateOutput(greeting, "greeting");
+  if (!outputCheck.safe) {
+    logger.warn(
+      `${cid}Greeting output validation failed — flags: ${outputCheck.flags.join(",")} — contactId: ${contactId}`,
+    );
+    greeting = outputCheck.fallbackResponse ?? FALLBACK_AI_UNAVAILABLE;
+  }
+
   // Send via GHL (3x retry with jitter handled by GhlApiService)
   let ghlMessageId: string | undefined;
   try {
+    const adapter = getChannelAdapter(channel);
+    const formatted = adapter.formatOutbound(greeting, clinicConfig.name, true);
     const sendResult = await ghlApiService.sendMessageWithRetry({
       type: channelToMessageType(channel),
       contactId,
       message: greeting,
-      ...(channel === 'email' ? {
-        subject: formatEmailSubject(clinicConfig.name, true),
-        html: formatEmailHtml(greeting, clinicConfig.name),
-      } : {}),
+      ...(ghlConversationId ? { conversationId: ghlConversationId } : {}),
+      ...formatted,
     });
     ghlMessageId = sendResult?.id ?? sendResult?.messageId;
   } catch (error) {
