@@ -11,7 +11,7 @@ import {
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
-import { Request } from "express";
+import type { Request } from "express";
 import { WebhooksService, WebhookResponse } from "./webhooks.service";
 import { WebhookSignatureGuard } from "./guards/webhook-signature.guard";
 import { WebhookThrottleGuard } from "./guards/webhook-throttle.guard";
