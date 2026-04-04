@@ -148,6 +148,8 @@ export interface OrchestratorContext {
     ghlAppointmentId: string;
     appointmentDate: string;
     appointmentTime: string;
+    /** ISO 8601 start time — used to filter same-day slots during rescheduling. */
+    startTime?: string;
   };
   /** True when a PatientHistory record was matched at conversation start. */
   isReturningPatient?: boolean;

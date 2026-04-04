@@ -109,14 +109,17 @@ export class GhlApiService {
 
   /**
    * Cancels an appointment in the GHL Calendar by its GHL appointment ID.
+   * Uses PUT with appointmentStatus "cancelled" (GHL API v2 cancel pattern).
    * Returns the response data, or null on failure.
    */
   async cancelAppointment(appointmentId: string): Promise<any | null> {
     try {
       const { data } = await lastValueFrom(
-        this.httpService.delete(`/calendars/events/${appointmentId}`, {
-          headers: this.getHeaders(),
-        }),
+        this.httpService.put(
+          `/calendars/events/appointments/${appointmentId}`,
+          { appointmentStatus: 'cancelled' },
+          { headers: this.getHeaders() },
+        ),
       );
       return data;
     } catch (error) {

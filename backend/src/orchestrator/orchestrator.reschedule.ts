@@ -72,9 +72,18 @@ export async function handleReschedulingSlotFlow(
     }
   }
 
-  // Fetch available slots and offer them
+  // Fetch available slots and offer them, excluding the current appointment's date.
+  // Primary: use stored ISO startTime. Fallback: parse the British date string (e.g. "Thursday 9th April")
+  // so that appointments booked before startTime was persisted still get same-day filtering.
+  const currentApptDateStr =
+    (context.currentAppointment?.startTime
+      ? new Date(context.currentAppointment.startTime).toISOString().split('T')[0]
+      : null) ?? parseBritishDate(context.currentAppointment?.appointmentDate);
   const allSlots = await deps.slotProvider.getAvailableSlots(clinicConfig.clinicId);
-  const slots = selectSlots(allSlots, 'routine');
+  const eligibleSlots = currentApptDateStr
+    ? allSlots.filter((s) => s.date !== currentApptDateStr)
+    : allSlots;
+  const slots = selectSlots(eligibleSlots, 'routine');
 
   if (slots.length === 0) {
     logger.warn(`No slots available for reschedule — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`);
@@ -162,4 +171,26 @@ async function executeReschedule(
     `Your appointment has been rescheduled to ${selectedSlot.displayText}. We look forward to seeing you!`;
 
   return { response: confirmationMessage, completedReschedule: true };
+}
+
+/**
+ * Parses a British date string (e.g. "Thursday 9th April") into YYYY-MM-DD using the current year.
+ * Used as a fallback when appointmentStartTime is not stored in the conversation context.
+ * Returns null if the string cannot be parsed.
+ */
+function parseBritishDate(britishDate?: string): string | null {
+  if (!britishDate) return null;
+  const MONTHS: Record<string, string> = {
+    January: '01', February: '02', March: '03', April: '04',
+    May: '05', June: '06', July: '07', August: '08',
+    September: '09', October: '10', November: '11', December: '12',
+  };
+  const match = britishDate.match(/(\d+)\w*\s+(\w+)/);
+  if (!match) return null;
+  const [, dayStr, monthName] = match;
+  const month = MONTHS[monthName];
+  if (!month) return null;
+  const day = dayStr.padStart(2, '0');
+  const year = new Date().getFullYear();
+  return `${year}-${month}-${day}`;
 }

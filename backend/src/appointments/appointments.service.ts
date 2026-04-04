@@ -98,6 +98,7 @@ export class AppointmentsService {
         'context.ghlAppointmentId': ghlResponse.id,
         'context.appointmentDate': date,
         'context.appointmentTime': time,
+        'context.appointmentStartTime': dto.startTime,
       },
     });
 

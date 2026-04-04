@@ -92,6 +92,59 @@ describe('handleReschedulingSlotFlow', () => {
       expect(result.completedReschedule).toBe(false);
     });
 
+    it('should exclude the current appointment date from offered slots', async () => {
+      const sameDaySlot = { date: '2026-04-20', startTime: '10:00', endTime: '10:30' };
+      const otherSlot = { date: '2026-04-21', startTime: '09:00', endTime: '09:30' };
+      const deps = buildDeps({
+        slotProvider: { getAvailableSlots: jest.fn().mockResolvedValue([sameDaySlot, otherSlot]) } as any,
+      });
+      const contextWithAppt: OrchestratorContext = {
+        ...baseContext,
+        currentAppointment: {
+          ghlAppointmentId: 'ghl_old',
+          appointmentDate: 'Monday 20th April',
+          appointmentTime: '10:00 AM',
+          startTime: '2026-04-20T10:00:00.000Z',
+        },
+      };
+      await handleReschedulingSlotFlow('next week please', baseConversation, 'contact_001', contextWithAppt, clinicConfig, deps);
+      const offered = JSON.parse((deps.conversationsService.setContext as jest.Mock).mock.calls[0][2]);
+      expect(offered.every((s: any) => !s.displayText.includes('20th April'))).toBe(true);
+    });
+
+    it('should exclude the current appointment date using British date fallback when startTime is absent', async () => {
+      const sameDaySlot = { date: '2026-04-09', startTime: '11:00', endTime: '11:30' };
+      const otherSlot  = { date: '2026-04-10', startTime: '09:00', endTime: '09:30' };
+      const deps = buildDeps({
+        slotProvider: { getAvailableSlots: jest.fn().mockResolvedValue([sameDaySlot, otherSlot]) } as any,
+      });
+      const contextWithBritishDate: OrchestratorContext = {
+        ...baseContext,
+        currentAppointment: {
+          ghlAppointmentId: 'ghl_old',
+          appointmentDate: 'Thursday 9th April',
+          appointmentTime: '11:20 AM',
+          // no startTime — simulates appointment booked before startTime was persisted
+        },
+      };
+      await handleReschedulingSlotFlow('next week please', baseConversation, 'contact_001', contextWithBritishDate, clinicConfig, deps);
+      const offered = JSON.parse((deps.conversationsService.setContext as jest.Mock).mock.calls[0][2]);
+      const dates = offered.map((s: any) => new Date(s.dateTime).toISOString().split('T')[0]);
+      expect(dates).not.toContain('2026-04-09');
+      expect(dates).toContain('2026-04-10');
+    });
+
+    it('should include all slots when no startTime is set on the current appointment', async () => {
+      const slot1 = { date: '2026-04-20', startTime: '09:00', endTime: '09:30' };
+      const slot2 = { date: '2026-04-21', startTime: '09:00', endTime: '09:30' };
+      const deps = buildDeps({
+        slotProvider: { getAvailableSlots: jest.fn().mockResolvedValue([slot1, slot2]) } as any,
+      });
+      await handleReschedulingSlotFlow('next week please', baseConversation, 'contact_001', baseContext, clinicConfig, deps);
+      const offered = JSON.parse((deps.conversationsService.setContext as jest.Mock).mock.calls[0][2]);
+      expect(offered.length).toBeGreaterThanOrEqual(1);
+    });
+
     it('should store offered slots in context when slots are available', async () => {
       const deps = buildDeps();
       await handleReschedulingSlotFlow('any time next week', baseConversation, 'contact_001', baseContext, clinicConfig, deps);

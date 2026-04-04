@@ -1,23 +1,4 @@
-/**
- * Standalone handler for the InboundMessage webhook flow.
- *
- * Extracted from OrchestratorService to keep each file under the 200-line limit.
- * Receives its dependencies as a plain object so it can be called from the
- * injectable service without coupling to NestJS DI.
- *
- * Flow:
- *   1. Validate contactId is present.
- *   2. Load the existing conversation context from MongoDB, or create one for unknown contacts.
- *   3. Persist the inbound message (sender: 'lead') in MongoDB.
- *   4. Run security pipeline (sanitise, detect injection, enforce boundaries).
- *   5. Load the full conversation history to pass as context to the AI.
- *   6. Detect intent (postcode, booking, reschedule, cancel, etc.) against the current phase.
- *   7. Generate a contextually appropriate AI response (falls back on failure).
- *   8. Validate AI output before sending to patient.
- *   9. Send the response via the GHL API (with retry).
- *  10. Persist the AI response message (sender: 'ai') in MongoDB.
- *  11. Advance the conversation phase if the intent warrants it.
- */
+/** Standalone handler for the InboundMessage webhook flow. */
 import { Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
@@ -31,7 +12,6 @@ import { GhlInboundMessagePayload } from '../webhooks/dto/ghl-webhook.dto';
 import {
   FALLBACK_AI_UNAVAILABLE,
   DEFAULT_MESSAGE_TYPE,
-  OrchestratorMessage,
   OrchestratorContext,
   IntentResult,
 } from './orchestrator.types';
@@ -39,6 +19,8 @@ import { mapMessageTypeToChannel, channelToMessageType } from './orchestrator.pr
 import { PostcodeValidationService } from './postcode-validation.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { handleReschedulingSlotFlow } from './orchestrator.reschedule';
+import { applyPhaseTransition, backgroundRetryAiResponse } from './orchestrator.phase-transitions';
+import { buildInboundContext } from './orchestrator.context-builder';
 
 /** Dependencies injected by OrchestratorService. */
 export interface InboundMessageDeps {
@@ -118,10 +100,8 @@ export async function handleInboundMessageFlow(
   const leadObjectId = conversation.leadId as Types.ObjectId;
   const currentPhase = conversation.phase ?? 'qualifying';
 
-  // Persist the inbound message
   await messagesService.addMessage(conversationObjectId, clinicObjectId, leadObjectId, 'lead', messageContent, channel);
 
-  // Security pipeline: sanitise input, detect injection, enforce boundaries
   const securityResult = await securityPipeline.processInbound(
     messageContent,
     conversationObjectId.toString(),
@@ -140,37 +120,9 @@ export async function handleInboundMessageFlow(
     response = securityResult.fallbackResponse ?? FALLBACK_AI_UNAVAILABLE;
   } else {
     const sanitisedContent = securityResult.sanitisedMessage;
-
-    // Load history and build context
-    const storedMessages = await messagesService.getByConversation(conversationObjectId);
-    const contextMessages: OrchestratorMessage[] = storedMessages
-      .filter((m) => m.sender !== 'system')
-      .map((m) => ({
-        content: m.content,
-        role: (m.sender === 'ai' ? 'assistant' : 'user') as 'assistant' | 'user',
-        timestamp: (m as any).createdAt ?? new Date(),
-      }));
-
-    // Populate appointment context from the conversation's context Map
-    const ghlApptId = conversation.context?.get('ghlAppointmentId');
-    const currentAppointment = ghlApptId
-      ? {
-          ghlAppointmentId: ghlApptId,
-          appointmentDate: conversation.context?.get('appointmentDate') ?? '',
-          appointmentTime: conversation.context?.get('appointmentTime') ?? '',
-        }
-      : undefined;
-
-    const context: OrchestratorContext = {
-      ghlContactId: contactId,
-      clinicId: clinicConfig.clinicId,
-      phase: currentPhase,
-      conversationId: conversationObjectId.toHexString(),
-      messages: contextMessages,
-      patientInfo: { firstName: 'there' },
-      currentAppointment,
-      isReturningPatient: conversation.isReturningPatient ?? false,
-    };
+    const context = await buildInboundContext(
+      conversation, contactId, clinicConfig, currentPhase, conversationObjectId, messagesService,
+    );
 
     intent = detectIntent(sanitisedContent, currentPhase, { isReturningPatient: context.isReturningPatient });
     logger.log(
@@ -198,7 +150,7 @@ export async function handleInboundMessageFlow(
       if (aiFailed) {
         logger.warn(`${cid}AI response generation failed — contactId: ${contactId}. Using fallback.`);
         await conversationsService.flagForHumanIntervention(conversationObjectId, 'AI service failure');
-        backgroundRetryAiResponse(intent, context, clinicConfig, deps, contactId, channel, conversationObjectId, clinicObjectId, leadObjectId);
+        backgroundRetryAiResponse(intent, context, clinicConfig, deps, contactId, channel, conversationObjectId, clinicObjectId, leadObjectId, logger);
       }
 
       // Output validation: check AI response before sending to patient
@@ -236,79 +188,13 @@ export async function handleInboundMessageFlow(
 
   // Advance phase based on detected intent (only when security allowed the message through)
   if (securityResult.allowed) {
-    if (intent.intent === 'PROVIDE_POSTCODE') {
-      const { postcode } = intent.data;
-      const inArea = postcodeValidationService.isInServiceArea(postcode, clinicConfig.serviceAreas ?? []);
-      if (inArea) {
-        await conversationsService.setContext(conversationObjectId, 'validatedPostcode', postcode);
-        await conversationsService.updatePhase(conversationObjectId, 'qualified');
-      } else {
-        await conversationsService.updatePhase(conversationObjectId, 'declined');
-      }
-    } else if (intent.intent === 'WANT_TO_BOOK') {
-      await conversationsService.updatePhase(conversationObjectId, 'booking');
-    } else if (intent.intent === 'RESCHEDULE' && conversation.context?.get('ghlAppointmentId')) {
-      await conversationsService.updatePhase(conversationObjectId, 'rescheduling');
-    } else if (intent.intent === 'CANCEL_RESCHEDULE') {
-      await conversationsService.updatePhase(conversationObjectId, 'booked');
-    } else if (intent.intent === 'CANCEL') {
-      await conversationsService.updatePhase(conversationObjectId, 'cancelling');
-    } else if (intent.intent === 'CONFIRM_CANCEL') {
-      const isWarning = response.includes('incur a fee') || response.includes('Would you like to proceed');
-      if (isWarning) {
-        await conversationsService.updatePhase(conversationObjectId, 'cancelling_warned');
-      }
-    } else if (intent.intent === 'DECLINE_CANCEL') {
-      if (currentPhase === 'cancelling_warned') {
-        await conversationsService.updatePhase(conversationObjectId, 'rescheduling');
-      } else {
-        await conversationsService.updatePhase(conversationObjectId, 'booked');
-      }
-    } else if (intent.intent === 'DETAILS_UNCHANGED') {
-      const postcode = conversation.context?.get('returningPatientPostcode');
-      if (postcode) {
-        await conversationsService.setContext(conversationObjectId, 'validatedPostcode', postcode);
-      }
-      await conversationsService.updatePhase(conversationObjectId, 'booking');
-    } else if (intent.intent === 'DETAILS_CHANGED') {
-      await conversationsService.updatePhase(conversationObjectId, 'qualifying');
-    }
+    await applyPhaseTransition(
+      intent, response, currentPhase, conversationObjectId, conversation,
+      clinicConfig, conversationsService, postcodeValidationService,
+    );
   }
 
   logger.log(
     `${cid}Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`,
   );
-}
-
-/** Fire-and-forget: retry AI once in the background and send follow-up if successful. */
-function backgroundRetryAiResponse(
-  intent: IntentResult,
-  context: OrchestratorContext,
-  clinicConfig: ClinicConfig,
-  deps: InboundMessageDeps,
-  contactId: string,
-  channel: string,
-  conversationObjectId: Types.ObjectId,
-  clinicObjectId: Types.ObjectId,
-  leadObjectId: Types.ObjectId,
-): void {
-  const { ghlApiService, messagesService, logger, generateResponse } = deps;
-
-  generateResponse(intent, context, clinicConfig)
-    .then(async (retryResponse) => {
-      if (!retryResponse) return;
-      logger.log(`Background AI retry succeeded — contactId: ${contactId}`);
-      const result = await ghlApiService.sendMessageWithRetry({
-        type: channelToMessageType(channel),
-        contactId,
-        message: retryResponse,
-      });
-      await messagesService.addMessage(
-        conversationObjectId, clinicObjectId, leadObjectId, 'ai', retryResponse, channel,
-        result?.id ?? result?.messageId,
-      );
-    })
-    .catch((err) =>
-      logger.warn(`Background AI retry failed — contactId: ${contactId}: ${(err as Error).message}`),
-    );
 }
