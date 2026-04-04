@@ -14,15 +14,23 @@ export class GhlLocationDto {
  * that lack class-validator decorators.  GHL payloads contain many dynamic
  * fields (contact details, message data, etc.) that the orchestrator needs,
  * so we mark known fields with @Allow() / @IsOptional() to prevent stripping.
+ *
+ * `location` is optional because GHL workflow webhooks may send location data
+ * as a flat `locationId` string rather than a nested `location: { id }` object.
+ * The WebhooksService extracts the location ID from whichever format is present.
  */
 export class GhlWebhookValidatedDto {
   @IsString()
   @IsNotEmpty()
   type: string;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => GhlLocationDto)
-  location: GhlLocationDto;
+  location?: GhlLocationDto;
+
+  /* Flat locationId — GHL standard webhook format */
+  @IsOptional() @Allow() locationId?: string;
 
   /* GHL contact / event fields (passed through to orchestrator) */
   @IsOptional() @Allow() id?: string;
@@ -50,6 +58,7 @@ export interface GhlLocation {
 export interface GhlWebhookPayload {
   type?: string;
   location?: GhlLocation;
+  locationId?: string;
   [key: string]: unknown;
 }
 

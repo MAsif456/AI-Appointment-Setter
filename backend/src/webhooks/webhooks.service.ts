@@ -63,16 +63,19 @@ export class WebhooksService {
   ): Promise<WebhookResponse> {
     const correlationId = generateCorrelationId();
     const ghlType = typeof payload.type === "string" ? payload.type : "unknown";
+    // GHL sends location as nested object or flat locationId depending on webhook config
     const location = payload.location as Record<string, unknown> | undefined;
     const ghlLocationId =
-      typeof location?.id === "string" ? location.id : "unknown";
+      typeof location?.id === "string" ? location.id
+      : typeof payload.locationId === "string" ? payload.locationId
+      : "unknown";
     this.logger.log(
       `[${correlationId}] GHL webhook received: type=${ghlType}, locationId=${ghlLocationId}`,
     );
 
     try {
       const ghlPayload = payload as GhlWebhookPayload;
-      const locationId = ghlPayload.location?.id;
+      const locationId = ghlPayload.location?.id ?? ghlPayload.locationId;
       const { type } = ghlPayload;
 
       if (!locationId) {
