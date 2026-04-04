@@ -152,17 +152,26 @@ export default function UserManagement() {
         )}
       </div>
 
-      {totalPages > 1 && (
+        {/* Show pagination always (not just when totalPages > 1) */}
         <div className={styles.pagination}>
-          <button className={styles.pageButton} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+          <button 
+            className={styles.pageButton} 
+            onClick={() => setPage(p => Math.max(1, p - 1))} 
+            disabled={page === 1}
+          >
             <ChevronLeft size={16} />
           </button>
-          <span className={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button className={styles.pageButton} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+          <span className={styles.pageInfo}>
+            Page {page} of {totalPages}
+          </span>
+          <button 
+            className={styles.pageButton} 
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+            disabled={page === totalPages}
+          >
             <ChevronRight size={16} />
           </button>
         </div>
-      )}
 
       {showAdd && (
         <UserModal mode="add" clinics={clinics} onClose={() => setShowAdd(false)}

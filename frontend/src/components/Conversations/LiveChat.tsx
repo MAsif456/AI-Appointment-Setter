@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import api from '@/lib/apiAxios';
 import { BackArrowIcon } from '@/components/Icons';
 import styles from './LiveChat.module.css';
 import ChatPanel, { DisplayMessage } from './ChatPanel';
@@ -37,8 +38,8 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
     setError(null);
 
     try {
-      const detailRes = await fetch(`${API_BASE}/conversations/${conversationId}`);
-      const detail = await detailRes.json();
+      const detailRes = await api.get(`/conversations/${conversationId}`);
+      const detail = detailRes.data;
 
       if (detail.lead) setLead(detail.lead);
       if (detail.clinic) setClinic(detail.clinic);
@@ -59,11 +60,8 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
       }
 
       // No messages yet — trigger the AI greeting
-      const startRes = await fetch(
-        `${API_BASE}/conversations/${conversationId}/start`,
-        { method: 'POST' },
-      );
-      const startData = await startRes.json();
+      const startRes = await api.post(`/conversations/${conversationId}/start`);
+      const startData = startRes.data;
 
       if (startData.greeting) {
         setMessages([
@@ -102,15 +100,10 @@ export default function LiveChat({ conversationId }: LiveChatProps) {
     setError(null);
 
     try {
-      const res = await fetch(
-        `${API_BASE}/conversations/${conversationId}/messages`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMsg.content }),
-        },
-      );
-      const data = await res.json();
+      const res = await api.post(`/conversations/${conversationId}/messages`, {
+        message: userMsg.content,
+      });
+      const data = res.data;
 
       if (data.reply) {
         setMessages((prev) => [
