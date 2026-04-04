@@ -962,6 +962,8 @@ describe('"that date" resolution from offered slots', () => {
   });
 
   it('resolves bare day name "Friday" to the offered Friday slot date, not last week', () => {
+    // Pin the clock to a date before the offered slots so resolution is deterministic
+    jest.useFakeTimers({ now: new Date('2026-03-30T10:00:00') });
     const offeredSlots: OfferedSlotRef[] = [
       { dateTime: '2026-03-24T14:00:00', displayText: 'Tuesday 24th March at 2pm' },
       { dateTime: '2026-04-01T13:30:00', displayText: 'Wednesday 1st April at 1:30pm' },
@@ -977,9 +979,11 @@ describe('"that date" resolution from offered slots', () => {
     const startDate = new Date(result.requestedStartDate!);
     expect(startDate.getMonth()).toBe(3); // April = 3
     expect(startDate.getDate()).toBe(3);
+    jest.useRealTimers();
   });
 
   it('resolves "other times on Friday" to offered Friday slot date range', () => {
+    jest.useFakeTimers({ now: new Date('2026-03-30T10:00:00') });
     const offeredSlots: OfferedSlotRef[] = [
       { dateTime: '2026-04-03T12:50:00', displayText: 'Friday 3rd April at 12:50pm' },
     ];
@@ -990,6 +994,7 @@ describe('"that date" resolution from offered slots', () => {
     expect(result.intent).toBe('DIFFERENT_DATE');
     expect(result.requestedDate).toBe('Friday');
     expect(result.requestedStartDate).toBeDefined();
+    jest.useRealTimers();
   });
 });
 
