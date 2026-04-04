@@ -49,22 +49,12 @@ export async function handleInboundMessageFlow(
 
   const contactId = webhookData.id;
   const ghlConversationId = webhookData.conversationId;
-  const channel = mapMessageTypeToChannel(
-    (webhookData.message?.type as string) ?? DEFAULT_MESSAGE_TYPE,
-  );
 
-  // Ref: RFC 3834 (https://datatracker.ietf.org/doc/html/rfc3834) — detect auto-replies early to prevent infinite loops
-  if (channel === 'email' && isAutoReply({
-    subject: webhookData.message?.subject,
-    body: webhookData.message?.body,
-    from: (webhookData as any).from,
-  })) {
-    logger.log(`${cid}Auto-reply detected — contactId: ${contactId}. Dropping silently.`);
-    return;
-  }
-
-  const rawContent = webhookData.message?.body ?? '';
-  const messageContent = channel === 'email' ? stripEmailContent(rawContent) : rawContent;
+  // Detect channel from message type, falling back to the existing conversation's channel.
+  // GHL InboundMessage webhooks may omit message.type for email replies, which would
+  // incorrectly default to SMS and cause a 422 when the contact has no phone number.
+  const messageType = (webhookData.message?.type as string) ?? '';
+  let channel = messageType ? mapMessageTypeToChannel(messageType) : '';
 
   if (!contactId) {
     logger.warn(`InboundMessage payload missing contactId — clinicId: ${clinicConfig.clinicId}. Skipping.`);
@@ -89,6 +79,27 @@ export async function handleInboundMessageFlow(
       return;
     }
   }
+
+  // Fall back to the existing conversation's channel if the webhook didn't specify one
+  if (!channel && conversation.channel) {
+    channel = conversation.channel;
+  }
+  if (!channel) {
+    channel = 'sms';
+  }
+
+  // Ref: RFC 3834 (https://datatracker.ietf.org/doc/html/rfc3834) — detect auto-replies early to prevent infinite loops
+  if (channel === 'email' && isAutoReply({
+    subject: webhookData.message?.subject,
+    body: webhookData.message?.body,
+    from: (webhookData as any).from,
+  })) {
+    logger.log(`${cid}Auto-reply detected — contactId: ${contactId}. Dropping silently.`);
+    return;
+  }
+
+  const rawContent = webhookData.message?.body ?? '';
+  const messageContent = channel === 'email' ? stripEmailContent(rawContent) : rawContent;
 
   const conversationObjectId = conversation._id as Types.ObjectId;
   const leadObjectId = conversation.leadId as Types.ObjectId;
