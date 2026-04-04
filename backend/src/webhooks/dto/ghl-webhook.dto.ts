@@ -15,32 +15,31 @@ export class GhlLocationDto {
  * fields (contact details, message data, etc.) that the orchestrator needs,
  * so we mark known fields with @Allow() / @IsOptional() to prevent stripping.
  *
- * `location` is optional because GHL workflow webhooks may send location data
- * as a flat `locationId` string rather than a nested `location: { id }` object.
- * The WebhooksService extracts the location ID from whichever format is present.
+ * GHL workflow webhooks send custom data under `customData`, and use
+ * `contact_id` (not `id`) for the contact identifier.
  */
 export class GhlWebhookValidatedDto {
-  @IsString()
-  @IsNotEmpty()
-  type: string;
+  /* type may come at root (custom data merged) or under customData */
+  @IsOptional() @Allow() type?: string;
 
   @IsOptional()
   @ValidateNested()
   @Type(() => GhlLocationDto)
   location?: GhlLocationDto;
 
-  /* Flat locationId — GHL standard webhook format */
-  @IsOptional() @Allow() locationId?: string;
-
-  /* GHL contact / event fields (passed through to orchestrator) */
+  /* GHL contact / event fields */
   @IsOptional() @Allow() id?: string;
+  @IsOptional() @Allow() contact_id?: string;
   @IsOptional() @Allow() first_name?: string;
   @IsOptional() @Allow() last_name?: string;
   @IsOptional() @Allow() phone?: string;
   @IsOptional() @Allow() email?: string;
   @IsOptional() @Allow() issue?: string;
+  @IsOptional() @Allow() Issue?: string;
+  @IsOptional() @Allow() locationId?: string;
   @IsOptional() @Allow() conversationId?: string;
   @IsOptional() @Allow() message?: unknown;
+  @IsOptional() @Allow() customData?: Record<string, unknown>;
 
   [key: string]: unknown;
 }
@@ -59,6 +58,8 @@ export interface GhlWebhookPayload {
   type?: string;
   location?: GhlLocation;
   locationId?: string;
+  contact_id?: string;
+  customData?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -69,6 +70,7 @@ export interface GhlContactCreatePayload extends GhlWebhookPayload {
   phone?: string;
   email?: string;
   issue?: string;
+  Issue?: string;
 }
 
 export interface GhlMessage {
@@ -84,6 +86,7 @@ export interface GhlMessage {
 export interface GhlInboundMessagePayload extends GhlWebhookPayload {
   type: "InboundMessage";
   id?: string;
+  contact_id?: string;
   conversationId?: string;
   message?: GhlMessage;
 }

@@ -62,8 +62,29 @@ export class WebhooksService {
     payload: Record<string, unknown>,
   ): Promise<WebhookResponse> {
     const correlationId = generateCorrelationId();
+
+    // GHL workflow webhooks put custom data keys under `customData`, not at root.
+    // Merge customData fields into the root payload so downstream code sees them.
+    const customData = payload.customData as Record<string, unknown> | undefined;
+    if (customData) {
+      for (const [key, value] of Object.entries(customData)) {
+        if (value !== undefined && value !== null && value !== '') {
+          payload[key] = payload[key] ?? value;
+        }
+      }
+    }
+
+    // Normalise contact_id → id (GHL uses contact_id in standard webhook data)
+    if (!payload.id && payload.contact_id) {
+      payload.id = payload.contact_id;
+    }
+
+    // Normalise Issue → issue (GHL form field has capital I)
+    if (!payload.issue && payload.Issue) {
+      payload.issue = payload.Issue;
+    }
+
     const ghlType = typeof payload.type === "string" ? payload.type : "unknown";
-    // GHL sends location as nested object or flat locationId depending on webhook config
     const location = payload.location as Record<string, unknown> | undefined;
     const ghlLocationId =
       typeof location?.id === "string" ? location.id
