@@ -110,13 +110,15 @@ export class ConversationsController {
       }
       this.logger.log(`Starting conversation: ${id}`);
       const greeting = await this.conversationsService.startConversation(id);
+      if (!greeting || greeting === null || greeting === undefined) {
+        return { greeting: FALLBACK_AI_UNAVAILABLE };
+      }
       return { greeting };
     } catch (error) {
       this.logger.error(`Start conversation failed for ${id}:`, (error as Error).stack);
       return { greeting: FALLBACK_AI_UNAVAILABLE };
     }
   }
-
 
   /**
    * Resets a conversation by deleting all its messages and resetting the phase.
