@@ -1,9 +1,9 @@
 // Ref: RFC 3834 — Recommendations for Automatic Responses to Electronic Mail
 //   https://datatracker.ietf.org/doc/html/rfc3834
-// Ref: arp242.net/autoreply.html — comprehensive auto-reply detection guide
-//   https://www.arp242.net/autoreply.html
-// Ref: jitbit.com — Outlook-specific auto-reply header patterns
-//   https://www.jitbit.com/maxblog/18-detecting-outlook-autoreply-ooof-emails/
+// Ref: RFC 2369 — The Use of URLs as Meta-Syntax for Core Mail List Commands
+//   https://www.rfc-editor.org/rfc/rfc2369
+//   Defines List-Unsubscribe and other mailing-list headers; their presence
+//   is the formal indicator of bulk/list email.
 //
 // GHL's InboundMessage webhook does not forward raw email headers like
 // Auto-Submitted or Precedence, so we rely on content-based heuristics
@@ -35,6 +35,27 @@ const AUTO_REPLY_BODY_PATTERNS = [
   /\bthis mailbox is not monitored\b/i,
 ];
 
+// Ref: RFC 3834 Section 3 — auto-responders SHOULD NOT reply to bulk/newsletter mail
+//   https://datatracker.ietf.org/doc/html/rfc3834#section-3
+// Ref: CAN-SPAM Act (15 U.S.C. § 7704) — requires commercial email to include
+//   a clear opt-out/unsubscribe mechanism, which is why legitimate bulk emails
+//   always contain "unsubscribe" links that we can detect as heuristics.
+//   https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+// Ref: RFC 2369 — List-Unsubscribe header (formal indicator of mailing list mail)
+//   https://www.rfc-editor.org/rfc/rfc2369
+//
+// GHL does not expose List-Id or List-Unsubscribe headers (RFC 2919), so we
+// rely on body-content heuristics to detect marketing/newsletter emails that
+// should not trigger an AI response.
+const NEWSLETTER_BODY_PATTERNS = [
+  /\bunsubscribe\b.*\bfrom this\b/i,
+  /\bmanage your (?:email )?preferences\b/i,
+  /\byou are receiving this (?:email |message )?because\b/i,
+  /\bview (?:this email )?in (?:your )?browser\b/i,
+  /\bclick here to unsubscribe\b/i,
+  /\bopt[\s-]?out\b.*\b(?:email|mailing list)\b/i,
+];
+
 export interface AutoReplyCheckInput {
   subject?: string;
   body?: string;
@@ -63,6 +84,9 @@ export function isAutoReply(input: AutoReplyCheckInput): boolean {
 
   if (body) {
     for (const pattern of AUTO_REPLY_BODY_PATTERNS) {
+      if (pattern.test(body)) return true;
+    }
+    for (const pattern of NEWSLETTER_BODY_PATTERNS) {
       if (pattern.test(body)) return true;
     }
   }

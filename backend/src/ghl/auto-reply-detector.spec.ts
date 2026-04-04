@@ -109,6 +109,74 @@ describe('isAutoReply', () => {
     });
   });
 
+  describe('newsletter / bulk-email detection', () => {
+    it('detects "unsubscribe from this" footer', () => {
+      expect(
+        isAutoReply({ body: 'Great deals! Click to unsubscribe from this mailing list.' }),
+      ).toBe(true);
+    });
+
+    it('detects "manage your email preferences" footer', () => {
+      expect(
+        isAutoReply({ body: 'You can manage your email preferences here.' }),
+      ).toBe(true);
+    });
+
+    it('detects "manage your preferences" without "email"', () => {
+      expect(
+        isAutoReply({ body: 'Manage your preferences at any time.' }),
+      ).toBe(true);
+    });
+
+    it('detects "you are receiving this because" footer', () => {
+      expect(
+        isAutoReply({ body: 'You are receiving this email because you signed up.' }),
+      ).toBe(true);
+    });
+
+    it('detects "you are receiving this message because"', () => {
+      expect(
+        isAutoReply({ body: 'You are receiving this message because you opted in.' }),
+      ).toBe(true);
+    });
+
+    it('detects "view this email in your browser" header', () => {
+      expect(
+        isAutoReply({ body: 'View this email in your browser for best results.' }),
+      ).toBe(true);
+    });
+
+    it('detects "view in browser" shorthand', () => {
+      expect(
+        isAutoReply({ body: 'Having trouble? View in browser.' }),
+      ).toBe(true);
+    });
+
+    it('detects "click here to unsubscribe"', () => {
+      expect(
+        isAutoReply({ body: 'Click here to unsubscribe from future emails.' }),
+      ).toBe(true);
+    });
+
+    it('detects "opt-out" from mailing list', () => {
+      expect(
+        isAutoReply({ body: 'To opt-out of this mailing list, click below.' }),
+      ).toBe(true);
+    });
+
+    it('does NOT flag normal body that mentions subscribing', () => {
+      expect(
+        isAutoReply({ body: 'I want to subscribe to your newsletter please.' }),
+      ).toBe(false);
+    });
+
+    it('does NOT flag body that mentions a browser', () => {
+      expect(
+        isAutoReply({ body: 'I opened the link in my browser but it did not work.' }),
+      ).toBe(false);
+    });
+  });
+
   describe('edge cases', () => {
     it('returns false when all fields are undefined', () => {
       expect(isAutoReply({})).toBe(false);
