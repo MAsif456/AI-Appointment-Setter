@@ -15,7 +15,6 @@ import { AppointmentsModule } from "./appointments/appointments.module";
 import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
-import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -44,8 +43,6 @@ import { AuthModule } from './auth/auth.module';
     AppointmentsModule,
     CancellationModule,
     HealthModule,
-    AuthModule,
-
   ],
   controllers: [AppController],
   providers: [

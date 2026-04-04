@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import ConditionalLayout from '@/components/ConditionalLayout';
-import { AuthProvider } from '@/contexts/AuthContext';
+import Sidebar from "@/components/Sidebar/Sidebar";
+import styles from "./layout.module.css";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,11 +25,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          <ConditionalLayout>
+        <div className={styles.layoutWrapper}>
+          <Sidebar />
+          <main className={styles.mainContent}>
             {children}
-          </ConditionalLayout>
-        </AuthProvider>
+          </main>
+        </div>
       </body>
     </html>
   );

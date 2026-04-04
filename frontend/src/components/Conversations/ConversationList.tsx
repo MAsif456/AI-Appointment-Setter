@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, type ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/apiAxios';
+import { mockConversations } from '@/data/mockConversations';
 import {
   HighPriorityIcon,
   ChevronLeftIcon,
@@ -18,91 +18,34 @@ const ITEMS_PER_PAGE = 10;
 
 /** Maps each phase to its distinct icon component */
 const PHASE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  booking: BookingPhaseIcon,
-  booked: ConfirmedPhaseIcon,
-  confirmed: ConfirmedPhaseIcon,
-  qualified: QualifiedPhaseIcon,
-  declined: DeclinedPhaseIcon,
-  cancelled: DeclinedPhaseIcon,
-  escalated: DeclinedPhaseIcon,
-  stalled: DeclinedPhaseIcon,
+  Booking: BookingPhaseIcon,
+  Confirmed: ConfirmedPhaseIcon,
+  Qualified: QualifiedPhaseIcon,
+  Declined: DeclinedPhaseIcon,
 };
-
-interface Conversation {
-  _id: string;
-  phase: string;
-  isHighPriority: boolean;
-  lastMessageAt: string | null;
-  clinicId: { _id: string; name: string } | null;
-  leadId: { _id: string; firstName: string; lastName: string; phone: string } | null;
-  channel: string;
-}
 
 /**
  * Displays the list of all conversations with search, filters,
  * priority indicators, pagination, and a data table.
- * Fetches real data from the backend API.
+ * Booking-phase leads route to live AI chat; others to static detail.
  */
 export default function ConversationList() {
   const router = useRouter();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [clinicFilter, setClinicFilter] = useState('All Clinics');
   const [phaseFilter, setPhaseFilter] = useState('All Phases');
   const [page, setPage] = useState(1);
 
-  // Fetch conversations from API
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get('/conversations');
-        setConversations(response.data);
-        setError(null);
-      } catch (err: any) {
-        console.error('Failed to fetch conversations:', err);
-        setError(err.response?.data?.message || 'Failed to load conversations');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchConversations();
-  }, []);
+  const priorityCount = mockConversations.filter(
+    (c) => c.isHighPriority,
+  ).length;
 
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <h1 className={styles.title}>Conversations</h1>
-        <p>Loading conversations...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={styles.container}>
-        <h1 className={styles.title}>Conversations</h1>
-        <p style={{ color: 'red' }}>{error}</p>
-      </div>
-    );
-  }
-
-  const priorityCount = conversations.filter((c) => c.isHighPriority).length;
-
-  const filtered = conversations.filter((c) => {
-    const patientName = c.leadId
-    ? [c.leadId.firstName, c.leadId.lastName].filter(Boolean).join(' ') || 'Unknown'
-    : 'Unknown';
-    const phone = c.leadId?.phone || '';
-    const clinic = c.clinicId?.name || 'Unknown Clinic';
-
+  const filtered = mockConversations.filter((c) => {
     const matchesSearch =
-      patientName.toLowerCase().includes(search.toLowerCase()) ||
-      phone.includes(search);
+      c.patientName.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone.includes(search);
     const matchesClinic =
-      clinicFilter === 'All Clinics' || clinic === clinicFilter;
+      clinicFilter === 'All Clinics' || c.clinic === clinicFilter;
     const matchesPhase =
       phaseFilter === 'All Phases' || c.phase === phaseFilter;
     return matchesSearch && matchesClinic && matchesPhase;
@@ -113,40 +56,11 @@ export default function ConversationList() {
   const startIdx = (safePage - 1) * ITEMS_PER_PAGE;
   const paged = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
 
-  // Extract unique clinic names for filter dropdown
-  const clinics = [
-    'All Clinics',
-    ...new Set(conversations.map((c) => c.clinicId?.name || 'Unknown Clinic')),
-  ];
+  const clinics = ['All Clinics', ...new Set(mockConversations.map((c) => c.clinic))];
+  const phases = ['All Phases', ...new Set(mockConversations.map((c) => c.phase))];
 
-  // Extract unique phases for filter dropdown
-  const phases = [
-    'All Phases',
-    ...new Set(conversations.map((c) => c.phase)),
-  ];
-
-  const handleRowClick = (conv: Conversation) => {
-    router.push(`/conversations/${conv._id}`); // ← Uses real MongoDB ID
-  };
-
-  // Format phase for display (capitalize first letter)
-  const formatPhase = (phase: string) =>
-    phase.charAt(0).toUpperCase() + phase.slice(1);
-
-  // Format last message time
-  const formatTime = (timestamp: string | null) => {
-    if (!timestamp) return 'No messages yet';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
+  const handleRowClick = (conv: typeof mockConversations[0]) => {
+    router.push(`/conversations/${conv.id}`);
   };
 
   return (
@@ -168,131 +82,98 @@ export default function ConversationList() {
           type="text"
           placeholder="Search by name or phone..."
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
         <select
           className={styles.filterSelect}
           value={clinicFilter}
-          onChange={(e) => {
-            setClinicFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setClinicFilter(e.target.value); setPage(1); }}
         >
-          {clinics.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
+          {clinics.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
           className={styles.filterSelect}
           value={phaseFilter}
-          onChange={(e) => {
-            setPhaseFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setPhaseFilter(e.target.value); setPage(1); }}
         >
-          {phases.map((p) => (
-            <option key={p} value={p}>
-              {formatPhase(p)}
-            </option>
-          ))}
+          {phases.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 
-      {filtered.length === 0 && (
-        <p style={{ padding: '2rem', textAlign: 'center' }}>
-          No conversations found matching your filters.
-        </p>
-      )}
-
-      {filtered.length > 0 && (
-        <>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Patient Name</th>
-                <th>Phone</th>
-                <th>Clinic</th>
-                <th>Lead Source</th>
-                <th>Phase</th>
-                <th>Last Message</th>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Patient Name</th>
+            <th>Phone</th>
+            <th>Clinic</th>
+            <th>Lead Source</th>
+            <th>Phase</th>
+            <th>Last Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paged.map((conv) => {
+            const PhaseIcon = PHASE_ICONS[conv.phase] ?? BookingPhaseIcon;
+            return (
+              <tr key={conv.id} onClick={() => handleRowClick(conv)}>
+                <td>
+                  <div className={styles.nameCell}>
+                    {conv.patientName}
+                    {conv.isHighPriority && (
+                      <HighPriorityIcon className={styles.priorityIcon} />
+                    )}
+                  </div>
+                </td>
+                <td>{conv.phone}</td>
+                <td>{conv.clinic}</td>
+                <td>{conv.leadSource}</td>
+                <td>
+                  <span className={styles.phaseBadge}>
+                    <PhaseIcon className={styles.phaseIcon} />
+                    {conv.phase}
+                  </span>
+                </td>
+                <td className={styles.lastMessage}>{conv.lastMessage}</td>
               </tr>
-            </thead>
-            <tbody>
-              {paged.map((conv) => {
-                const patientName = conv.leadId
-                ? [conv.leadId.firstName, conv.leadId.lastName].filter(Boolean).join(' ') || 'Unknown'
-                  : 'Unknown';
-                const phone = conv.leadId?.phone || 'N/A';
-                const clinic = conv.clinicId?.name || 'Unknown Clinic';
-                const PhaseIcon = PHASE_ICONS[conv.phase] ?? BookingPhaseIcon;
+            );
+          })}
+        </tbody>
+      </table>
 
-                return (
-                  <tr key={conv._id} onClick={() => handleRowClick(conv)}>
-                    <td>
-                      <div className={styles.nameCell}>
-                        {patientName}
-                        {conv.isHighPriority && (
-                          <HighPriorityIcon className={styles.priorityIcon} />
-                        )}
-                      </div>
-                    </td>
-                    <td>{phone}</td>
-                    <td>{clinic}</td>
-                    <td>{conv.channel}</td>
-                    <td>
-                      <span className={styles.phaseBadge}>
-                        <PhaseIcon className={styles.phaseIcon} />
-                        {formatPhase(conv.phase)}
-                      </span>
-                    </td>
-                    <td className={styles.lastMessage}>
-                      {formatTime(conv.lastMessageAt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <div className={styles.pagination}>
-            <span className={styles.pageInfo}>
-              {`${startIdx + 1}–${Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)} of ${filtered.length}`}
-            </span>
-            <div className={styles.pageControls}>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon className={styles.pageBtnIcon} />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  className={n === safePage ? styles.pageBtnActive : styles.pageBtn}
-                  onClick={() => setPage(n)}
-                >
-                  {n}
-                </button>
-              ))}
-              <button
-                className={styles.pageBtn}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon className={styles.pageBtnIcon} />
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <div className={styles.pagination}>
+        <span className={styles.pageInfo}>
+          {filtered.length === 0
+            ? 'No results'
+            : `${startIdx + 1}–${Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)} of ${filtered.length}`}
+        </span>
+        <div className={styles.pageControls}>
+          <button
+            className={styles.pageBtn}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage <= 1}
+            aria-label="Previous page"
+          >
+            <ChevronLeftIcon className={styles.pageBtnIcon} />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              className={n === safePage ? styles.pageBtnActive : styles.pageBtn}
+              onClick={() => setPage(n)}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            className={styles.pageBtn}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage >= totalPages}
+            aria-label="Next page"
+          >
+            <ChevronRightIcon className={styles.pageBtnIcon} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

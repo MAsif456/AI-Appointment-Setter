@@ -1,19 +1,23 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import LiveChat from '@/components/Conversations/LiveChat';
-import api from '@/lib/apiAxios';
-
-jest.mock('@/lib/apiAxios');
-const mockedApi = api as jest.Mocked<typeof api>;
 
 // Mock scrollIntoView since jsdom doesn't support it
 Element.prototype.scrollIntoView = jest.fn();
 
+// Mock next/link
 jest.mock('next/link', () => {
-  return function MockLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return function MockLink({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) {
     return <a href={href}>{children}</a>;
   };
 });
 
+// Mock fetch to return conversation data
 const mockConversationData = {
   conversation: { _id: 'conv1', phase: 'greeting' },
   messages: [],
@@ -35,41 +39,35 @@ const mockGreetingResponse = {
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({
+      json: () => Promise.resolve(mockConversationData),
+    })
+    .mockResolvedValueOnce({
+      json: () => Promise.resolve(mockGreetingResponse),
+    }) as jest.Mock;
 });
 
 afterEach(() => {
-  jest.clearAllMocks();
+  jest.restoreAllMocks();
 });
 
 describe('LiveChat', () => {
   it('renders the back link to conversations', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     const link = screen.getByText(/Back to Conversations/);
     expect(link.closest('a')).toHaveAttribute('href', '/conversations');
   });
 
   it('shows Booking Assistant subtitle in chat header', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText('AI Booking Assistant')).toBeInTheDocument();
     });
   });
 
   it('loads patient info into the sidebar', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText('Patient Info')).toBeInTheDocument();
       expect(screen.getByText('Sarah Williams')).toBeInTheDocument();
@@ -78,56 +76,38 @@ describe('LiveChat', () => {
   });
 
   it('shows conversation phase in sidebar', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText('Greeting')).toBeInTheDocument();
     });
   });
 
   it('auto-triggers the AI greeting on mount', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah! Thanks for getting in touch/)).toBeInTheDocument();
     });
   });
 
   it('calls the correct API endpoints', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
-      expect(mockedApi.get).toHaveBeenCalledWith(
+      expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/conversations/conv1'),
       );
     });
   });
 
   it('shows error when backend is unreachable', async () => {
-    mockedApi.get.mockRejectedValueOnce(new Error('Network error'));
-
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error')) as jest.Mock;
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Could not connect to backend/)).toBeInTheDocument();
     });
   });
 
   it('does not show AI model references anywhere', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       const text = document.body.textContent ?? '';
       expect(text).not.toContain('Groq');
@@ -144,61 +124,73 @@ describe('LiveChat', () => {
         { id: 'm2', sender: 'lead', content: 'Hi there' },
       ],
     };
-    mockedApi.get.mockResolvedValueOnce({ data: dataWithMessages } as any);
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      json: () => Promise.resolve(dataWithMessages),
+    }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText('Welcome back!')).toBeInTheDocument();
       expect(screen.getByText('Hi there')).toBeInTheDocument();
     });
-    
     // Should only call GET /conversations/:id, not POST /start
-    expect(mockedApi.get).toHaveBeenCalledTimes(1);
-    expect(mockedApi.post).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('sends a message and displays the AI reply', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: { reply: 'I can help with that!' } } as any);
+    const mockReply = { reply: 'I can help with that!' };
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockConversationData),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockGreetingResponse),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockReply),
+      }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });
 
     const input = screen.getByPlaceholderText('Type your message...');
-    fireEvent.change(input, {
-      target: { value: 'I need help' },
-    });
-
+    fireEvent.change(input, { target: { value: 'I need help' } });
     fireEvent.click(screen.getByText('Send'));
 
     await waitFor(() => {
+      expect(screen.getByText('I need help')).toBeInTheDocument();
       expect(screen.getByText('I can help with that!')).toBeInTheDocument();
     });
   });
 
   it('shows error when greeting returns null', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: { greeting: null } } as any);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockConversationData),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ greeting: null }),
+      }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Failed to generate greeting/)).toBeInTheDocument();
     });
   });
 
   it('shows error when send message fails', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockRejectedValueOnce(new Error('Network error'));
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockConversationData),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockGreetingResponse),
+      })
+      .mockRejectedValueOnce(new Error('Network error')) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });
@@ -211,14 +203,19 @@ describe('LiveChat', () => {
       expect(screen.getByText(/Could not connect to backend/)).toBeInTheDocument();
     });
   });
-
   it('shows error when AI reply is null', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: { reply: null } } as any);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockConversationData),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve(mockGreetingResponse),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ reply: null }),
+      }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });
@@ -242,12 +239,12 @@ describe('LiveChat', () => {
       ],
     };
 
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: slotReply } as any);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(slotReply) }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });
@@ -270,12 +267,12 @@ describe('LiveChat', () => {
       ],
     };
 
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: slotReply } as any);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(slotReply) }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });
@@ -287,6 +284,7 @@ describe('LiveChat', () => {
     await waitFor(() => {
       const aiMessages = screen.getAllByText(/Tuesday 17th March/);
       aiMessages.forEach((msg) => {
+        // Should not contain MM/DD format
         expect(msg.textContent).not.toMatch(/03\/17/);
         expect(msg.textContent).not.toMatch(/3\/17/);
       });
@@ -301,12 +299,12 @@ describe('LiveChat', () => {
       ],
     };
 
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: urgentReply } as any);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(urgentReply) }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });
@@ -327,12 +325,12 @@ describe('LiveChat', () => {
       offeredSlots: [],
     };
 
-    mockedApi.get.mockResolvedValueOnce({ data: mockConversationData } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: mockGreetingResponse } as any);
-    mockedApi.post.mockResolvedValueOnce({ data: noSlotsReply } as any);
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockConversationData) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(mockGreetingResponse) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(noSlotsReply) }) as jest.Mock;
 
     render(<LiveChat conversationId="conv1" />);
-    
     await waitFor(() => {
       expect(screen.getByText(/Hi Sarah/)).toBeInTheDocument();
     });

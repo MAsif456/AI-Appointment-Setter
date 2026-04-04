@@ -15,9 +15,3 @@ h1 {
   font-weight: 700;
   color: #1a1a2e;
 }
-
-/* Hides the native password reveal button in Edge/IE */
-input::-ms-reveal,
-input::-ms-clear {
-  display: none;
-}
