@@ -20,7 +20,7 @@ export class Message {
   @Prop({ required: true })
   content: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website'], required: true })
+  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website', 'email'], required: true })
   channel: string;
 
   @Prop()

@@ -221,7 +221,7 @@ export class OrchestratorService {
         ? `The patient has provided postcode ${postcode}, which is within our service area. Confirm coverage and move the conversation towards qualification questions.`
         : `The patient has provided postcode ${postcode}, which appears to be outside our service area (${clinicConfig.serviceAreas?.join(", ") ?? "not specified"}). Politely inform them and suggest they contact a clinic in their local area.`;
       return this.groqService.generateResponse(
-        buildSingleTurnPrompt(areaContext, context, clinicConfig),
+        buildSingleTurnPrompt(areaContext, context, clinicConfig, context.channel),
       );
     }
 
@@ -229,7 +229,7 @@ export class OrchestratorService {
       const bookingContext =
         "The patient has expressed intent to book an appointment. Generate a response that enthusiastically confirms this and begins collecting booking details (preferred date and time).";
       return this.groqService.generateResponse(
-        buildSingleTurnPrompt(bookingContext, context, clinicConfig),
+        buildSingleTurnPrompt(bookingContext, context, clinicConfig, context.channel),
       );
     }
 
@@ -266,7 +266,7 @@ export class OrchestratorService {
     }> = [
       {
         role: "system",
-        content: buildMultiTurnSystemPrompt(context, clinicConfig),
+        content: buildMultiTurnSystemPrompt(context, clinicConfig, context.channel),
       },
     ];
     for (const msg of context.messages) {

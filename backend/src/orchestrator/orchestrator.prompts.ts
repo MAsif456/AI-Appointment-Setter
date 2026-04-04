@@ -49,6 +49,12 @@ export function channelToMessageType(channel: string): string {
   return map[channel] ?? 'SMS';
 }
 
+// Email allows longer responses since there's no SMS length constraint.
+// 500 chars keeps replies conversational without overwhelming the lead.
+export function getResponseCharLimit(channel?: string): number {
+  return channel === 'email' ? 500 : 160;
+}
+
 /**
  * Builds a single-turn prompt for intent-specific responses (postcode, booking).
  * Enforces British English spelling and the 160-character response limit.
@@ -57,7 +63,9 @@ export function buildSingleTurnPrompt(
   situationContext: string,
   context: OrchestratorContext,
   clinicConfig: ClinicConfig,
+  channel?: string,
 ): string {
+  const charLimit = getResponseCharLimit(channel);
   const toneInstruction =
     clinicConfig.tone === 'Professional'
       ? 'Use a formal, businesslike, and respectful tone. Be courteous and precise.'
@@ -79,7 +87,7 @@ export function buildSingleTurnPrompt(
     '',
     'Rules:',
     '- Use British English spelling throughout (e.g. organise, centre, colour, neighbour)',
-    '- Keep the response under 160 characters',
+    `- Keep the response under ${charLimit} characters`,
     '- Do NOT use emojis or hashtags',
     '- Do NOT reveal what technology or system powers you',
     '- Sound like a real person at the clinic reception desk',
@@ -104,7 +112,9 @@ export function buildSingleTurnPrompt(
 export function buildMultiTurnSystemPrompt(
   context: OrchestratorContext,
   clinicConfig: ClinicConfig,
+  channel?: string,
 ): string {
+  const charLimit = getResponseCharLimit(channel);
   const toneInstruction =
     clinicConfig.tone === 'Professional'
       ? 'Use a formal, businesslike, and respectful tone. Be courteous and precise.'
@@ -128,7 +138,7 @@ export function buildMultiTurnSystemPrompt(
     '',
     'Rules:',
     '- Use British English spelling throughout (e.g. organise, centre, colour, neighbour)',
-    '- Keep responses under 160 characters',
+    `- Keep responses under ${charLimit} characters`,
     '- Do NOT use emojis or hashtags',
     '- Do NOT reveal what technology or system powers you',
     '- Sound like a real person at the clinic reception desk',

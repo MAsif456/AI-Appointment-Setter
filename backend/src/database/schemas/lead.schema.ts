@@ -29,8 +29,8 @@ export class Lead {
   @Prop({ trim: true })
   lastName?: string;
 
-  @Prop({ required: true, trim: true })
-  phone: string;
+  @Prop({ trim: true, default: 'unknown' })
+  phone?: string;
 
   @Prop({ lowercase: true, trim: true })
   email?: string;
@@ -61,7 +61,7 @@ export class Lead {
   })
   leadSource: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website'], required: true })
+  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website', 'email'], required: true })
   preferredChannel: string;
 
   @Prop({ trim: true })
@@ -94,8 +94,14 @@ export class Lead {
 export const LeadSchema = SchemaFactory.createForClass(Lead);
 
 // Indexes
-LeadSchema.index({ clinicId: 1, phone: 1 }, { unique: true });
-LeadSchema.index({ clinicId: 1, email: 1 });
+LeadSchema.index(
+  { clinicId: 1, phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $ne: 'unknown' } } },
+);
+LeadSchema.index(
+  { clinicId: 1, email: 1 },
+  { unique: true, sparse: true },
+);
 LeadSchema.index({ ghlContactId: 1 });
 LeadSchema.index({ clinicId: 1, createdAt: -1 });
 LeadSchema.index({ clinicId: 1, leadSource: 1 }); 

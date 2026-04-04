@@ -119,6 +119,7 @@ export interface OrchestratorContext {
   };
   /** True when a PatientHistory record was matched at conversation start. */
   isReturningPatient?: boolean;
+  channel?: string;
 }
 
 /** Static response returned when a message looks like a postcode but is not a valid UK format. */

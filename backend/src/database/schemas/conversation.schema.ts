@@ -64,7 +64,7 @@ export class Conversation {
   })
   phase: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website'], required: true })
+  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website', 'email'], required: true })
   channel: string;
 
   @Prop({ default: 0 })

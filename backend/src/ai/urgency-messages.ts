@@ -43,12 +43,12 @@ export const PATIENT_NO_SLOTS_URGENT =
 // Staff notification templates
 
 export function buildStaffAlert(
-  lead: { firstName: string; lastName?: string; phone: string; issue?: string },
+  lead: { firstName: string; lastName?: string; phone?: string; issue?: string },
   reason: string,
 ): string {
   return [
     'URGENT ALERT',
-    `Patient: ${lead.firstName}${lead.lastName ? ' ' + lead.lastName : ''} (${lead.phone})`,
+    `Patient: ${lead.firstName}${lead.lastName ? ' ' + lead.lastName : ''}${lead.phone ? ' (' + lead.phone + ')' : ''}`,
     lead.issue ? `Issue: ${lead.issue}` : '',
     `Reason: ${reason}`,
     'Action required: Contact patient immediately.',
