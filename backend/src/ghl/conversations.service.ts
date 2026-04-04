@@ -55,7 +55,7 @@ export class ConversationsService {
     ghlContactId: string,
     ghlConversationId: string,
     channel: string,
-    patientInfo: { firstName: string; phone: string; leadSource: string },
+    patientInfo: { firstName: string; phone: string; email?: string; leadSource: string },
   ): Promise<ConversationDocument> {
     let lead = await this.leadModel.findOne({ ghlContactId }).exec();
 
@@ -64,6 +64,7 @@ export class ConversationsService {
         clinicId,
         firstName: patientInfo.firstName,
         phone: patientInfo.phone,
+        ...(patientInfo.email ? { email: patientInfo.email } : {}),
         leadSource: patientInfo.leadSource,
         preferredChannel: channel,
         ghlContactId,

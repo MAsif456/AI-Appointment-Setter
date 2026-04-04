@@ -14,10 +14,9 @@ import { MessagesService } from "../ghl/messages.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { GhlContactCreatePayload } from "../webhooks/dto/ghl-webhook.dto";
-import {
-  FALLBACK_AI_UNAVAILABLE,
-  DEFAULT_MESSAGE_TYPE,
-} from "./orchestrator.types";
+import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
+import { channelToMessageType } from "./orchestrator.prompts";
+import { formatEmailHtml, formatEmailSubject } from "../ghl/email-formatter";
 
 /** Dependencies injected by OrchestratorService. */
 export interface NewLeadDeps {
@@ -44,6 +43,12 @@ export interface NewLeadDeps {
  *   6. Send the greeting to the lead via the GHL API (with retry).
  *   7. Persist the AI greeting as a message in MongoDB.
  */
+function detectLeadChannel(payload: GhlContactCreatePayload): string {
+  if (payload.phone) return 'sms';
+  if (payload.email) return 'email';
+  return 'sms';
+}
+
 export async function handleNewLeadFlow(
   webhookData: GhlContactCreatePayload,
   clinicConfig: ClinicConfig,
@@ -86,6 +91,8 @@ export async function handleNewLeadFlow(
     );
   }
 
+  const channel = detectLeadChannel(webhookData);
+
   // Create conversation context in MongoDB
   let conversation;
   try {
@@ -93,10 +100,11 @@ export async function handleNewLeadFlow(
       clinicObjectId,
       contactId,
       ghlConversationId,
-      "sms",
+      channel,
       {
         firstName: first_name ?? "Unknown",
         phone: phone ?? "unknown",
+        email,
         leadSource: "other",
       },
     );
@@ -179,9 +187,13 @@ export async function handleNewLeadFlow(
   let ghlMessageId: string | undefined;
   try {
     const sendResult = await ghlApiService.sendMessageWithRetry({
-      type: DEFAULT_MESSAGE_TYPE,
+      type: channelToMessageType(channel),
       contactId,
       message: greeting,
+      ...(channel === 'email' ? {
+        subject: formatEmailSubject(clinicConfig.name, true),
+        html: formatEmailHtml(greeting, clinicConfig.name),
+      } : {}),
     });
     ghlMessageId = sendResult?.id ?? sendResult?.messageId;
   } catch (error) {
