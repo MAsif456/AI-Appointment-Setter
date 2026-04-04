@@ -245,4 +245,90 @@ describe('GhlApiService', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('sendMessageWithRetry — email threading', () => {
+    it('should include conversationId in payload when provided', async () => {
+      const responseData = { messageId: 'msg_email_001' };
+      httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const dto: SendMessageDto = {
+        type: 'Email',
+        contactId: 'contact_123',
+        message: 'Hello',
+        html: '<p>Hello</p>',
+        subject: 'Test subject',
+        conversationId: 'conv_abc',
+      };
+      await service.sendMessageWithRetry(dto);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        '/conversations/messages',
+        expect.objectContaining({ conversationId: 'conv_abc' }),
+        expect.anything(),
+      );
+    });
+
+    it('should NOT include conversationId in payload when absent', async () => {
+      const responseData = { messageId: 'msg_sms_001' };
+      httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const dto: SendMessageDto = {
+        type: 'SMS',
+        contactId: 'contact_123',
+        message: 'Hi',
+      };
+      await service.sendMessageWithRetry(dto);
+
+      const payload = httpService.post.mock.calls[0][1];
+      expect(payload).not.toHaveProperty('conversationId');
+    });
+
+    it('should send html and subject for Email type', async () => {
+      httpService.post.mockReturnValue(of(mockAxiosResponse({ messageId: 'msg_e' })));
+
+      const dto: SendMessageDto = {
+        type: 'Email',
+        contactId: 'contact_123',
+        message: 'Plain text fallback',
+        html: '<p>Rich content</p>',
+        subject: 'Appointment enquiry',
+      };
+      await service.sendMessageWithRetry(dto);
+
+      const payload = httpService.post.mock.calls[0][1];
+      expect(payload.html).toBe('<p>Rich content</p>');
+      expect(payload.subject).toBe('Appointment enquiry');
+      expect(payload).not.toHaveProperty('message');
+    });
+
+    it('should use message as html fallback for Email when html is not provided', async () => {
+      httpService.post.mockReturnValue(of(mockAxiosResponse({ messageId: 'msg_e2' })));
+
+      const dto: SendMessageDto = {
+        type: 'Email',
+        contactId: 'contact_123',
+        message: 'Fallback text',
+      };
+      await service.sendMessageWithRetry(dto);
+
+      const payload = httpService.post.mock.calls[0][1];
+      expect(payload.html).toBe('Fallback text');
+    });
+
+    it('should send message field for SMS type (not html/subject)', async () => {
+      httpService.post.mockReturnValue(of(mockAxiosResponse({ messageId: 'msg_s' })));
+
+      const dto: SendMessageDto = {
+        type: 'SMS',
+        contactId: 'contact_123',
+        message: 'SMS text',
+      };
+      await service.sendMessageWithRetry(dto);
+
+      const payload = httpService.post.mock.calls[0][1];
+      expect(payload.message).toBe('SMS text');
+      expect(payload).not.toHaveProperty('html');
+      expect(payload).not.toHaveProperty('subject');
+    });
+  });
 });

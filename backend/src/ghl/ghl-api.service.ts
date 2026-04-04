@@ -16,6 +16,9 @@ export class GhlApiService {
    * Constructs a GhlApiService instance.
    * Initialises per-service circuit breakers to protect against cascading
    * failures when the GHL API is unresponsive.
+   *
+   * Ref: Nygard, M. (2018). Release It! Design and Deploy Production-Ready Software, 2nd ed.
+   *   Pragmatic Bookshelf, Ch. 4: "Circuit Breaker" stability pattern.
    */
   constructor(
     private readonly httpService: HttpService,
@@ -50,15 +53,19 @@ export class GhlApiService {
    * @returns {Promise<any>} - The result of the message send.
    */
   async sendMessageWithRetry(dto: SendMessageDto): Promise<any> {
-    // Ref: GHL Conversations API — Send a New Message. Email type uses html + subject, others use message
+    // Ref: GHL Conversations API — Send a New Message. Email type uses html + subject, others use message.
+    // conversationId threads messages into the same GHL conversation (critical for email threading).
     const payload: Record<string, string> = {
       type: dto.type,
       contactId: dto.contactId,
-      status: 'pending',
+      status: "pending",
     };
-    if (dto.type === 'Email') {
+    if (dto.conversationId) {
+      payload.conversationId = dto.conversationId;
+    }
+    if (dto.type === "Email") {
       payload.html = dto.html ?? dto.message;
-      payload.subject = dto.subject ?? 'AppointHealth';
+      payload.subject = dto.subject ?? "AppointHealth";
     } else {
       payload.message = dto.message;
     }
@@ -156,14 +163,16 @@ export class GhlApiService {
   async cancelAppointment(eventId: string): Promise<any | null> {
     try {
       const { data } = await lastValueFrom(
-        this.httpService.delete(
-          `/calendars/events/${eventId}`,
-          { headers: this.getHeaders() },
-        ),
+        this.httpService.delete(`/calendars/events/${eventId}`, {
+          headers: this.getHeaders(),
+        }),
       );
       return data;
     } catch (error) {
-      this.logger.error(`GHL cancel appointment failed for eventId: ${eventId}`, error.message);
+      this.logger.error(
+        `GHL cancel appointment failed for eventId: ${eventId}`,
+        error.message,
+      );
       return null;
     }
   }
@@ -185,7 +194,9 @@ export class GhlApiService {
       );
       return data;
     } catch (error) {
-      this.logger.warn(`GHL add tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
+      this.logger.warn(
+        `GHL add tag '${tag}' skipped for contact ${contactId}: ${error.message}`,
+      );
       return null;
     }
   }
@@ -199,14 +210,16 @@ export class GhlApiService {
   async removeContactTag(contactId: string, tag: string): Promise<any | null> {
     try {
       const { data } = await lastValueFrom(
-        this.httpService.delete(
-          `/contacts/${contactId}/tags`,
-          { headers: this.getHeaders(), data: { tags: [tag] } },
-        ),
+        this.httpService.delete(`/contacts/${contactId}/tags`, {
+          headers: this.getHeaders(),
+          data: { tags: [tag] },
+        }),
       );
       return data;
     } catch (error) {
-      this.logger.warn(`GHL remove tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
+      this.logger.warn(
+        `GHL remove tag '${tag}' skipped for contact ${contactId}: ${error.message}`,
+      );
       return null;
     }
   }

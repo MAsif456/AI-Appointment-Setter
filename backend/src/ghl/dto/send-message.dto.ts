@@ -1,7 +1,7 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class SendMessageDto {
-  @IsEnum(['SMS', 'WhatsApp', 'FB', 'IG', 'Email', 'Live_Chat', 'Custom'])
+  @IsEnum(["SMS", "WhatsApp", "FB", "IG", "Email", "Live_Chat", "Custom"])
   type: string;
 
   @IsString()
@@ -19,4 +19,9 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   html?: string;
+
+  /** GHL conversation ID - threads messages in the same email conversation. */
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
 }
