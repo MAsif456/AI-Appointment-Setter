@@ -130,6 +130,7 @@ export function buildMultiTurnSystemPrompt(
     phone: context.patientInfo?.phone,
     email: context.patientInfo?.email,
     issue: context.patientInfo?.issue,
+    validatedPostcode: context.patientInfo?.validatedPostcode,
     isReturningPatient: context.isReturningPatient,
   };
 

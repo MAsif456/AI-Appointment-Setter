@@ -24,4 +24,9 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   conversationId?: string;
+
+  /** Email Message-ID from the inbound email — used to set In-Reply-To for threading. */
+  @IsOptional()
+  @IsString()
+  emailMessageId?: string;
 }

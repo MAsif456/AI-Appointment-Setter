@@ -116,6 +116,7 @@ export interface OrchestratorContext {
     phone?: string;
     email?: string;
     issue?: string;
+    validatedPostcode?: string;
   };
   /** True when a PatientHistory record was matched at conversation start. */
   isReturningPatient?: boolean;

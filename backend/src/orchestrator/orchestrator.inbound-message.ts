@@ -129,6 +129,9 @@ export async function handleInboundMessageFlow(
   const rawContent = webhookData.message?.body ?? "";
   const messageContent = adapter.stripInbound(rawContent);
 
+  // Capture the inbound email's Message-ID for reply threading (In-Reply-To header)
+  const inboundEmailMessageId = webhookData.message?.emailMessageId;
+
   const conversationObjectId = conversation._id;
   const leadObjectId = conversation.leadId;
   const currentPhase = conversation.phase ?? "qualifying";
@@ -153,6 +156,7 @@ export async function handleInboundMessageFlow(
       leadObjectId,
       deps,
       conversation.ghlConversationId,
+      inboundEmailMessageId,
     );
     return;
   }
@@ -180,6 +184,7 @@ export async function handleInboundMessageFlow(
     leadObjectId,
     deps,
     conversation.ghlConversationId,
+    inboundEmailMessageId,
   );
 
   if (securityAllowed) {
@@ -257,13 +262,26 @@ async function generateSafeResponse(
       timestamp: (m as any).createdAt ?? new Date(),
     }));
 
+  // Load lead from DB so the AI knows the patient's name, issue, and postcode
+  const lead = await conversationsService.findLeadById(
+    leadObjectId as Types.ObjectId,
+  );
+  const validatedPostcode = conversation?.context?.get("validatedPostcode");
+
   const context: OrchestratorContext = {
     ghlContactId: contactId,
     clinicId: clinicConfig.clinicId,
     phase: currentPhase,
     conversationId: conversationObjectId.toHexString(),
     messages: contextMessages,
-    patientInfo: { firstName: "there" },
+    patientInfo: {
+      firstName: lead?.firstName ?? "there",
+      lastName: lead?.lastName,
+      phone: lead?.phone,
+      email: lead?.email,
+      issue: lead?.issue,
+      validatedPostcode,
+    },
     isReturningPatient: conversation?.isReturningPatient ?? false,
     channel,
   };
@@ -324,6 +342,7 @@ async function sendResponse(
   leadObjectId: Types.ObjectId,
   deps: InboundMessageDeps,
   ghlConversationId?: string,
+  emailMessageId?: string,
 ): Promise<void> {
   const { ghlApiService, messagesService, conversationsService, logger } = deps;
 
@@ -340,6 +359,7 @@ async function sendResponse(
       contactId,
       message: response,
       ...(ghlConversationId ? { conversationId: ghlConversationId } : {}),
+      ...(emailMessageId ? { emailMessageId } : {}),
       ...formatted,
     });
     ghlMessageId = sendResult?.id ?? sendResult?.messageId;

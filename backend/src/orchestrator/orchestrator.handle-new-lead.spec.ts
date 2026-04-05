@@ -155,4 +155,85 @@ describe('OrchestratorService — handleNewLead', () => {
       expect.anything(),
     );
   });
+
+  it('should detect email channel and pass type "Email" when lead has email but no phone', async () => {
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Test', email: 'test@example.com' } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'Email' }),
+    );
+  });
+
+  it('should include html and subject when sending email greeting', async () => {
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Test', email: 'test@example.com' } as any,
+      clinicConfig,
+    );
+    const sendCall = mockGhlApiService.sendMessageWithRetry.mock.calls[0][0];
+    expect(sendCall.html).toBeDefined();
+    expect(sendCall.subject).toBeDefined();
+  });
+
+  it('should pass issue to createForNewLead so it is stored on the lead', async () => {
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Jane', issue: 'Back pain' } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.createForNewLead).toHaveBeenCalledWith(
+      expect.anything(),
+      'contact_001',
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ issue: 'Back pain' }),
+    );
+  });
+
+  it('should pass the issue to the greeting service for acknowledgement', async () => {
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Jane', issue: 'Back pain' } as any,
+      clinicConfig,
+    );
+    expect(mockGreetingService.generateGreeting).toHaveBeenCalledWith(
+      expect.objectContaining({ issue: 'Back pain' }),
+      expect.anything(),
+    );
+  });
+
+  it('should replace greeting with fallback when output validation fails', async () => {
+    mockSecurityPipeline.validateOutput.mockReturnValueOnce({
+      safe: false,
+      flags: ['html_injection'],
+      fallbackResponse: 'Safe fallback',
+    });
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Jane' } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Safe fallback' }),
+    );
+  });
+
+  it('should pass ghlConversationId to the send call for email threading', async () => {
+    mockGhlApiService.createConversation.mockResolvedValue({ id: 'conv_thread_001' });
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Test', email: 'test@example.com' } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv_thread_001' }),
+    );
+  });
+
+  it('should detect SMS channel when lead has phone but no email', async () => {
+    await service.handleNewLead(
+      { type: 'ContactCreate', location: { id: 'loc_001' }, id: 'contact_001', first_name: 'Test', phone: '+447700900123' } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SMS' }),
+    );
+  });
 });

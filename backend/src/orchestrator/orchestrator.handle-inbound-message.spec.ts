@@ -38,7 +38,7 @@ const mockSecurityPipeline = {
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jest.fn() };
 const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
-const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn(), flagForHumanIntervention: jest.fn(), setContext: jest.fn() };
+const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn(), flagForHumanIntervention: jest.fn(), setContext: jest.fn(), findLeadById: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
 
@@ -88,6 +88,14 @@ describe('OrchestratorService — handleInboundMessage', () => {
     // Happy-path defaults
     mockConversationsService.findByGhlContactId.mockResolvedValue(mockConversation);
     mockConversationsService.createForNewLead.mockResolvedValue(mockConversation);
+    mockConversationsService.findLeadById.mockResolvedValue({
+      _id: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      firstName: 'Jane',
+      lastName: 'Doe',
+      phone: '+447700900123',
+      email: 'jane@example.com',
+      issue: 'Back pain',
+    });
     mockMessagesService.addMessage.mockResolvedValue({});
     mockMessagesService.getByConversation.mockResolvedValue([]);
     mockGroqService.generateChatResponse.mockResolvedValue('AI chat response');
@@ -284,5 +292,83 @@ describe('OrchestratorService — handleInboundMessage', () => {
       'Hi',
       'whatsapp',
     );
+  });
+
+  it('should load lead data from DB so AI knows the patient name and issue', async () => {
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'Tell me more' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.findLeadById).toHaveBeenCalledWith(
+      mockConversation.leadId,
+    );
+  });
+
+  it('should pass emailMessageId through to sendMessageWithRetry for email threading', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({
+      ...mockConversation,
+      channel: 'email',
+      ghlConversationId: 'conv_001',
+    });
+    await service.handleInboundMessage(
+      {
+        type: 'InboundMessage',
+        location: { id: 'loc_001' },
+        id: 'contact_001',
+        message: { body: 'Hi there', type: 'Email', emailMessageId: 'msg-id-abc-123' },
+      } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ emailMessageId: 'msg-id-abc-123' }),
+    );
+  });
+
+  it('should send Email type with html and subject for email channel conversations', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({
+      ...mockConversation,
+      channel: 'email',
+      ghlConversationId: 'conv_001',
+    });
+    await service.handleInboundMessage(
+      {
+        type: 'InboundMessage',
+        location: { id: 'loc_001' },
+        id: 'contact_001',
+        message: { body: 'Hello', type: 'Email' },
+      } as any,
+      clinicConfig,
+    );
+    const sendCall = mockGhlApiService.sendMessageWithRetry.mock.calls[0][0];
+    expect(sendCall.type).toBe('Email');
+    expect(sendCall.html).toBeDefined();
+    expect(sendCall.subject).toBeDefined();
+  });
+
+  it('should silently drop auto-reply emails without generating an AI response', async () => {
+    mockConversationsService.findByGhlContactId.mockResolvedValue({
+      ...mockConversation,
+      channel: 'email',
+    });
+    await service.handleInboundMessage(
+      {
+        type: 'InboundMessage',
+        location: { id: 'loc_001' },
+        id: 'contact_001',
+        message: { body: 'I am currently out of the office', type: 'Email', subject: 'Out of Office' },
+      } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).not.toHaveBeenCalled();
+  });
+
+  it('should gracefully handle when lead is not found in DB', async () => {
+    mockConversationsService.findLeadById.mockResolvedValue(null);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'Hi' } } as any,
+      clinicConfig,
+    );
+    // Should still generate a response with fallback name "there"
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalled();
   });
 });

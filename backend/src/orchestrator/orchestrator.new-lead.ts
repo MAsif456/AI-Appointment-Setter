@@ -108,6 +108,7 @@ export async function handleNewLeadFlow(
         firstName: first_name ?? "Unknown",
         phone: phone ?? "unknown",
         email,
+        issue,
         leadSource: "other",
       },
     );

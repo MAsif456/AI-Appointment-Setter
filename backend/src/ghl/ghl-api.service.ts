@@ -63,6 +63,9 @@ export class GhlApiService {
     if (dto.conversationId) {
       payload.conversationId = dto.conversationId;
     }
+    if (dto.emailMessageId) {
+      payload.emailMessageId = dto.emailMessageId;
+    }
     if (dto.type === "Email") {
       payload.html = dto.html ?? dto.message;
       payload.subject = dto.subject ?? "AppointHealth";

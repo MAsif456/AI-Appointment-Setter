@@ -55,7 +55,7 @@ export class ConversationsService {
     ghlContactId: string,
     ghlConversationId: string,
     channel: string,
-    patientInfo: { firstName: string; phone: string; email?: string; leadSource: string },
+    patientInfo: { firstName: string; phone: string; email?: string; issue?: string; leadSource: string },
   ): Promise<ConversationDocument> {
     let lead = await this.leadModel.findOne({ ghlContactId }).exec();
 
@@ -65,6 +65,7 @@ export class ConversationsService {
         firstName: patientInfo.firstName,
         phone: patientInfo.phone,
         ...(patientInfo.email ? { email: patientInfo.email } : {}),
+        ...(patientInfo.issue ? { issue: patientInfo.issue } : {}),
         leadSource: patientInfo.leadSource,
         preferredChannel: channel,
         ghlContactId,
@@ -190,6 +191,14 @@ export class ConversationsService {
     await this.conversationModel
       .findByIdAndUpdate(conversationId, { $set: { [`context.${key}`]: value } })
       .exec();
+  }
+
+  /**
+   * Looks up a lead document by its MongoDB ObjectId.
+   * Used by the orchestrator to load patient details for multi-turn prompts.
+   */
+  async findLeadById(leadId: Types.ObjectId): Promise<LeadDocument | null> {
+    return this.leadModel.findById(leadId).exec();
   }
 
   /**
