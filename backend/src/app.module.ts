@@ -16,6 +16,7 @@ import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 import { AuthModule } from './auth/auth.module';
+import { ReminderModule } from "./reminder/reminder.module";
 
 @Module({
   imports: [
@@ -45,7 +46,7 @@ import { AuthModule } from './auth/auth.module';
     CancellationModule,
     HealthModule,
     AuthModule,
-
+    ReminderModule,
   ],
   controllers: [AppController],
   providers: [
