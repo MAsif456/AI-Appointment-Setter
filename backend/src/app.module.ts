@@ -15,6 +15,9 @@ import { AppointmentsModule } from "./appointments/appointments.module";
 import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
+import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
+import { AuthModule } from "./auth/auth.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
       }),
       inject: [ConfigService],
     }),
+    RateLimitingModule,
+    AuthModule,
+    AnalyticsModule,
     AiSettingsModule,
     ClinicsModule,
     GhlModule,
