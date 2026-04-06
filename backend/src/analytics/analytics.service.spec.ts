@@ -5,7 +5,12 @@ import { SecurityEvent } from "./schemas/security-event.schema";
 
 describe("AnalyticsService", () => {
   let service: AnalyticsService;
+  let module: TestingModule;
   let mockModel: Record<string, jest.Mock>;
+
+  afterAll(async () => {
+    await module.close();
+  });
 
   const mockEvents = [
     {
@@ -31,7 +36,7 @@ describe("AnalyticsService", () => {
       }),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         AnalyticsService,
         { provide: getModelToken(SecurityEvent.name), useValue: mockModel },

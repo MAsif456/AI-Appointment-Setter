@@ -7,8 +7,13 @@ import { AnalyticsService } from "../analytics/analytics.service";
 
 describe("AuthThrottleService", () => {
   let service: AuthThrottleService;
+  let module: TestingModule;
   let mockModel: Record<string, jest.Mock>;
   let mockAnalyticsService: Record<string, jest.Mock>;
+
+  afterAll(async () => {
+    await module.close();
+  });
 
   beforeEach(async () => {
     mockModel = {
@@ -21,7 +26,7 @@ describe("AuthThrottleService", () => {
       logSecurityEvent: jest.fn().mockResolvedValue(undefined),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         AuthThrottleService,
         { provide: getModelToken(LoginAttempt.name), useValue: mockModel },
