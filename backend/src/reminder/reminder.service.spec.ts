@@ -198,8 +198,7 @@ describe('ReminderService', () => {
       mockConvFind(makeConversation('sms'));
       mockClinicFind(makeClinic());
       mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
-      mockAppointmentModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
-      mockMessagesService.addMessage.mockResolvedValue({});
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
 
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
 
@@ -209,19 +208,14 @@ describe('ReminderService', () => {
         contactId: 'contact123',
         message: expect.stringContaining('Reminder:'),
       });
-      expect(mockAppointmentModel.updateOne).toHaveBeenCalledWith(
-        { _id: 'appt123' },
-        { $push: { reminders: { sentAt: expect.any(Date), type: '24_hour', status: 'sent' } } },
-      );
-      expect(mockMessagesService.addMessage).toHaveBeenCalled();
+      expect(mockReminderTrackerService.trackSent).toHaveBeenCalled();
     });
 
     it('should send WhatsApp when conversation channel is whatsapp', async () => {
       mockConvFind(makeConversation('whatsapp'));
       mockClinicFind(makeClinic());
       mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
-      mockAppointmentModel.updateOne.mockResolvedValue({});
-      mockMessagesService.addMessage.mockResolvedValue({});
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
 
       await service.sendReminder(baseAppointment, '1_hour', 1);
 
@@ -265,14 +259,14 @@ describe('ReminderService', () => {
       mockConvFind(makeConversation('sms'));
       mockClinicFind(makeClinic());
       mockGhlApiService.sendMessageWithRetry.mockRejectedValue(new Error('Network error'));
-      mockAppointmentModel.updateOne.mockResolvedValue({});
+      mockReminderTrackerService.trackFailed.mockResolvedValue(undefined);
 
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(result).toBe(false);
-      expect(mockAppointmentModel.updateOne).toHaveBeenCalledWith(
-        { _id: 'appt123' },
-        { $push: { reminders: { sentAt: expect.any(Date), type: '24_hour', status: 'failed' } } },
+      expect(mockReminderTrackerService.trackFailed).toHaveBeenCalledWith(
+        baseAppointment,
+        '24_hour',
       );
     });
   });

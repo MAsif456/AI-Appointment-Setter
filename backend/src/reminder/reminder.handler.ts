@@ -2,7 +2,7 @@
  * Reminder message generation, intent detection, and send-window calculation handlers.
  * Extracted to keep reminder.service.ts under 200 lines.
  */
-import { differenceInHours, format } from 'date-fns';
+import { format } from 'date-fns';
 import { AppointmentDocument } from '../database/schemas/appointment.schema';
 import { ClinicDocument } from '../database/schemas/clinic.schema';
 
@@ -19,7 +19,9 @@ export function shouldSendReminder(
 ): { send: boolean; type?: string; hoursBeforeAppointment?: number } {
   const now = new Date();
   const appointmentTime = new Date(appointment.appointmentDate);
-  const hoursUntilAppointment = differenceInHours(appointmentTime, now);
+  // Use fractional hours so the 15-min window check works correctly
+  const hoursUntilAppointment =
+    (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   for (const interval of reminderTimes) {
     // Check if we're within the send window (15min tolerance for cron)

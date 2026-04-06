@@ -8,6 +8,7 @@ import { Message, MessageSchema } from '../database/schemas/message.schema';
 import { GhlModule } from '../ghl/ghl.module';
 import { ReminderService } from './reminder.service';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
+import { ReminderTrackerService } from './reminder-tracker.service';
 import { ReminderController } from './reminder.controller';
 
 @Module({
@@ -23,8 +24,9 @@ import { ReminderController } from './reminder.controller';
   ],
   controllers: [ReminderController],
   providers: [
-    ReminderService,           
-    ReminderSchedulerService,  
+    ReminderService,
+    ReminderSchedulerService,
+    ReminderTrackerService,
   ],
   exports: [ReminderService],
 })
