@@ -65,10 +65,12 @@ export class WebhooksService {
 
     // GHL workflow webhooks put custom data keys under `customData`, not at root.
     // Merge customData fields into the root payload so downstream code sees them.
-    const customData = payload.customData as Record<string, unknown> | undefined;
+    const customData = payload.customData as
+      | Record<string, unknown>
+      | undefined;
     if (customData) {
       for (const [key, value] of Object.entries(customData)) {
-        if (value !== undefined && value !== null && value !== '') {
+        if (value !== undefined && value !== null && value !== "") {
           payload[key] = payload[key] ?? value;
         }
       }
@@ -87,9 +89,11 @@ export class WebhooksService {
     const ghlType = typeof payload.type === "string" ? payload.type : "unknown";
     const location = payload.location as Record<string, unknown> | undefined;
     const ghlLocationId =
-      typeof location?.id === "string" ? location.id
-      : typeof payload.locationId === "string" ? payload.locationId
-      : "unknown";
+      typeof location?.id === "string"
+        ? location.id
+        : typeof payload.locationId === "string"
+          ? payload.locationId
+          : "unknown";
     this.logger.log(
       `[${correlationId}] GHL webhook received: type=${ghlType}, locationId=${ghlLocationId}`,
     );
@@ -191,11 +195,12 @@ export class WebhooksService {
     const tone =
       clinic.aiConfig?.tone === "professional" ? "Professional" : "Friendly";
     return {
-      clinicId: (clinic._id as Types.ObjectId).toString(),
+      clinicId: clinic._id.toString(),
       name: clinic.name,
       tone,
       greetingTemplate: clinic.aiConfig?.greetingTemplate || undefined,
-      returningPatientGreetingTemplate: clinic.aiConfig?.returningPatientGreetingTemplate || undefined,
+      returningPatientGreetingTemplate:
+        clinic.aiConfig?.returningPatientGreetingTemplate || undefined,
       patientDataExpiryDays: clinic.aiConfig?.patientDataExpiryDays ?? 365,
       serviceAreas: clinic.serviceAreas?.map((sa) => sa.postcodePrefix) ?? [],
       customInstructions: clinic.aiConfig?.customInstructions || undefined,

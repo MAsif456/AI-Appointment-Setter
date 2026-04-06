@@ -1,23 +1,23 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
 import {
   Appointment,
   AppointmentDocument,
-} from '../database/schemas/appointment.schema';
-import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
+} from "../database/schemas/appointment.schema";
+import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
 import {
   Conversation,
   ConversationDocument,
-} from '../database/schemas/conversation.schema';
-import { Lead, LeadDocument } from '../database/schemas/lead.schema';
-import { GhlApiService } from '../ghl/ghl-api.service';
-import { PatientHistoryService } from '../patient-history/patient-history.service';
-import { CreateAppointmentDto } from './dto/create-appointment.dto';
+} from "../database/schemas/conversation.schema";
+import { Lead, LeadDocument } from "../database/schemas/lead.schema";
+import { GhlApiService } from "../ghl/ghl-api.service";
+import { PatientHistoryService } from "../patient-history/patient-history.service";
+import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import {
   buildConfirmationMessage,
   formatDateBritish,
-} from './confirmation-message.builder';
+} from "./confirmation-message.builder";
 
 export interface BookingResult {
   success: boolean;
@@ -32,15 +32,15 @@ export interface BookingResult {
 export class AppointmentsService {
   private readonly logger = new Logger(AppointmentsService.name);
 
-/**
- * Constructor for AppointmentsService.
- * @param {Model<AppointmentDocument>} appointmentModel - Mongoose model for appointments.
- * @param {Model<ClinicDocument>} clinicModel - Mongoose model for clinics.
- * @param {Model<ConversationDocument>} conversationModel - Mongoose model for conversations.
- * @param {Model<LeadDocument>} leadModel - Mongoose model for leads (used for patient history).
- * @param {GhlApiService} ghlApiService - Service that interfaces with GHL's API.
- * @param {PatientHistoryService} patientHistoryService - Persists returning patient history after booking.
- */
+  /**
+   * Constructor for AppointmentsService.
+   * @param {Model<AppointmentDocument>} appointmentModel - Mongoose model for appointments.
+   * @param {Model<ClinicDocument>} clinicModel - Mongoose model for clinics.
+   * @param {Model<ConversationDocument>} conversationModel - Mongoose model for conversations.
+   * @param {Model<LeadDocument>} leadModel - Mongoose model for leads (used for patient history).
+   * @param {GhlApiService} ghlApiService - Service that interfaces with GHL's API.
+   * @param {PatientHistoryService} patientHistoryService - Persists returning patient history after booking.
+   */
   constructor(
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<AppointmentDocument>,
@@ -61,12 +61,12 @@ export class AppointmentsService {
    */
   async bookAppointment(dto: CreateAppointmentDto): Promise<BookingResult> {
     if (!Types.ObjectId.isValid(dto.clinicId)) {
-      return { success: false, error: 'Invalid clinic ID' };
+      return { success: false, error: "Invalid clinic ID" };
     }
 
     const clinic = await this.clinicModel.findById(dto.clinicId).exec();
     if (!clinic) {
-      return { success: false, error: 'Clinic not found' };
+      return { success: false, error: "Clinic not found" };
     }
 
     const duration = this.resolveDuration(clinic, dto.serviceType);
@@ -86,11 +86,13 @@ export class AppointmentsService {
     }
 
     const appointment = await this.storeAppointment(
-      dto, ghlResponse.id, duration,
+      dto,
+      ghlResponse.id,
+      duration,
     );
 
     await this.conversationModel.findByIdAndUpdate(dto.conversationId, {
-      phase: 'booked',
+      phase: "booked",
       appointmentId: appointment._id,
     });
 
@@ -107,7 +109,7 @@ export class AppointmentsService {
         lead.email,
         lead.firstName,
         lead.lastName,
-        conversation?.context?.get('validatedPostcode'),
+        conversation?.context?.get("validatedPostcode"),
         new Types.ObjectId(dto.conversationId),
       );
     }
@@ -149,52 +151,56 @@ export class AppointmentsService {
     return service?.durationMinutes ?? clinic.defaultAppointmentDuration;
   }
 
-/**
- * Calculates the end time of an appointment given its start time and duration.
- * @param {string} startTime - The start time of the appointment in ISO 8601 format.
- * @param {number} minutes - The duration of the appointment in minutes.
- * @returns {string} - The end time of the appointment in ISO 8601 format.
- */
+  /**
+   * Calculates the end time of an appointment given its start time and duration.
+   * @param {string} startTime - The start time of the appointment in ISO 8601 format.
+   * @param {number} minutes - The duration of the appointment in minutes.
+   * @returns {string} - The end time of the appointment in ISO 8601 format.
+   */
   private calculateEndTime(startTime: string, minutes: number): string {
     const end = new Date(startTime);
     end.setMinutes(end.getMinutes() + minutes);
     return end.toISOString();
   }
 
-/**
- * Handles errors from GHL's API when creating an appointment.
- * If the error is a 409 or 422, it means the slot is no longer available.
- * In this case, the function logs a warning and returns a booking result with an error message and a flag indicating that the slot was taken.
- * Otherwise, the function logs an error and returns a booking result with an error message.
- * @param {any} error - The error object from GHL's API.
- * @param {string} contactId - The ID of the contact for whom the appointment was being booked.
- * @returns {BookingResult} - The result of the booking attempt.
- */
+  /**
+   * Handles errors from GHL's API when creating an appointment.
+   * If the error is a 409 or 422, it means the slot is no longer available.
+   * In this case, the function logs a warning and returns a booking result with an error message and a flag indicating that the slot was taken.
+   * Otherwise, the function logs an error and returns a booking result with an error message.
+   * @param {any} error - The error object from GHL's API.
+   * @param {string} contactId - The ID of the contact for whom the appointment was being booked.
+   * @returns {BookingResult} - The result of the booking attempt.
+   */
   private handleGhlError(error: any, contactId: string): BookingResult {
     const status = error?.response?.status;
     if (status === 409 || status === 422) {
       this.logger.warn(`Slot no longer available for contact ${contactId}`);
-      return { success: false, error: 'Slot no longer available', slotTaken: true };
+      return {
+        success: false,
+        error: "Slot no longer available",
+        slotTaken: true,
+      };
     }
     this.logger.error(`GHL appointment creation failed: ${error.message}`);
-    return { success: false, error: 'Failed to create appointment' };
+    return { success: false, error: "Failed to create appointment" };
   }
 
-/**
- * Stores an appointment in the database.
- * @param {CreateAppointmentDto} dto - The appointment booking details.
- * @param {string} ghlAppointmentId - The ID of the appointment created in GHL.
- * @param {number} duration - The duration of the appointment in minutes.
- * @returns {Promise<AppointmentDocument>} - The stored appointment document.
- */
+  /**
+   * Stores an appointment in the database.
+   * @param {CreateAppointmentDto} dto - The appointment booking details.
+   * @param {string} ghlAppointmentId - The ID of the appointment created in GHL.
+   * @param {number} duration - The duration of the appointment in minutes.
+   * @returns {Promise<AppointmentDocument>} - The stored appointment document.
+   */
   private async storeAppointment(
     dto: CreateAppointmentDto,
     ghlAppointmentId: string,
     duration: number,
   ): Promise<AppointmentDocument> {
     const start = new Date(dto.startTime);
-    const hours = start.getUTCHours().toString().padStart(2, '0');
-    const mins = start.getUTCMinutes().toString().padStart(2, '0');
+    const hours = start.getUTCHours().toString().padStart(2, "0");
+    const mins = start.getUTCMinutes().toString().padStart(2, "0");
 
     return this.appointmentModel.create({
       clinicId: new Types.ObjectId(dto.clinicId),
@@ -205,7 +211,7 @@ export class AppointmentsService {
       appointmentTime: `${hours}:${mins}`,
       durationMinutes: duration,
       serviceType: dto.serviceType,
-      status: 'confirmed',
+      status: "confirmed",
     });
   }
 }

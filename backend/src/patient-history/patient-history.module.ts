@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
 import {
   PatientHistory,
   PatientHistorySchema,
-} from '../database/schemas/patient-history.schema';
-import { PatientHistoryService } from './patient-history.service';
+} from "../database/schemas/patient-history.schema";
+import { PatientHistoryService } from "./patient-history.service";
 
 /**
  * Feature module for the PatientHistory collection.

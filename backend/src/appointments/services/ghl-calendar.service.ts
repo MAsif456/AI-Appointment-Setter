@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { firstValueFrom } from "rxjs";
 
 export interface GHLSlot {
   id: string;
   startTime: string; // ISO string
-  endTime: string;   // ISO string (calculated from appointment duration)
+  endTime: string; // ISO string (calculated from appointment duration)
   available: boolean;
 }
 
@@ -19,11 +19,11 @@ export class GHLCalendarService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const token = this.configService.get<string>('GHL_PRIVATE_TOKEN')!;
+    const token = this.configService.get<string>("GHL_PRIVATE_TOKEN")!;
 
     if (!token) {
-      this.logger.error('GHL_PRIVATE_TOKEN not found in environment variables');
-      throw new Error('GHL_PRIVATE_TOKEN is required');
+      this.logger.error("GHL_PRIVATE_TOKEN not found in environment variables");
+      throw new Error("GHL_PRIVATE_TOKEN is required");
     }
     this.ghlApiKey = token;
   }
@@ -53,8 +53,8 @@ export class GHLCalendarService {
         this.httpService.get(url, {
           headers: {
             Authorization: `Bearer ${this.ghlApiKey}`,
-            'Content-Type': 'application/json',
-            Version: '2021-07-28',
+            "Content-Type": "application/json",
+            Version: "2021-07-28",
           },
           params: {
             startDate: startTimestamp,
@@ -68,12 +68,12 @@ export class GHLCalendarService {
 
       // Parse the response structure with clinic's appointment duration
       const slots = this.parseGHLResponse(response.data, appointmentDuration);
-      
+
       this.logger.log(`Parsed ${slots.length} slots from GHL`);
       return slots;
     } catch (error) {
       this.logger.error(`Failed to fetch slots from GHL: ${error.message}`);
-      this.logger.warn('GHL API failed, returning empty array');
+      this.logger.warn("GHL API failed, returning empty array");
       // Return empty array on error (don't return mock data)
       return [];
     }
@@ -88,7 +88,7 @@ export class GHLCalendarService {
 
     // Iterate over date keys (ignore traceId)
     Object.keys(data).forEach((dateKey) => {
-      if (dateKey === 'traceId') return;
+      if (dateKey === "traceId") return;
 
       const dayData = data[dateKey];
       if (!dayData || !dayData.slots || !Array.isArray(dayData.slots)) {
@@ -137,8 +137,8 @@ export class GHLCalendarService {
           {
             headers: {
               Authorization: `Bearer ${this.ghlApiKey}`,
-              'Content-Type': 'application/json',
-              Version: '2021-07-28',
+              "Content-Type": "application/json",
+              Version: "2021-07-28",
             },
             timeout: 10000,
           },
@@ -149,7 +149,7 @@ export class GHLCalendarService {
       return { appointmentId: response.data.id };
     } catch (error) {
       this.logger.error(`Failed to create appointment: ${error.message}`);
-      
+
       // Throw error instead of returning mock data
       throw error;
     }

@@ -1,7 +1,7 @@
-import { Controller, Post, Body, Logger } from '@nestjs/common';
-import { ChatService, ChatMessage } from './chat.service';
-import { LeadInfo } from './interfaces/lead-info.interface';
-import { ClinicConfig } from './interfaces/clinic-config.interface';
+import { Controller, Post, Body, Logger } from "@nestjs/common";
+import { ChatService, ChatMessage } from "./chat.service";
+import { LeadInfo } from "./interfaces/lead-info.interface";
+import { ClinicConfig } from "./interfaces/clinic-config.interface";
 
 /** Request body for starting a new conversation */
 interface StartChatDto {
@@ -21,7 +21,7 @@ interface SendMessageDto {
  * REST controller for the live AI chat feature.
  * Exposes endpoints to start conversations and send messages.
  */
-@Controller('chat')
+@Controller("chat")
 export class ChatController {
   private readonly logger = new Logger(ChatController.name);
 
@@ -31,7 +31,7 @@ export class ChatController {
    * Starts a new conversation and returns the AI greeting.
    * POST /chat/start
    */
-  @Post('start')
+  @Post("start")
   async startChat(
     @Body() body: StartChatDto,
   ): Promise<{ greeting: string | null }> {
@@ -51,7 +51,7 @@ export class ChatController {
    * Sends a message from the lead and returns the AI response.
    * POST /chat/message
    */
-  @Post('message')
+  @Post("message")
   async sendMessage(
     @Body() body: SendMessageDto,
   ): Promise<{ reply: string | null }> {

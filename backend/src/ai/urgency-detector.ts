@@ -11,7 +11,7 @@ import {
   UrgencyAssessment,
   UrgencySignal,
   URGENCY_RANK,
-} from './urgency-detector.types';
+} from "./urgency-detector.types";
 import {
   ALL_KEYWORDS,
   CONTEXTUAL_PAIRS,
@@ -19,12 +19,11 @@ import {
   CAPS_RATIO_THRESHOLD,
   EXCLAMATION_THRESHOLD,
   BEHAVIOURAL_BOOST,
-} from './urgency-keywords';
+} from "./urgency-keywords";
 
 const EMERGENCY_THRESHOLD = 0.9;
 const URGENT_THRESHOLD = 0.6;
 const ROUTINE_CEILING = 0.3;
-
 
 /**
  * Returns an empty UrgencyAssessment object with default values.
@@ -33,7 +32,7 @@ const ROUTINE_CEILING = 0.3;
 
 function buildEmptyAssessment(): UrgencyAssessment {
   return {
-    level: 'routine',
+    level: "routine",
     score: 0,
     signals: [],
     isAmbiguous: false,
@@ -44,9 +43,12 @@ function buildEmptyAssessment(): UrgencyAssessment {
 
 /** Tokenise text into lowercase words for contextual-pair scanning. */
 function tokenise(text: string): string[] {
-  return text.toLowerCase().replace(/[^a-z0-9' -]/g, ' ').split(/\s+/).filter(Boolean);
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9' -]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
 }
-
 
 /**
  * Scans the input text for occurrences of weighted keywords and returns an array
@@ -57,13 +59,13 @@ function tokenise(text: string): string[] {
  */
 function scanKeywords(text: string): UrgencySignal[] {
   // Strip apostrophes so "cant move" matches "can't move"
-  const lower = text.toLowerCase().replace(/['']/g, '');
+  const lower = text.toLowerCase().replace(/['']/g, "");
   const signals: UrgencySignal[] = [];
 
   for (const kw of ALL_KEYWORDS) {
-    if (lower.includes(kw.phrase.replace(/['']/g, ''))) {
+    if (lower.includes(kw.phrase.replace(/['']/g, ""))) {
       signals.push({
-        source: 'keyword',
+        source: "keyword",
         text: kw.phrase,
         score: kw.weight,
         classification: kw.level,
@@ -72,7 +74,6 @@ function scanKeywords(text: string): UrgencySignal[] {
   }
   return signals;
 }
-
 
 /**
  * Scans the input text for contextual pairs, using the MTS-inspired
@@ -104,21 +105,25 @@ function scanContextualPairs(text: string): UrgencySignal[] {
       const windowEnd = Math.min(words.length, idx + CONTEXT_WINDOW + 1);
       const window = words.slice(windowStart, windowEnd);
 
-      const escalatorHit = pair.escalators.words.find(e => window.some(w => w.includes(e)));
-      const deEscalatorHit = pair.deEscalators.words.find(d => window.some(w => w.includes(d)));
+      const escalatorHit = pair.escalators.words.find((e) =>
+        window.some((w) => w.includes(e)),
+      );
+      const deEscalatorHit = pair.deEscalators.words.find((d) =>
+        window.some((w) => w.includes(d)),
+      );
 
       if (escalatorHit) {
         signals.push({
-          source: 'keyword',
+          source: "keyword",
           text: `${pair.trigger} + ${escalatorHit}`,
-          score: pair.escalators.level === 'emergency' ? 1.0 : 0.8,
+          score: pair.escalators.level === "emergency" ? 1.0 : 0.8,
           classification: pair.escalators.level,
         });
       } else if (deEscalatorHit) {
         signals.push({
-          source: 'keyword',
+          source: "keyword",
           text: `${pair.trigger} + ${deEscalatorHit}`,
-          score: pair.deEscalators.level === 'routine' ? 0.15 : 0.5,
+          score: pair.deEscalators.level === "routine" ? 0.15 : 0.5,
           classification: pair.deEscalators.level,
         });
       }
@@ -126,7 +131,6 @@ function scanContextualPairs(text: string): UrgencySignal[] {
   }
   return signals;
 }
-
 
 /**
  * Detects behavioral markers in the input text, such as excessive
@@ -140,16 +144,16 @@ function scanContextualPairs(text: string): UrgencySignal[] {
  */
 function detectBehaviouralMarkers(text: string): number {
   let boost = 0;
-  const letters = text.replace(/[^a-zA-Z]/g, '');
+  const letters = text.replace(/[^a-zA-Z]/g, "");
   if (letters.length > 3) {
-    const upper = letters.replace(/[^A-Z]/g, '').length;
-    if (upper / letters.length >= CAPS_RATIO_THRESHOLD) boost += BEHAVIOURAL_BOOST;
+    const upper = letters.replace(/[^A-Z]/g, "").length;
+    if (upper / letters.length >= CAPS_RATIO_THRESHOLD)
+      boost += BEHAVIOURAL_BOOST;
   }
   const exclamations = (text.match(/!/g) || []).length;
   if (exclamations >= EXCLAMATION_THRESHOLD) boost += BEHAVIOURAL_BOOST;
   return boost;
 }
-
 
 /**
  * Maps a score to an UrgencyLevel and ambiguity flag.
@@ -159,13 +163,16 @@ function detectBehaviouralMarkers(text: string): number {
  * @property {boolean} isAmbiguous - Whether the score falls within an ambiguous range.
  * @note The mapping is as follows: score >= EMERGENCY_THRESHOLD -> 'emergency', score >= URGENT_THRESHOLD -> 'urgent', score <= ROUTINE_CEILING -> 'routine', otherwise -> 'urgent' with isAmbiguous set to true.
  */
-function scoreToLevel(score: number): { level: UrgencyLevel; isAmbiguous: boolean } {
-  if (score >= EMERGENCY_THRESHOLD) return { level: 'emergency', isAmbiguous: false };
-  if (score >= URGENT_THRESHOLD) return { level: 'urgent', isAmbiguous: false };
-  if (score <= ROUTINE_CEILING) return { level: 'routine', isAmbiguous: false };
-  return { level: 'urgent', isAmbiguous: true }; // ambiguous band
+function scoreToLevel(score: number): {
+  level: UrgencyLevel;
+  isAmbiguous: boolean;
+} {
+  if (score >= EMERGENCY_THRESHOLD)
+    return { level: "emergency", isAmbiguous: false };
+  if (score >= URGENT_THRESHOLD) return { level: "urgent", isAmbiguous: false };
+  if (score <= ROUTINE_CEILING) return { level: "routine", isAmbiguous: false };
+  return { level: "urgent", isAmbiguous: true }; // ambiguous band
 }
-
 
 /**
  * Layer 1 classifier. Scans text for keyword matches, contextual pairs,
@@ -183,9 +190,18 @@ export function classifyUrgencyFromText(text: string): UrgencyAssessment {
     if (boost > 0) {
       const { level, isAmbiguous } = scoreToLevel(boost);
       return {
-        level, score: boost, isAmbiguous,
-        signals: [{ source: 'message', text: '(behavioural markers)', score: boost, classification: level }],
-        requiresEscalation: level === 'emergency',
+        level,
+        score: boost,
+        isAmbiguous,
+        signals: [
+          {
+            source: "message",
+            text: "(behavioural markers)",
+            score: boost,
+            classification: level,
+          },
+        ],
+        requiresEscalation: level === "emergency",
         emergencyKeywordsMatched: [],
       };
     }
@@ -193,19 +209,19 @@ export function classifyUrgencyFromText(text: string): UrgencyAssessment {
   }
 
   // Use the highest signal score as the primary score, boosted by behavioural markers.
-  const maxSignalScore = Math.max(...allSignals.map(s => s.score));
+  const maxSignalScore = Math.max(...allSignals.map((s) => s.score));
   const behaviouralBoost = detectBehaviouralMarkers(text);
   const finalScore = Math.min(1.0, maxSignalScore + behaviouralBoost);
 
   // If any signal is emergency-level, the overall level is emergency.
-  const hasEmergency = allSignals.some(s => s.classification === 'emergency');
+  const hasEmergency = allSignals.some((s) => s.classification === "emergency");
   const emergencyMatches = allSignals
-    .filter(s => s.classification === 'emergency')
-    .map(s => s.text);
+    .filter((s) => s.classification === "emergency")
+    .map((s) => s.text);
 
   if (hasEmergency) {
     return {
-      level: 'emergency',
+      level: "emergency",
       score: Math.max(finalScore, EMERGENCY_THRESHOLD),
       signals: allSignals,
       isAmbiguous: false,
@@ -216,7 +232,10 @@ export function classifyUrgencyFromText(text: string): UrgencyAssessment {
 
   const { level, isAmbiguous } = scoreToLevel(finalScore);
   return {
-    level, score: finalScore, signals: allSignals, isAmbiguous,
+    level,
+    score: finalScore,
+    signals: allSignals,
+    isAmbiguous,
     requiresEscalation: false,
     emergencyKeywordsMatched: [],
   };
@@ -230,7 +249,10 @@ export function classifyFormData(issue: string | undefined): UrgencyAssessment {
   if (!issue || !issue.trim()) return buildEmptyAssessment();
   const assessment = classifyUrgencyFromText(issue);
   // Re-tag signals as form_data source
-  assessment.signals = assessment.signals.map(s => ({ ...s, source: 'form_data' as const }));
+  assessment.signals = assessment.signals.map((s) => ({
+    ...s,
+    source: "form_data" as const,
+  }));
   return assessment;
 }
 
@@ -240,13 +262,13 @@ export function classifyFormData(issue: string | undefined): UrgencyAssessment {
  * inspired by DCB0129 — once a risk is identified it stays identified).
  */
 export function mergeAssessments(
-  previous: UrgencyLevel | 'unknown',
+  previous: UrgencyLevel | "unknown",
   current: UrgencyAssessment,
 ): UrgencyLevel {
   const prevRank = URGENCY_RANK[previous] ?? 0;
   const currRank = URGENCY_RANK[current.level] ?? 0;
   if (currRank >= prevRank) return current.level;
-  return previous === 'unknown' ? current.level : previous as UrgencyLevel;
+  return previous === "unknown" ? current.level : previous;
 }
 
 /**
@@ -255,5 +277,7 @@ export function mergeAssessments(
  * should be consulted for a more nuanced classification.
  */
 export function needsLlmClassification(assessment: UrgencyAssessment): boolean {
-  return assessment.isAmbiguous && assessment.emergencyKeywordsMatched.length === 0;
+  return (
+    assessment.isAmbiguous && assessment.emergencyKeywordsMatched.length === 0
+  );
 }

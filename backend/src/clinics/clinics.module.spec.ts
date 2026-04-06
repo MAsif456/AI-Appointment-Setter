@@ -1,9 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { ClinicsModule } from './clinics.module';
-import { ClinicsController } from './clinics.controller';
-import { ClinicsService } from './clinics.service';
-import { Clinic } from '../database/schemas/clinic.schema';
+import { Test, TestingModule } from "@nestjs/testing";
+import { getModelToken } from "@nestjs/mongoose";
+import { ClinicsModule } from "./clinics.module";
+import { ClinicsController } from "./clinics.controller";
+import { ClinicsService } from "./clinics.service";
+import { Clinic } from "../database/schemas/clinic.schema";
 
 /**
  * Integration test for ClinicsModule.
@@ -11,7 +11,7 @@ import { Clinic } from '../database/schemas/clinic.schema';
  * Verifies that the module compiles and wires the controller
  * and service through NestJS dependency injection.
  */
-describe('ClinicsModule', () => {
+describe("ClinicsModule", () => {
   let module: TestingModule;
 
   beforeEach(async () => {
@@ -19,19 +19,28 @@ describe('ClinicsModule', () => {
       imports: [ClinicsModule],
     })
       .overrideProvider(getModelToken(Clinic.name))
-      .useValue({ find: jest.fn(), findById: jest.fn(), findOne: jest.fn().mockReturnValue({ lean: jest.fn() }), create: jest.fn() })
+      .useValue({
+        find: jest.fn(),
+        findById: jest.fn(),
+        findOne: jest.fn().mockReturnValue({ lean: jest.fn() }),
+        create: jest.fn(),
+      })
       .compile();
   });
 
-  it('should compile the module', () => {
+  it("should compile the module", () => {
     expect(module).toBeDefined();
   });
 
-  it('should provide ClinicsController', () => {
-    expect(module.get<ClinicsController>(ClinicsController)).toBeInstanceOf(ClinicsController);
+  it("should provide ClinicsController", () => {
+    expect(module.get<ClinicsController>(ClinicsController)).toBeInstanceOf(
+      ClinicsController,
+    );
   });
 
-  it('should provide ClinicsService', () => {
-    expect(module.get<ClinicsService>(ClinicsService)).toBeInstanceOf(ClinicsService);
+  it("should provide ClinicsService", () => {
+    expect(module.get<ClinicsService>(ClinicsService)).toBeInstanceOf(
+      ClinicsService,
+    );
   });
 });

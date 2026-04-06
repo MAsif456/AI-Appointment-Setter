@@ -14,22 +14,22 @@ describe("DatabaseExceptionFilter", () => {
     mockStatus = jest.fn().mockReturnValue({ json: mockJson });
 
     mockHost = {
-/**
- * Mocks out the switchToHttp method of ArgumentsHost.
- * Returns a mock object that includes getResponse and getRequest methods.
- * The getResponse method returns an object with a status property
- * that is set to the result of the mockStatus function.
- * The getRequest method returns an object with a method, url, and body property.
- * The method is set to "POST", the url is set to "/webhooks/ghl", and the body is set to
- * an object with type set to "InboundMessage" and contactId set to "test-123".
- */
+      /**
+       * Mocks out the switchToHttp method of ArgumentsHost.
+       * Returns a mock object that includes getResponse and getRequest methods.
+       * The getResponse method returns an object with a status property
+       * that is set to the result of the mockStatus function.
+       * The getRequest method returns an object with a method, url, and body property.
+       * The method is set to "POST", the url is set to "/webhooks/ghl", and the body is set to
+       * an object with type set to "InboundMessage" and contactId set to "test-123".
+       */
       switchToHttp: () => ({
         getResponse: () => ({ status: mockStatus }),
-    /**
-     * Returns a mock object that represents the incoming request.
-     * The mock object contains a method, url, and body property.
-     * The method is set to "POST", the url is set to "/webhooks/ghl", and the body is set to an object with type set to "InboundMessage" and contactId set to "test-123".
-     */
+        /**
+         * Returns a mock object that represents the incoming request.
+         * The mock object contains a method, url, and body property.
+         * The method is set to "POST", the url is set to "/webhooks/ghl", and the body is set to an object with type set to "InboundMessage" and contactId set to "test-123".
+         */
         getRequest: () => ({
           method: "POST",
           url: "/webhooks/ghl",

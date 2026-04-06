@@ -44,12 +44,12 @@ describe("WebhookSignatureGuard", () => {
         {
           provide: ConfigService,
           useValue: {
-/**
- * Returns the value of the specified configuration key.
- *
- * If the key is "GHL_WEBHOOK_SECRET", returns the HMAC secret used for webhook signature verification.
- * Otherwise, returns undefined.
- */
+            /**
+             * Returns the value of the specified configuration key.
+             *
+             * If the key is "GHL_WEBHOOK_SECRET", returns the HMAC secret used for webhook signature verification.
+             * Otherwise, returns undefined.
+             */
             get: (key: string) => {
               if (key === "GHL_WEBHOOK_SECRET") return HMAC_SECRET;
               return undefined;

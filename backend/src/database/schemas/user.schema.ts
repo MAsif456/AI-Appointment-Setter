@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 export type UserDocument = User & Document;
 
@@ -14,7 +14,7 @@ export class User {
   @Prop({ required: true })
   passwordHash: string;
 
-  @Prop({ type: String, enum: ['admin', 'staff'], default: 'staff' })
+  @Prop({ type: String, enum: ["admin", "staff"], default: "staff" })
   role: string;
 
   @Prop({ default: true })
@@ -24,23 +24,23 @@ export class User {
   lastLoginAt: Date;
 
   // Notification preferences (for Settings page)
-  @Prop({ 
-  type: {
-    emailNotifications: { type: Boolean, default: true },
-    dailySummary: { type: Boolean, default: true },
-    stalled: { type: Boolean, default: true }
-  },
-  default: {
-    emailNotifications: true,
-    dailySummary: true,
-    stalled: true
-  }
-})
-notificationPreferences: {
-  emailNotifications: boolean;
-  dailySummary: boolean;
-  stalled: boolean;
-};
+  @Prop({
+    type: {
+      emailNotifications: { type: Boolean, default: true },
+      dailySummary: { type: Boolean, default: true },
+      stalled: { type: Boolean, default: true },
+    },
+    default: {
+      emailNotifications: true,
+      dailySummary: true,
+      stalled: true,
+    },
+  })
+  notificationPreferences: {
+    emailNotifications: boolean;
+    dailySummary: boolean;
+    stalled: boolean;
+  };
 
   // Timestamps: createdAt, updatedAt (auto-generated)
 }

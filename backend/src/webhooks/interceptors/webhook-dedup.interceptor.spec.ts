@@ -16,19 +16,19 @@ describe("WebhookDedupInterceptor", () => {
     .update(JSON.stringify(testPayload))
     .digest("hex");
 
-/**
- * Creates a mock ExecutionContext object for testing the WebhookDedupInterceptor.
- *
- * @param {Record<string, unknown>} body - The request body to use in the mock context.
- * @returns {ExecutionContext} - A mockExecutionContext object.
- */
+  /**
+   * Creates a mock ExecutionContext object for testing the WebhookDedupInterceptor.
+   *
+   * @param {Record<string, unknown>} body - The request body to use in the mock context.
+   * @returns {ExecutionContext} - A mockExecutionContext object.
+   */
   function createMockContext(body: Record<string, unknown>) {
     return {
-/**
- * Returns a mock HTTP request object containing the provided body and IP address.
- *
- * @returns {{ getRequest: () => { body: Record<string, unknown>, ip: string } }}
- */
+      /**
+       * Returns a mock HTTP request object containing the provided body and IP address.
+       *
+       * @returns {{ getRequest: () => { body: Record<string, unknown>, ip: string } }}
+       */
       switchToHttp: () => ({
         getRequest: () => ({ body, ip: "127.0.0.1" }),
       }),

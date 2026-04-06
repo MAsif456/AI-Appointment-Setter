@@ -1,7 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { classifyUrgencyFromText, classifyFormData, mergeAssessments, needsLlmClassification } from './urgency-detector';
-import { UrgencyLevel, UrgencyAssessment } from './urgency-detector.types';
-import { UrgencyLlmClassifier } from './urgency-llm-classifier';
+import { Injectable, Logger } from "@nestjs/common";
+import {
+  classifyUrgencyFromText,
+  classifyFormData,
+  mergeAssessments,
+  needsLlmClassification,
+} from "./urgency-detector";
+import { UrgencyLevel, UrgencyAssessment } from "./urgency-detector.types";
+import { UrgencyLlmClassifier } from "./urgency-llm-classifier";
 
 /** Return value of the full urgency detection pipeline. */
 export interface UrgencyPipelineResult {
@@ -31,7 +36,7 @@ export class UrgencyPipeline {
    */
   async assessMessage(
     userMessage: string,
-    currentUrgency: UrgencyLevel | 'unknown',
+    currentUrgency: UrgencyLevel | "unknown",
     leadIssue?: string,
   ): Promise<UrgencyPipelineResult> {
     // Layer 1: keyword + contextual pairs + behavioural markers
@@ -41,10 +46,18 @@ export class UrgencyPipeline {
     // Layer 2: LLM micro-classification (only when Layer 1 is ambiguous)
     if (needsLlmClassification(assessment)) {
       try {
-        const llmLevel = await this.llmClassifier.classify(userMessage, leadIssue);
-        resolved = mergeAssessments(resolved, { ...assessment, level: llmLevel });
+        const llmLevel = await this.llmClassifier.classify(
+          userMessage,
+          leadIssue,
+        );
+        resolved = mergeAssessments(resolved, {
+          ...assessment,
+          level: llmLevel,
+        });
       } catch (err) {
-        this.logger.warn(`Layer 2 urgency classification failed: ${err.message}`);
+        this.logger.warn(
+          `Layer 2 urgency classification failed: ${err.message}`,
+        );
       }
     }
 

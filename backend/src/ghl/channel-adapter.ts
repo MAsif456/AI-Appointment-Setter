@@ -140,7 +140,6 @@ export class SmsChannelAdapter implements ChannelAdapter {
 const emailAdapter = new EmailChannelAdapter();
 const smsAdapter = new SmsChannelAdapter();
 
-
 /**
  * Returns a ChannelAdapter instance based on the given channel.
  * @param channel The channel identifier ("email" or "sms").

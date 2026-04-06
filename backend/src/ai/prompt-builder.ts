@@ -1,12 +1,12 @@
-import { LeadInfo } from './interfaces/lead-info.interface';
-import { ClinicConfig } from './interfaces/clinic-config.interface';
+import { LeadInfo } from "./interfaces/lead-info.interface";
+import { ClinicConfig } from "./interfaces/clinic-config.interface";
 
 // Tone instruction mappings
 const TONE_INSTRUCTIONS: Record<string, string> = {
   Friendly:
-    'Use a warm, casual, and conversational tone. Be approachable and empathetic.',
+    "Use a warm, casual, and conversational tone. Be approachable and empathetic.",
   Professional:
-    'Use a formal, businesslike, and respectful tone. Be courteous and precise.',
+    "Use a formal, businesslike, and respectful tone. Be courteous and precise.",
 };
 
 /**
@@ -22,7 +22,7 @@ export function buildGreetingPrompt(
   clinicConfig: ClinicConfig,
 ): string {
   const toneInstruction =
-    TONE_INSTRUCTIONS[clinicConfig.tone] || TONE_INSTRUCTIONS['Friendly'];
+    TONE_INSTRUCTIONS[clinicConfig.tone] || TONE_INSTRUCTIONS["Friendly"];
 
   const parts: string[] = [
     `You are the receptionist for ${clinicConfig.name}.`,
@@ -36,13 +36,13 @@ export function buildGreetingPrompt(
   }
 
   parts.push(
-    'Write a short greeting (2-3 sentences) that:',
+    "Write a short greeting (2-3 sentences) that:",
     `- Addresses the patient by their first name (${leadInfo.firstName})`,
-    '- Acknowledges their issue if mentioned',
-    '- Asks for their postcode so you can check coverage',
-    '- Does NOT use emojis or hashtags',
-    '- Does NOT reveal what technology or system powers you',
-    '- Sounds like a real person working at the clinic',
+    "- Acknowledges their issue if mentioned",
+    "- Asks for their postcode so you can check coverage",
+    "- Does NOT use emojis or hashtags",
+    "- Does NOT reveal what technology or system powers you",
+    "- Sounds like a real person working at the clinic",
   );
 
   // Append custom clinic instructions if present
@@ -50,5 +50,5 @@ export function buildGreetingPrompt(
     parts.push(`Additional instructions: ${clinicConfig.customInstructions}`);
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }

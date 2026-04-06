@@ -1,26 +1,35 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type MessageDocument = Message & Document;
 
 @Schema({ timestamps: true })
 export class Message {
-  @Prop({ type: Types.ObjectId, ref: 'Conversation', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: "Conversation",
+    required: true,
+    index: true,
+  })
   conversationId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Clinic", required: true, index: true })
   clinicId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Lead', required: true })
+  @Prop({ type: Types.ObjectId, ref: "Lead", required: true })
   leadId: Types.ObjectId;
 
-  @Prop({ type: String, enum: ['lead', 'ai', 'system'], required: true })
+  @Prop({ type: String, enum: ["lead", "ai", "system"], required: true })
   sender: string;
 
   @Prop({ required: true })
   content: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website', 'email'], required: true })
+  @Prop({
+    type: String,
+    enum: ["sms", "whatsapp", "facebook", "instagram", "website", "email"],
+    required: true,
+  })
   channel: string;
 
   @Prop()
@@ -35,7 +44,7 @@ export class Message {
 
   // Message type flags
   @Prop({ default: false })
-  isFallback: boolean; 
+  isFallback: boolean;
 
   @Prop({ default: false })
   isFollowUp: boolean;
@@ -62,7 +71,11 @@ export class Message {
   responseTimeSeconds?: number; //seconds
 
   // Delivery status
-  @Prop({ type: String, enum: ['sent', 'delivered', 'read', 'failed'], default: 'sent' })
+  @Prop({
+    type: String,
+    enum: ["sent", "delivered", "read", "failed"],
+    default: "sent",
+  })
   status: string;
 
   @Prop()
@@ -83,7 +96,7 @@ MessageSchema.index({ ghlMessageId: 1 });
 MessageSchema.index({ clinicId: 1, sender: 1, createdAt: -1 }); // For analytics
 
 // Pre-save hook to calculate processing time
-MessageSchema.pre<MessageDocument>('save', function () {
+MessageSchema.pre<MessageDocument>("save", function () {
   if (this.aiProcessingStartedAt && this.aiProcessingCompletedAt) {
     this.aiProcessingTimeMs =
       this.aiProcessingCompletedAt.getTime() -

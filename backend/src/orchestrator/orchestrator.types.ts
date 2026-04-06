@@ -35,41 +35,108 @@ export const BOOKING_KEYWORDS = [
 
 /** Keywords that indicate a lead wants to cancel their appointment. */
 export const CANCEL_KEYWORDS = [
-  'cancel', "can't come", "can't make it", "won't be able",
-  'cancel my booking', 'cancel my appointment', 'cancel the appointment',
-  'need to cancel', 'want to cancel', 'like to cancel',
-  "can't attend", "unable to attend", "unable to make it",
-  'withdraw', 'call it off', 'drop my appointment',
-  "won't make it", "won't be coming", "not going to make it",
-  "can no longer make", "no longer need",
+  "cancel",
+  "can't come",
+  "can't make it",
+  "won't be able",
+  "cancel my booking",
+  "cancel my appointment",
+  "cancel the appointment",
+  "need to cancel",
+  "want to cancel",
+  "like to cancel",
+  "can't attend",
+  "unable to attend",
+  "unable to make it",
+  "withdraw",
+  "call it off",
+  "drop my appointment",
+  "won't make it",
+  "won't be coming",
+  "not going to make it",
+  "can no longer make",
+  "no longer need",
 ];
 
 /** Keywords that confirm a pending action (cancellation confirmation). */
 export const CONFIRM_KEYWORDS = [
-  'yes', 'correct', 'confirm', 'go ahead', 'please cancel', 'yeah', 'yep', 'sure',
-  'ok', 'okay', 'that is correct', "that's correct", 'absolutely', 'definitely',
-  'proceed', 'do it', 'yes please', 'yea', 'aye',
+  "yes",
+  "correct",
+  "confirm",
+  "go ahead",
+  "please cancel",
+  "yeah",
+  "yep",
+  "sure",
+  "ok",
+  "okay",
+  "that is correct",
+  "that's correct",
+  "absolutely",
+  "definitely",
+  "proceed",
+  "do it",
+  "yes please",
+  "yea",
+  "aye",
 ];
 
 /** Keywords that decline a pending cancellation. */
 export const DECLINE_CANCEL_KEYWORDS = [
-  'no', 'never mind', 'keep it', "don't cancel", 'keep my appointment',
-  'changed my mind', 'forget it', 'leave it', 'no thanks', 'nah',
-  "i'll keep it", "i'll still come", "actually no", 'on second thought',
+  "no",
+  "never mind",
+  "keep it",
+  "don't cancel",
+  "keep my appointment",
+  "changed my mind",
+  "forget it",
+  "leave it",
+  "no thanks",
+  "nah",
+  "i'll keep it",
+  "i'll still come",
+  "actually no",
+  "on second thought",
 ];
 
 /** Keywords indicating a returning patient confirms their details are unchanged. */
 export const DETAILS_UNCHANGED_KEYWORDS = [
-  'yes', 'same', 'nothing changed', "hasn't changed", 'all the same',
-  'still the same', 'no changes', 'correct', "that's right", 'all correct',
-  'yep', 'yeah', 'yea', 'right', 'aye', 'ok', 'okay',
+  "yes",
+  "same",
+  "nothing changed",
+  "hasn't changed",
+  "all the same",
+  "still the same",
+  "no changes",
+  "correct",
+  "that's right",
+  "all correct",
+  "yep",
+  "yeah",
+  "yea",
+  "right",
+  "aye",
+  "ok",
+  "okay",
 ];
 
 /** Keywords indicating a returning patient says their details have changed. */
 export const DETAILS_CHANGED_KEYWORDS = [
-  'moved', 'new address', 'different postcode', 'changed', 'new number',
-  'different number', 'updated', 'no longer', 'different details', 'different area',
-  'no', 'nope', 'not the same', 'they have changed', 'details have changed',
+  "moved",
+  "new address",
+  "different postcode",
+  "changed",
+  "new number",
+  "different number",
+  "updated",
+  "no longer",
+  "different details",
+  "different area",
+  "no",
+  "nope",
+  "not the same",
+  "they have changed",
+  "details have changed",
 ];
 
 /**
@@ -85,7 +152,7 @@ export const DETAILS_CHANGED_KEYWORDS = [
  */
 export function matchesKeywords(lower: string, keywords: string[]): boolean {
   return keywords.some((kw) =>
-    kw.includes(' ') ? lower.includes(kw) : lower === kw,
+    kw.includes(" ") ? lower.includes(kw) : lower === kw,
   );
 }
 

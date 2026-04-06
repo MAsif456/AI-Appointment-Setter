@@ -1,9 +1,9 @@
-import { Types } from 'mongoose';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { ConversationsService } from '../ghl/conversations.service';
-import { PostcodeValidationService } from './postcode-validation.service';
-import { IntentResult } from './orchestrator.types';
-import { ConversationDocument } from '../database/schemas/conversation.schema';
+import { Types } from "mongoose";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { ConversationsService } from "../ghl/conversations.service";
+import { PostcodeValidationService } from "./postcode-validation.service";
+import { IntentResult } from "./orchestrator.types";
+import { ConversationDocument } from "../database/schemas/conversation.schema";
 
 /**
  * Advances the conversation phase based on the detected intent and current phase.
@@ -26,7 +26,7 @@ export async function advancePhaseFromIntent(
   postcodeValidationService: PostcodeValidationService,
   clinicConfig: ClinicConfig,
 ): Promise<void> {
-  if (intent.intent === 'PROVIDE_POSTCODE') {
+  if (intent.intent === "PROVIDE_POSTCODE") {
     const { postcode } = intent.data;
     const inArea = postcodeValidationService.isInServiceArea(
       postcode,
@@ -35,47 +35,47 @@ export async function advancePhaseFromIntent(
     if (inArea) {
       await conversationsService.setContext(
         conversationObjectId,
-        'validatedPostcode',
+        "validatedPostcode",
         postcode,
       );
-      await conversationsService.updatePhase(conversationObjectId, 'qualified');
+      await conversationsService.updatePhase(conversationObjectId, "qualified");
     } else {
-      await conversationsService.updatePhase(conversationObjectId, 'declined');
+      await conversationsService.updatePhase(conversationObjectId, "declined");
     }
-  } else if (intent.intent === 'WANT_TO_BOOK') {
-    await conversationsService.updatePhase(conversationObjectId, 'booking');
-  } else if (intent.intent === 'CANCEL') {
-    await conversationsService.updatePhase(conversationObjectId, 'cancelling');
-  } else if (intent.intent === 'CONFIRM_CANCEL') {
+  } else if (intent.intent === "WANT_TO_BOOK") {
+    await conversationsService.updatePhase(conversationObjectId, "booking");
+  } else if (intent.intent === "CANCEL") {
+    await conversationsService.updatePhase(conversationObjectId, "cancelling");
+  } else if (intent.intent === "CONFIRM_CANCEL") {
     const isWarning =
-      response.includes('incur a fee') ||
-      response.includes('Would you like to proceed');
+      response.includes("incur a fee") ||
+      response.includes("Would you like to proceed");
     if (isWarning) {
       await conversationsService.updatePhase(
         conversationObjectId,
-        'cancelling_warned',
+        "cancelling_warned",
       );
     }
-  } else if (intent.intent === 'DECLINE_CANCEL') {
-    if (currentPhase === 'cancelling_warned') {
+  } else if (intent.intent === "DECLINE_CANCEL") {
+    if (currentPhase === "cancelling_warned") {
       await conversationsService.updatePhase(
         conversationObjectId,
-        'rescheduling',
+        "rescheduling",
       );
     } else {
-      await conversationsService.updatePhase(conversationObjectId, 'booked');
+      await conversationsService.updatePhase(conversationObjectId, "booked");
     }
-  } else if (intent.intent === 'DETAILS_UNCHANGED') {
-    const postcode = conversation.context?.get('returningPatientPostcode');
+  } else if (intent.intent === "DETAILS_UNCHANGED") {
+    const postcode = conversation.context?.get("returningPatientPostcode");
     if (postcode) {
       await conversationsService.setContext(
         conversationObjectId,
-        'validatedPostcode',
+        "validatedPostcode",
         postcode,
       );
     }
-    await conversationsService.updatePhase(conversationObjectId, 'booking');
-  } else if (intent.intent === 'DETAILS_CHANGED') {
-    await conversationsService.updatePhase(conversationObjectId, 'qualifying');
+    await conversationsService.updatePhase(conversationObjectId, "booking");
+  } else if (intent.intent === "DETAILS_CHANGED") {
+    await conversationsService.updatePhase(conversationObjectId, "qualifying");
   }
 }
