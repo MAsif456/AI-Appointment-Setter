@@ -16,6 +16,7 @@ import { ConversationsService } from "../ghl/conversations.service";
 import { MessagesService } from "../ghl/messages.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
+import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
 import {
   GhlContactCreatePayload,
   GhlInboundMessagePayload,
@@ -72,6 +73,7 @@ export class OrchestratorService {
     private readonly postcodeValidationService: PostcodeValidationService,
     private readonly securityPipeline: SecurityPipelineService,
     private readonly patientHistoryService: PatientHistoryService,
+    private readonly chatConversationsService: ChatConversationsService,
   ) {}
 
   async handleNewLead(
@@ -98,14 +100,10 @@ export class OrchestratorService {
   ): Promise<void> {
     return handleInboundMessageFlow(webhookData, clinicConfig, {
       conversationsService: this.conversationsService,
-      messagesService: this.messagesService,
       ghlApiService: this.ghlApiService,
       logger: this.logger,
-      detectIntent: this.detectIntent.bind(this),
-      generateResponse: this.generateResponse.bind(this),
       correlationId,
-      postcodeValidationService: this.postcodeValidationService,
-      securityPipeline: this.securityPipeline,
+      chatConversationsService: this.chatConversationsService,
     });
   }
 

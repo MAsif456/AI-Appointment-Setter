@@ -2,44 +2,22 @@ import { Logger } from "@nestjs/common";
 import { Types } from "mongoose";
 import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
 import { ConversationsService } from "../ghl/conversations.service";
-import { MessagesService } from "../ghl/messages.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { GhlInboundMessagePayload } from "../webhooks/dto/ghl-webhook.dto";
 import { getChannelAdapter } from "../ghl/channel-adapter";
-import {
-  FALLBACK_AI_UNAVAILABLE,
-  DEFAULT_MESSAGE_TYPE,
-  OrchestratorMessage,
-  OrchestratorContext,
-  IntentResult,
-} from "./orchestrator.types";
+import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 import {
   mapMessageTypeToChannel,
   channelToMessageType,
 } from "./orchestrator.prompts";
-import { PostcodeValidationService } from "./postcode-validation.service";
-import { SecurityPipelineService } from "../security/security-pipeline.service";
-import { backgroundRetryAiResponse } from "./orchestrator.background-retry";
-import { advancePhaseFromIntent } from "./orchestrator.phase-advancement";
+import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
 
 export interface InboundMessageDeps {
   conversationsService: ConversationsService;
-  messagesService: MessagesService;
   ghlApiService: GhlApiService;
   logger: Logger;
-  detectIntent: (
-    content: string,
-    phase: string,
-    context?: Pick<OrchestratorContext, "isReturningPatient">,
-  ) => IntentResult;
-  generateResponse: (
-    intent: IntentResult,
-    context: OrchestratorContext,
-    config: ClinicConfig,
-  ) => Promise<string | null>;
   correlationId?: string;
-  postcodeValidationService: PostcodeValidationService;
-  securityPipeline: SecurityPipelineService;
+  chatConversationsService: ChatConversationsService;
 }
 
 const EMPTY_EMAIL_FALLBACK =
@@ -51,21 +29,13 @@ export async function handleInboundMessageFlow(
   clinicConfig: ClinicConfig,
   deps: InboundMessageDeps,
 ): Promise<void> {
-  const {
-    conversationsService,
-    messagesService,
-    logger,
-    correlationId,
-    postcodeValidationService,
-  } = deps;
+  const { conversationsService, logger, correlationId } = deps;
   const cid = correlationId ? `[${correlationId}] ` : "";
 
   const contactId = webhookData.id;
   const ghlConversationId = webhookData.conversationId;
 
   // Detect channel from message type, falling back to the existing conversation's channel.
-  // GHL InboundMessage webhooks may omit message.type for email replies, which would
-  // incorrectly default to SMS and cause a 422 when the contact has no phone number.
   const messageType = (webhookData.message?.type as string) ?? "";
   let channel = messageType ? mapMessageTypeToChannel(messageType) : "";
 
@@ -111,13 +81,13 @@ export async function handleInboundMessageFlow(
     channel = "sms";
   }
 
-  // Ref: RFC 3834 (https://datatracker.ietf.org/doc/html/rfc3834) — detect auto-replies early to prevent infinite loops
+  // Ref: RFC 3834 — detect auto-replies early to prevent infinite loops
   const adapter = getChannelAdapter(channel);
   if (
     adapter.isAutoReply({
       subject: webhookData.message?.subject,
       body: webhookData.message?.body,
-      from: (webhookData as any).from,
+      from: (webhookData as Record<string, unknown>).from as string | undefined,
     })
   ) {
     logger.log(
@@ -133,27 +103,13 @@ export async function handleInboundMessageFlow(
   const inboundEmailMessageId = webhookData.message?.emailMessageId;
 
   const conversationObjectId = conversation._id;
-  const leadObjectId = conversation.leadId;
-  const currentPhase = conversation.phase ?? "qualifying";
-
-  await messagesService.addMessage(
-    conversationObjectId,
-    clinicObjectId,
-    leadObjectId,
-    "lead",
-    messageContent,
-    channel,
-  );
 
   if (adapter.isEmptyAfterStrip(messageContent)) {
-    await sendResponse(
+    await sendGhlResponse(
       EMPTY_EMAIL_FALLBACK,
       channel,
       clinicConfig,
       contactId,
-      conversationObjectId,
-      clinicObjectId,
-      leadObjectId,
       deps,
       conversation.ghlConversationId,
       inboundEmailMessageId,
@@ -161,192 +117,57 @@ export async function handleInboundMessageFlow(
     return;
   }
 
-  const { response, intent, securityAllowed } = await generateSafeResponse(
-    messageContent,
-    currentPhase,
-    contactId,
-    conversationObjectId,
-    clinicObjectId,
-    leadObjectId,
-    channel,
-    clinicConfig,
-    conversation,
-    deps,
-  );
+  // Delegate to the full AI pipeline (urgency, slots, booking, security, escalation)
+  // Ref: Gamma et al. (1994) "Facade" pattern — https://refactoring.guru/design-patterns/facade
+  let reply: string;
+  try {
+    const result = await deps.chatConversationsService.sendMessage(
+      conversationObjectId.toHexString(),
+      messageContent,
+    );
+    reply = result?.reply ?? FALLBACK_AI_UNAVAILABLE;
+  } catch (error) {
+    logger.error(
+      `${cid}sendMessage failed — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
+      (error as Error).stack,
+    );
+    await conversationsService.flagForHumanIntervention(
+      conversationObjectId,
+      "AI pipeline failure",
+    );
+    reply = FALLBACK_AI_UNAVAILABLE;
+  }
 
-  await sendResponse(
-    response,
+  await sendGhlResponse(
+    reply,
     channel,
     clinicConfig,
     contactId,
-    conversationObjectId,
-    clinicObjectId,
-    leadObjectId,
     deps,
     conversation.ghlConversationId,
     inboundEmailMessageId,
   );
-
-  if (securityAllowed) {
-    await advancePhaseFromIntent(
-      intent,
-      response,
-      currentPhase,
-      conversationObjectId,
-      conversation as any,
-      conversationsService,
-      postcodeValidationService,
-      clinicConfig,
-    );
-  }
 
   logger.log(
     `${cid}Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? "unknown"}, clinicId: ${clinicConfig.clinicId}`,
   );
 }
 
-async function generateSafeResponse(
-  messageContent: string,
-  currentPhase: string,
-  contactId: string,
-  conversationObjectId: Types.ObjectId,
-  clinicObjectId: Types.ObjectId,
-  leadObjectId: Types.ObjectId,
-  channel: string,
-  clinicConfig: ClinicConfig,
-  conversation: any,
-  deps: InboundMessageDeps,
-): Promise<{
-  response: string;
-  intent: IntentResult;
-  securityAllowed: boolean;
-}> {
-  const {
-    conversationsService,
-    messagesService,
-    logger,
-    detectIntent,
-    generateResponse,
-    correlationId,
-    securityPipeline,
-  } = deps;
-  const cid = correlationId ? `[${correlationId}] ` : "";
-
-  const securityResult = await securityPipeline.processInbound(
-    messageContent,
-    conversationObjectId.toString(),
-    clinicObjectId.toString(),
-    currentPhase,
-    leadObjectId.toString(),
-  );
-
-  let intent: IntentResult = { intent: "UNKNOWN" };
-  if (!securityResult.allowed) {
-    logger.warn(
-      `${cid}Security pipeline blocked — contactId: ${contactId}, score: ${securityResult.threatScore.toFixed(2)}`,
-    );
-    return {
-      response: securityResult.fallbackResponse ?? FALLBACK_AI_UNAVAILABLE,
-      intent,
-      securityAllowed: false,
-    };
-  }
-
-  const storedMessages =
-    await messagesService.getByConversation(conversationObjectId);
-  const contextMessages: OrchestratorMessage[] = storedMessages
-    .filter((m) => m.sender !== "system")
-    .map((m) => ({
-      content: m.content,
-      role: m.sender === "ai" ? "assistant" : "user",
-      timestamp: (m as any).createdAt ?? new Date(),
-    }));
-
-  // Load lead from DB so the AI knows the patient's name, issue, and postcode
-  const lead = await conversationsService.findLeadById(
-    leadObjectId as Types.ObjectId,
-  );
-  const validatedPostcode = conversation?.context?.get("validatedPostcode");
-
-  const context: OrchestratorContext = {
-    ghlContactId: contactId,
-    clinicId: clinicConfig.clinicId,
-    phase: currentPhase,
-    conversationId: conversationObjectId.toHexString(),
-    messages: contextMessages,
-    patientInfo: {
-      firstName: lead?.firstName ?? "there",
-      lastName: lead?.lastName,
-      phone: lead?.phone,
-      email: lead?.email,
-      issue: lead?.issue,
-      validatedPostcode,
-    },
-    isReturningPatient: conversation?.isReturningPatient ?? false,
-    channel,
-  };
-
-  intent = detectIntent(securityResult.sanitisedMessage, currentPhase, {
-    isReturningPatient: context.isReturningPatient,
-  });
-  logger.log(
-    `${cid}Intent detected: ${intent.intent} — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
-  );
-
-  const aiResult = await generateResponse(intent, context, clinicConfig);
-  let aiResponse: string = aiResult ?? FALLBACK_AI_UNAVAILABLE;
-
-  if (!aiResult) {
-    logger.warn(
-      `${cid}AI response generation failed — contactId: ${contactId}. Using fallback.`,
-    );
-    await conversationsService.flagForHumanIntervention(
-      conversationObjectId,
-      "AI service failure",
-    );
-    backgroundRetryAiResponse(
-      intent,
-      context,
-      clinicConfig,
-      deps,
-      contactId,
-      channel,
-      conversationObjectId,
-      clinicObjectId,
-      leadObjectId,
-      conversation.ghlConversationId,
-    );
-  } else {
-    const outputCheck = securityPipeline.validateOutput(
-      aiResponse,
-      currentPhase,
-    );
-    if (!outputCheck.safe) {
-      logger.warn(
-        `${cid}Output validation failed — flags: ${outputCheck.flags.join(",")} — contactId: ${contactId}`,
-      );
-      aiResponse = outputCheck.fallbackResponse ?? FALLBACK_AI_UNAVAILABLE;
-    }
-  }
-
-  return { response: aiResponse, intent, securityAllowed: true };
-}
-
-async function sendResponse(
+/**
+ * Sends a response to the lead via GHL with channel-appropriate formatting.
+ * Message persistence is handled by sendMessage() — this function only delivers via GHL.
+ */
+async function sendGhlResponse(
   response: string,
   channel: string,
   clinicConfig: ClinicConfig,
   contactId: string,
-  conversationObjectId: Types.ObjectId,
-  clinicObjectId: Types.ObjectId,
-  leadObjectId: Types.ObjectId,
   deps: InboundMessageDeps,
   ghlConversationId?: string,
   emailMessageId?: string,
 ): Promise<void> {
-  const { ghlApiService, messagesService, conversationsService, logger } = deps;
+  const { ghlApiService, logger } = deps;
 
-  let ghlMessageId: string | undefined;
   try {
     const adapter = getChannelAdapter(channel);
     const formatted = adapter.formatOutbound(
@@ -354,7 +175,7 @@ async function sendResponse(
       clinicConfig.name,
       false,
     );
-    const sendResult = await ghlApiService.sendMessageWithRetry({
+    await ghlApiService.sendMessageWithRetry({
       type: channelToMessageType(channel),
       contactId,
       message: response,
@@ -362,25 +183,10 @@ async function sendResponse(
       ...(emailMessageId ? { emailMessageId } : {}),
       ...formatted,
     });
-    ghlMessageId = sendResult?.id ?? sendResult?.messageId;
   } catch (error) {
     logger.error(
       `Failed to send response via GHL — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
       (error as Error).stack,
     );
-    await conversationsService.flagForHumanIntervention(
-      conversationObjectId,
-      "Message delivery failed after retries",
-    );
   }
-
-  await messagesService.addMessage(
-    conversationObjectId,
-    clinicObjectId,
-    leadObjectId,
-    "ai",
-    response,
-    channel,
-    ghlMessageId,
-  );
 }
