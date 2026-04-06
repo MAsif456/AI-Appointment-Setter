@@ -10,11 +10,6 @@ import { ReminderService } from './reminder.service';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
 import { ReminderController } from './reminder.controller';
 
-/**
- * Reminder Module.
- * Handles appointment reminder scheduling, sending, and tracking.
- * Implements US-25: Trigger Appointment Reminders.
- */
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -24,12 +19,12 @@ import { ReminderController } from './reminder.controller';
       { name: Message.name, schema: MessageSchema },
     ]),
     GhlModule, // Provides GhlApiService and MessagesService
-    ScheduleModule.forRoot(), // Enables cron jobs
+    ScheduleModule.forRoot(),
   ],
   controllers: [ReminderController],
   providers: [
-    ReminderService,
-    ReminderSchedulerService,
+    ReminderService,           
+    ReminderSchedulerService,  
   ],
   exports: [ReminderService],
 })

@@ -1,14 +1,62 @@
 /**
- * Reminder message generation and intent detection handlers.
+ * Reminder message generation, intent detection, and send-window calculation handlers.
  * Extracted to keep reminder.service.ts under 200 lines.
  */
-import { format } from 'date-fns';
+import { differenceInHours, format } from 'date-fns';
 import { AppointmentDocument } from '../database/schemas/appointment.schema';
 import { ClinicDocument } from '../database/schemas/clinic.schema';
 
 /**
+ * Determine if a reminder should be sent for this appointment.
+ * AC: Check timing window (15min tolerance) and prevent duplicate sends.
+ * @param appointment - The appointment to check
+ * @param reminderTimes - Array of hours-before-appointment intervals (e.g. [24, 1])
+ * @returns Object indicating whether to send, the reminder type, and hours before
+ */
+export function shouldSendReminder(
+  appointment: AppointmentDocument,
+  reminderTimes: number[],
+): { send: boolean; type?: string; hoursBeforeAppointment?: number } {
+  const now = new Date();
+  const appointmentTime = new Date(appointment.appointmentDate);
+  const hoursUntilAppointment = differenceInHours(appointmentTime, now);
+
+  for (const interval of reminderTimes) {
+    // Check if we're within the send window (15min tolerance for cron)
+    const isWithinWindow =
+      hoursUntilAppointment <= interval &&
+      hoursUntilAppointment >= interval - 0.25;
+
+    if (!isWithinWindow) {
+      continue;
+    }
+
+    // AC: Don't send duplicate reminders
+    const alreadySent = appointment.reminders?.some(
+      (reminder) =>
+        reminder.type === `${interval}_hour` && reminder.status === 'sent',
+    );
+
+    if (alreadySent) {
+      continue;
+    }
+
+    return {
+      send: true,
+      type: `${interval}_hour`,
+      hoursBeforeAppointment: interval,
+    };
+  }
+
+  return { send: false };
+}
+
+/**
  * Generate reminder message based on hours until appointment.
  * AC: British English formatting, includes date/time/address/reschedule option.
+ * @param appointment - The appointment to generate a message for
+ * @param clinic - The clinic config for name and address
+ * @param hoursBeforeAppointment - How many hours before the appointment
  */
 export function generateReminderMessage(
   appointment: AppointmentDocument,
@@ -64,6 +112,8 @@ export function generateReminderMessage(
 /**
  * Check if a message is a response to a reminder.
  * Looks for reminder keywords in recent message history.
+ * @param messageContent - The incoming message text
+ * @param recentMessages - Recent message history to check
  */
 export function isReminderResponse(
   messageContent: string,
@@ -83,6 +133,7 @@ export function isReminderResponse(
 /**
  * Detect reschedule intent from message.
  * AC: Match various phrasings like "I need to reschedule", "can't make it", etc.
+ * @param messageContent - The incoming message text
  */
 export function detectRescheduleIntent(messageContent: string): boolean {
   const reschedulePatterns = [
@@ -98,6 +149,7 @@ export function detectRescheduleIntent(messageContent: string): boolean {
 /**
  * Detect cancel intent from message.
  * AC: Match various phrasings like "I need to cancel", "won't make it", etc.
+ * @param messageContent - The incoming message text
  */
 export function detectCancelIntent(messageContent: string): boolean {
   const cancelPatterns = [

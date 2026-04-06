@@ -1,17 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { differenceInHours } from 'date-fns';
+import { Model } from 'mongoose';
 import { Appointment, AppointmentDocument } from '../database/schemas/appointment.schema';
 import { Conversation, ConversationDocument } from '../database/schemas/conversation.schema';
 import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { GhlApiService } from '../ghl/ghl-api.service';
-import { MessagesService } from '../ghl/messages.service';
-import { generateReminderMessage } from './reminder.handler';
+import { ReminderTrackerService } from './reminder-tracker.service';
+import { generateReminderMessage, shouldSendReminder } from './reminder.handler';
 
 /**
  * Core service for appointment reminder management.
  * Finds appointments needing reminders and orchestrates sending them via GHL.
+ * Tracking is delegated to ReminderTrackerService to maintain SRP.
  */
 @Injectable()
 export class ReminderService {
@@ -25,7 +25,7 @@ export class ReminderService {
     @InjectModel(Clinic.name)
     private clinicModel: Model<ClinicDocument>,
     private ghlApiService: GhlApiService,
-    private messagesService: MessagesService,
+    private reminderTrackerService: ReminderTrackerService,
   ) {}
 
   /**
@@ -53,7 +53,7 @@ export class ReminderService {
         continue;
       }
 
-      const check = this.shouldSendReminder(
+      const check = shouldSendReminder(
         appointment,
         clinic.reminderSettings.reminderTimes,
       );
@@ -64,48 +64,6 @@ export class ReminderService {
     }
 
     return needingReminders;
-  }
-
-  /**
-   * Determine if a reminder should be sent for this appointment.
-   * AC: Check timing window (15min tolerance) and prevent duplicates.
-   */
-  private shouldSendReminder(
-    appointment: AppointmentDocument,
-    reminderTimes: number[],
-  ): { send: boolean; type?: string; hoursBeforeAppointment?: number } {
-    const now = new Date();
-    const appointmentTime = new Date(appointment.appointmentDate);
-    const hoursUntilAppointment = differenceInHours(appointmentTime, now);
-
-    for (const interval of reminderTimes) {
-      // Check if we're within the send window (15min tolerance for cron)
-      const isWithinWindow =
-        hoursUntilAppointment <= interval &&
-        hoursUntilAppointment >= interval - 0.25;
-
-      if (!isWithinWindow) {
-        continue;
-      }
-
-      // AC: Don't send duplicate reminders
-      const alreadySent = appointment.reminders?.some(
-        (reminder) =>
-          reminder.type === `${interval}_hour` && reminder.status === 'sent',
-      );
-
-      if (alreadySent) {
-        continue;
-      }
-
-      return {
-        send: true,
-        type: `${interval}_hour`,
-        hoursBeforeAppointment: interval,
-      };
-    }
-
-    return { send: false };
   }
 
   /**
@@ -124,9 +82,7 @@ export class ReminderService {
         .exec();
 
       if (!conversation?.ghlContactId) {
-        this.logger.error(
-          `No GHL contact for appointment ${appointment._id}`,
-        );
+        this.logger.error(`No GHL contact for appointment ${appointment._id}`);
         return false;
       }
 
@@ -151,7 +107,7 @@ export class ReminderService {
       });
 
       // Track successful send
-      await this.trackReminderSent(
+      await this.reminderTrackerService.trackSent(
         appointment,
         conversation,
         clinic,
@@ -167,67 +123,9 @@ export class ReminderService {
       this.logger.error(
         `Failed to send reminder for appointment ${appointment._id}: ${error.message}`,
       );
-      await this.trackReminderFailed(appointment, reminderType);
+      await this.reminderTrackerService.trackFailed(appointment, reminderType);
       return false;
     }
-  }
-
-  /**
-   * Track successful reminder send in appointment.reminders array and messages collection.
-   */
-  private async trackReminderSent(
-    appointment: AppointmentDocument,
-    conversation: ConversationDocument,
-    clinic: ClinicDocument,
-    reminderType: string,
-    messageContent: string,
-  ): Promise<void> {
-    const now = new Date();
-
-    // Add to appointment.reminders array
-    await this.appointmentModel.updateOne(
-      { _id: appointment._id },
-      {
-        $push: {
-          reminders: {
-            sentAt: now,
-            type: reminderType,
-            status: 'sent',
-          },
-        },
-      },
-    );
-
-    // Save to messages collection using your existing service
-    await this.messagesService.addMessage(
-      conversation._id as Types.ObjectId,
-      clinic._id as Types.ObjectId,
-      appointment.leadId as Types.ObjectId,
-      'system',
-      messageContent,
-      conversation.channel,
-    );
-  }
-
-  /**
-   * Track failed reminder send in appointment.reminders array.
-   */
-  private async trackReminderFailed(
-    appointment: AppointmentDocument,
-    reminderType: string,
-  ): Promise<void> {
-    await this.appointmentModel.updateOne(
-      { _id: appointment._id },
-      {
-        $push: {
-          reminders: {
-            sentAt: new Date(),
-            type: reminderType,
-            status: 'failed',
-          },
-        },
-      },
-    );
   }
 
   /**
@@ -246,7 +144,7 @@ export class ReminderService {
       const clinic = appointment.clinicId as any;
       if (!clinic) continue;
 
-      const check = this.shouldSendReminder(
+      const check = shouldSendReminder(
         appointment,
         clinic.reminderSettings.reminderTimes,
       );
