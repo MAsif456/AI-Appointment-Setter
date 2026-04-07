@@ -16,13 +16,13 @@ import { GhlHealthIndicator } from "./ghl-health.indicator";
  */
 @Controller("health")
 export class HealthController {
-/**
- * Constructs a HealthController instance.
- * @param health - The HealthCheckService instance for reporting service health.
- * @param mongoose - The MongooseHealthIndicator instance for MongoDB health checks.
- * @param groq - The GroqHealthIndicator instance for Groq AI health checks.
- * @param ghl - The GhlHealthIndicator instance for GHL API health checks.
- */
+  /**
+   * Constructs a HealthController instance.
+   * @param health - The HealthCheckService instance for reporting service health.
+   * @param mongoose - The MongooseHealthIndicator instance for MongoDB health checks.
+   * @param groq - The GroqHealthIndicator instance for Groq AI health checks.
+   * @param ghl - The GhlHealthIndicator instance for GHL API health checks.
+   */
   constructor(
     private health: HealthCheckService,
     private mongoose: MongooseHealthIndicator,

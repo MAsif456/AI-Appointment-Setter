@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type UserDocument = User & Document;
 
@@ -21,7 +21,7 @@ export class User {
   @Prop({ required: true })
   passwordHash: string;
 
-  @Prop({ type: String, enum: ['admin', 'staff'], default: 'staff' })
+  @Prop({ type: String, enum: ["admin", "staff"], default: "staff" })
   role: string;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Clinic' }], default: [] })
@@ -37,7 +37,11 @@ export class User {
       dailySummary: { type: Boolean, default: true },
       stalled: { type: Boolean, default: true },
     },
-    default: { emailNotifications: true, dailySummary: true, stalled: true },
+    default: {
+      emailNotifications: true,
+      dailySummary: true,
+      stalled: true,
+    },
   })
   notificationPreferences: {
     emailNotifications: boolean;
@@ -73,5 +77,7 @@ export class User {
 export const UserSchema = SchemaFactory.createForClass(User);
 
 // Indexes
+UserSchema.index({ email: 1 });
+UserSchema.index({ isActive: 1 });
 UserSchema.index({ verificationToken: 1 }, { sparse: true });
 UserSchema.index({ passwordResetToken: 1 }, { sparse: true });

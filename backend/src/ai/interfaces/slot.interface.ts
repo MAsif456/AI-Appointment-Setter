@@ -17,4 +17,3 @@ export interface Slot {
    */
   endTime: string;
 }
-

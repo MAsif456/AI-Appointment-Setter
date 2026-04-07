@@ -1,7 +1,7 @@
-import { HealthCheckError } from '@nestjs/terminus';
-import { GhlHealthIndicator } from './ghl-health.indicator';
+import { HealthCheckError } from "@nestjs/terminus";
+import { GhlHealthIndicator } from "./ghl-health.indicator";
 
-describe('GhlHealthIndicator', () => {
+describe("GhlHealthIndicator", () => {
   let indicator: GhlHealthIndicator;
   const mockGhlApiService = { getCircuitBreakerStates: jest.fn() };
 
@@ -10,45 +10,51 @@ describe('GhlHealthIndicator', () => {
     jest.clearAllMocks();
   });
 
-  it('should report healthy when all circuit breakers are CLOSED', async () => {
+  it("should report healthy when all circuit breakers are CLOSED", async () => {
     mockGhlApiService.getCircuitBreakerStates.mockReturnValue({
-      messaging: 'CLOSED',
-      appointments: 'CLOSED',
+      messaging: "CLOSED",
+      appointments: "CLOSED",
     });
 
-    const result = await indicator.isHealthy('ghl-api');
+    const result = await indicator.isHealthy("ghl-api");
 
-    expect(result['ghl-api'].status).toBe('up');
-    expect(result['ghl-api'].circuitBreakers).toEqual({
-      messaging: 'CLOSED',
-      appointments: 'CLOSED',
+    expect(result["ghl-api"].status).toBe("up");
+    expect(result["ghl-api"].circuitBreakers).toEqual({
+      messaging: "CLOSED",
+      appointments: "CLOSED",
     });
   });
 
-  it('should throw HealthCheckError when messaging circuit breaker is OPEN', async () => {
+  it("should throw HealthCheckError when messaging circuit breaker is OPEN", async () => {
     mockGhlApiService.getCircuitBreakerStates.mockReturnValue({
-      messaging: 'OPEN',
-      appointments: 'CLOSED',
+      messaging: "OPEN",
+      appointments: "CLOSED",
     });
 
-    await expect(indicator.isHealthy('ghl-api')).rejects.toThrow(HealthCheckError);
+    await expect(indicator.isHealthy("ghl-api")).rejects.toThrow(
+      HealthCheckError,
+    );
   });
 
-  it('should throw HealthCheckError when appointments circuit breaker is OPEN', async () => {
+  it("should throw HealthCheckError when appointments circuit breaker is OPEN", async () => {
     mockGhlApiService.getCircuitBreakerStates.mockReturnValue({
-      messaging: 'CLOSED',
-      appointments: 'OPEN',
+      messaging: "CLOSED",
+      appointments: "OPEN",
     });
 
-    await expect(indicator.isHealthy('ghl-api')).rejects.toThrow(HealthCheckError);
+    await expect(indicator.isHealthy("ghl-api")).rejects.toThrow(
+      HealthCheckError,
+    );
   });
 
-  it('should throw HealthCheckError when all circuit breakers are OPEN', async () => {
+  it("should throw HealthCheckError when all circuit breakers are OPEN", async () => {
     mockGhlApiService.getCircuitBreakerStates.mockReturnValue({
-      messaging: 'OPEN',
-      appointments: 'OPEN',
+      messaging: "OPEN",
+      appointments: "OPEN",
     });
 
-    await expect(indicator.isHealthy('ghl-api')).rejects.toThrow(HealthCheckError);
+    await expect(indicator.isHealthy("ghl-api")).rejects.toThrow(
+      HealthCheckError,
+    );
   });
 });

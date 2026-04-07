@@ -4,14 +4,13 @@ import { GHL_ED25519_PUBLIC_KEY } from "../constants/webhook.constants";
 
 const logger = new Logger("Ed25519Verifier");
 
-
 /**
  * Verifies the Ed25519 signature of the incoming request.
  * If the signature is invalid, an UnauthorizedException is thrown.
  * @param {Buffer} rawBody - The raw request body as a Buffer.
  * @param {string} signature - The Ed25519 signature to verify.
  * @returns {boolean} true if the signature is valid, false otherwise.
- * 
+ *
  * Ref: https://marketplace.gohighlevel.com/docs/webhook/WebhookIntegrationGuide/index.html
  * Ref: https://nodejs.org/api/crypto.html
  */

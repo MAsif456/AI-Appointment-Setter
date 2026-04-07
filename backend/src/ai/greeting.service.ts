@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { GroqService } from './groq.service';
-import { LeadInfo } from './interfaces/lead-info.interface';
-import { ClinicConfig } from './interfaces/clinic-config.interface';
-import { buildGreetingPrompt } from './prompt-builder';
-import { ReturningPatientResult } from '../patient-history/patient-history.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { GroqService } from "./groq.service";
+import { LeadInfo } from "./interfaces/lead-info.interface";
+import { ClinicConfig } from "./interfaces/clinic-config.interface";
+import { buildGreetingPrompt } from "./prompt-builder";
+import { ReturningPatientResult } from "../patient-history/patient-history.service";
 
 /**
  * Greeting-specific logic for generating personalised AI greetings.
@@ -28,10 +28,12 @@ export class GreetingService {
   ): Promise<string | null> {
     // Check for custom template first — no AI call needed
     if (clinicConfig.greetingTemplate) {
-      this.logger.log(
-        `Using custom template for clinic: ${clinicConfig.name}`,
+      this.logger.log(`Using custom template for clinic: ${clinicConfig.name}`);
+      return this.applyTemplate(
+        clinicConfig.greetingTemplate,
+        leadInfo,
+        clinicConfig,
       );
-      return this.applyTemplate(clinicConfig.greetingTemplate, leadInfo, clinicConfig);
     }
 
     // Build prompt and call Groq API
@@ -78,10 +80,15 @@ export class GreetingService {
     }
 
     // Build an AI prompt appropriate to the confidence level
-    const prompt = this.buildReturningPatientPrompt(leadInfo, clinicConfig, returningPatient);
-    const resolvedName = (leadInfo.firstName && leadInfo.firstName !== 'there')
-      ? leadInfo.firstName
-      : returningPatient.firstName;
+    const prompt = this.buildReturningPatientPrompt(
+      leadInfo,
+      clinicConfig,
+      returningPatient,
+    );
+    const resolvedName =
+      leadInfo.firstName && leadInfo.firstName !== "there"
+        ? leadInfo.firstName
+        : returningPatient.firstName;
     this.logger.log(
       `Generating returning patient greeting for lead: ${resolvedName} (confidence: ${returningPatient.confidence})`,
     );
@@ -116,11 +123,12 @@ export class GreetingService {
   ): string {
     // Prefer the name from PatientHistory (always populated at booking time) over the
     // lead record, which may be empty when the webhook fires before GHL contact sync.
-    const firstName = (leadInfo.firstName && leadInfo.firstName !== 'there')
-      ? leadInfo.firstName
-      : returningPatient.firstName;
+    const firstName =
+      leadInfo.firstName && leadInfo.firstName !== "there"
+        ? leadInfo.firstName
+        : returningPatient.firstName;
 
-    const isStale = returningPatient.confidence === 'stale';
+    const isStale = returningPatient.confidence === "stale";
     const openingInstruction = isStale
       ? `The patient has contacted before but it has been a while. Open warmly, e.g. "It's been a while, great to hear from you again, ${firstName}!"`
       : `Greet the patient as a returning patient, e.g. "Welcome back, ${firstName}!"`;
@@ -129,19 +137,19 @@ export class GreetingService {
       `You are the receptionist for ${clinicConfig.name}.`,
       `${openingInstruction}`,
       `IMPORTANT: You MUST address the patient by their first name (${firstName}) in the greeting.`,
-      'Then in the same message ask whether their contact details are still the same.',
-      'Keep the response to 2 sentences maximum.',
-      'Use British English spelling.',
-      'Do NOT use emojis or hashtags.',
-      'Do NOT reveal what technology or system powers you.',
-      'Keep the response under 160 characters.',
+      "Then in the same message ask whether their contact details are still the same.",
+      "Keep the response to 2 sentences maximum.",
+      "Use British English spelling.",
+      "Do NOT use emojis or hashtags.",
+      "Do NOT reveal what technology or system powers you.",
+      "Keep the response under 160 characters.",
     ];
 
     if (clinicConfig.customInstructions) {
       parts.push(`Additional instructions: ${clinicConfig.customInstructions}`);
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   /**
@@ -159,14 +167,14 @@ export class GreetingService {
   ): string {
     const variables: Record<string, string> = {
       firstName: leadInfo.firstName,
-      lastName: leadInfo.lastName ?? '',
+      lastName: leadInfo.lastName ?? "",
       clinicName: clinicConfig.name,
-      issue: leadInfo.issue ?? '',
+      issue: leadInfo.issue ?? "",
     };
 
     return template.replace(
       /\{\{(\w+)\}\}/g,
-      (_, key: string) => variables[key] ?? '',
+      (_, key: string) => variables[key] ?? "",
     );
   }
 }

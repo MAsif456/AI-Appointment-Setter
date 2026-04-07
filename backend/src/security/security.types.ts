@@ -2,28 +2,28 @@
 // https://genai.owasp.org/llmrisk/llm01-prompt-injection/
 // Defense-in-depth: input validation + output filtering + structured logging
 
-export type SecurityAction = 'pass' | 'sanitise' | 'block';
+export type SecurityAction = "pass" | "sanitise" | "block";
 
 export type SecurityEventType =
-  | 'injection_detected'
-  | 'injection_blocked'
-  | 'output_blocked'
-  | 'message_sanitised'
-  | 'rate_limited';
+  | "injection_detected"
+  | "injection_blocked"
+  | "output_blocked"
+  | "message_sanitised"
+  | "rate_limited";
 
 export type ThreatCategory =
-  | 'instruction_override'
-  | 'role_manipulation'
-  | 'system_prompt_extraction'
-  | 'delimiter_breaking'
-  | 'encoding_obfuscation';
+  | "instruction_override"
+  | "role_manipulation"
+  | "system_prompt_extraction"
+  | "delimiter_breaking"
+  | "encoding_obfuscation";
 
 export type OutputThreatCategory =
-  | 'system_prompt_leakage'
-  | 'internal_config_exposure'
-  | 'off_topic_content'
-  | 'excessive_length'
-  | 'role_confusion';
+  | "system_prompt_leakage"
+  | "internal_config_exposure"
+  | "off_topic_content"
+  | "excessive_length"
+  | "role_confusion";
 
 export interface SecurityFlag {
   category: ThreatCategory;
@@ -76,14 +76,17 @@ export interface SecurityLogEntry {
 // Phase-aware fallback responses — patient never notices security intervened
 // Serves stakeholder value: booking flow continues uninterrupted
 export const PHASE_FALLBACKS: Record<string, string> = {
-  greeting: "Hello! I'm the clinic receptionist. Could you share your postcode so I can check we cover your area?",
-  qualifying: 'Could you please share your postcode so I can check if we cover your area?',
-  qualified: 'Would you like to go ahead and book an appointment?',
-  booking: 'Let me check our available times for you.',
+  greeting:
+    "Hello! I'm the clinic receptionist. Could you share your postcode so I can check we cover your area?",
+  qualifying:
+    "Could you please share your postcode so I can check if we cover your area?",
+  qualified: "Would you like to go ahead and book an appointment?",
+  booking: "Let me check our available times for you.",
   default: "I'm here to help you book an appointment. How can I assist?",
 };
 
 export const INPUT_LIMITS = {
   MAX_LENGTH: 5000,
-  EMPTY_RESPONSE: 'Sorry, I didn\'t catch that. Could you please repeat your message?',
+  EMPTY_RESPONSE:
+    "Sorry, I didn't catch that. Could you please repeat your message?",
 } as const;

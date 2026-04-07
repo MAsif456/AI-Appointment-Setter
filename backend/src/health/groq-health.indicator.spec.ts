@@ -1,7 +1,7 @@
-import { HealthCheckError } from '@nestjs/terminus';
-import { GroqHealthIndicator } from './groq-health.indicator';
+import { HealthCheckError } from "@nestjs/terminus";
+import { GroqHealthIndicator } from "./groq-health.indicator";
 
-describe('GroqHealthIndicator', () => {
+describe("GroqHealthIndicator", () => {
   let indicator: GroqHealthIndicator;
   const mockGroqService = { getCircuitBreakerState: jest.fn() };
 
@@ -10,24 +10,28 @@ describe('GroqHealthIndicator', () => {
     jest.clearAllMocks();
   });
 
-  it('should report healthy when circuit breaker is CLOSED', async () => {
-    mockGroqService.getCircuitBreakerState.mockReturnValue('CLOSED');
+  it("should report healthy when circuit breaker is CLOSED", async () => {
+    mockGroqService.getCircuitBreakerState.mockReturnValue("CLOSED");
 
-    const result = await indicator.isHealthy('groq-ai');
+    const result = await indicator.isHealthy("groq-ai");
 
-    expect(result['groq-ai'].status).toBe('up');
-    expect(result['groq-ai'].circuitBreaker).toBe('CLOSED');
+    expect(result["groq-ai"].status).toBe("up");
+    expect(result["groq-ai"].circuitBreaker).toBe("CLOSED");
   });
 
-  it('should throw HealthCheckError when circuit breaker is OPEN', async () => {
-    mockGroqService.getCircuitBreakerState.mockReturnValue('OPEN');
+  it("should throw HealthCheckError when circuit breaker is OPEN", async () => {
+    mockGroqService.getCircuitBreakerState.mockReturnValue("OPEN");
 
-    await expect(indicator.isHealthy('groq-ai')).rejects.toThrow(HealthCheckError);
+    await expect(indicator.isHealthy("groq-ai")).rejects.toThrow(
+      HealthCheckError,
+    );
   });
 
-  it('should throw HealthCheckError when circuit breaker is HALF_OPEN', async () => {
-    mockGroqService.getCircuitBreakerState.mockReturnValue('HALF_OPEN');
+  it("should throw HealthCheckError when circuit breaker is HALF_OPEN", async () => {
+    mockGroqService.getCircuitBreakerState.mockReturnValue("HALF_OPEN");
 
-    await expect(indicator.isHealthy('groq-ai')).rejects.toThrow(HealthCheckError);
+    await expect(indicator.isHealthy("groq-ai")).rejects.toThrow(
+      HealthCheckError,
+    );
   });
 });

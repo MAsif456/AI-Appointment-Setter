@@ -1,7 +1,7 @@
-import { Slot } from './interfaces/slot.interface';
+import { Slot } from "./interfaces/slot.interface";
 
 /** Day names Mon–Fri for the day-availability overview */
-const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 /**
  * Returns a string representing the day of the month in an ordinal
@@ -12,8 +12,8 @@ const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
  */
 function ordinal(day: number): string {
   if (day >= 11 && day <= 13) return `${day}th`;
-  const suffixes: Record<number, string> = { 1: 'st', 2: 'nd', 3: 'rd' };
-  return `${day}${suffixes[day % 10] || 'th'}`;
+  const suffixes: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" };
+  return `${day}${suffixes[day % 10] || "th"}`;
 }
 
 /**
@@ -22,8 +22,8 @@ function ordinal(day: number): string {
  * @returns A string representing the time in 12-hour format (HH:MM AM/PM).
  */
 function formatTime(time24: string): string {
-  const [hours, minutes] = time24.split(':').map(Number);
-  const period = hours >= 12 ? 'pm' : 'am';
+  const [hours, minutes] = time24.split(":").map(Number);
+  const period = hours >= 12 ? "pm" : "am";
   const hour12 = hours % 12 || 12;
   return minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes}${period}`;
 }
@@ -33,8 +33,13 @@ function formatTime(time24: string): string {
  * @example ['Sunday', 'Monday', 'Tuesday', ...]
  */
 const DAYS: string[] = [
-  'Sunday', 'Monday', 'Tuesday', 'Wednesday',
-  'Thursday', 'Friday', 'Saturday',
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 /**
@@ -42,8 +47,18 @@ const DAYS: string[] = [
  * @example ['January', 'February', 'March', ...]
  */
 const MONTHS: string[] = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 /**
@@ -67,7 +82,6 @@ export function formatSlotDisplay(slot: Slot): string {
   return `${dayName} ${dayNum} ${monthName} at ${time}`;
 }
 
-
 /**
  * Selects a subset of slots based on the urgency level.
  * - urgent: returns the first 3 slots (earliest possible).
@@ -80,7 +94,7 @@ export function formatSlotDisplay(slot: Slot): string {
  */
 export function selectSlots(
   slots: Slot[],
-  urgency: 'urgent' | 'routine' | 'flexible',
+  urgency: "urgent" | "routine" | "flexible",
 ): Slot[] {
   if (slots.length === 0) return [];
 
@@ -90,7 +104,7 @@ export function selectSlots(
     return dateA.localeCompare(dateB);
   });
 
-  if (urgency === 'urgent') {
+  if (urgency === "urgent") {
     return sorted.slice(0, 3);
   }
 
@@ -100,21 +114,24 @@ export function selectSlots(
     if (!uniqueDays.includes(slot.date)) uniqueDays.push(slot.date);
   }
 
-  if (urgency === 'flexible' && uniqueDays.length >= 3) {
+  if (urgency === "flexible" && uniqueDays.length >= 3) {
     // Cap the spread to 28 days (4 weeks) from the first available day
     // so that options feel relevant rather than spanning months apart
     const firstDate = new Date(uniqueDays[0]);
     const maxDate = new Date(firstDate);
     maxDate.setDate(firstDate.getDate() + 28);
-    const cappedDays = uniqueDays.filter(d => new Date(d) <= maxDate);
-    const spreadDays = cappedDays.length >= 3 ? cappedDays : uniqueDays.slice(0, Math.min(uniqueDays.length, 10));
+    const cappedDays = uniqueDays.filter((d) => new Date(d) <= maxDate);
+    const spreadDays =
+      cappedDays.length >= 3
+        ? cappedDays
+        : uniqueDays.slice(0, Math.min(uniqueDays.length, 10));
 
     const earlyDay = spreadDays[0];
     const midDay = spreadDays[Math.floor(spreadDays.length / 2)];
     const lateDay = spreadDays[spreadDays.length - 1];
 
     const pickFromDay = (day: string): Slot => {
-      const daySlots = sorted.filter(s => s.date === day);
+      const daySlots = sorted.filter((s) => s.date === day);
       // Pick a midday slot for variety rather than always the earliest
       return daySlots[Math.floor(daySlots.length / 2)];
     };
@@ -157,7 +174,6 @@ export function selectLatestSlots(slots: Slot[]): Slot[] {
   return Array.from(byDay.values()).reverse();
 }
 
-
 /**
  * Builds a prompt section string for the Groq API based on available slots.
  * The prompt instructs the AI to act as a clinic receptionist without revealing
@@ -168,35 +184,35 @@ export function selectLatestSlots(slots: Slot[]): Slot[] {
  */
 export function buildSlotPromptSection(
   slots: Slot[],
-  urgency: 'urgent' | 'routine' | 'flexible',
+  urgency: "urgent" | "routine" | "flexible",
 ): string {
   if (slots.length === 0) {
     return [
-      '=== AVAILABLE SLOTS ===',
-      'No slots are currently available for the requested date.',
-      'Tell the lead we are fully booked on that date.',
-      'Ask if they would like to try a different day, a different week, or a specific month.',
-      'We can book appointments up to 4 months in advance.',
-    ].join('\n');
+      "=== AVAILABLE SLOTS ===",
+      "No slots are currently available for the requested date.",
+      "Tell the lead we are fully booked on that date.",
+      "Ask if they would like to try a different day, a different week, or a specific month.",
+      "We can book appointments up to 4 months in advance.",
+    ].join("\n");
   }
 
   const formatted = slots.map(formatSlotDisplay);
   const lines: string[] = [
-    '=== AVAILABLE SLOTS ===',
-    `Available times: ${formatted.join(', ')}`,
-    '',
-    'FORMATTING RULES:',
-    '- Use British English date format (day name + ordinal + month)',
-    '- Use 12-hour time with am/pm (e.g. 2pm, 10am)',
-    '- NEVER use American date format (MM/DD/YYYY)',
-    '- Present slots conversationally, not as a list',
-    '- ONLY offer the exact slots listed above — do NOT invent or suggest dates/times not shown here',
+    "=== AVAILABLE SLOTS ===",
+    `Available times: ${formatted.join(", ")}`,
+    "",
+    "FORMATTING RULES:",
+    "- Use British English date format (day name + ordinal + month)",
+    "- Use 12-hour time with am/pm (e.g. 2pm, 10am)",
+    "- NEVER use American date format (MM/DD/YYYY)",
+    "- Present slots conversationally, not as a list",
+    "- ONLY offer the exact slots listed above — do NOT invent or suggest dates/times not shown here",
   ];
 
-  if (urgency === 'urgent') {
+  if (urgency === "urgent") {
     lines.push(
-      '',
-      'URGENCY: This lead is urgent.',
+      "",
+      "URGENCY: This lead is urgent.",
       `- Mention the earliest slot first: "${formatted[0]}"`,
       '- Emphasise urgency, e.g. "The earliest I can get you in is..."',
     );
@@ -204,26 +220,26 @@ export function buildSlotPromptSection(
 
   if (slots.length === 1) {
     lines.push(
-      '',
+      "",
       `Only ONE slot available: "${formatted[0]}"`,
       '- Say something like: "I have [slot] available — does that work, or would you prefer a different time?"',
     );
   } else {
     lines.push(
-      '',
+      "",
       `Offer these ${slots.length} options naturally.`,
       '- e.g. "Here are a few times I have available: [slot1], [slot2], or [slot3] — but if none of those suit, just let me know and I can check other times for you."',
-      '- Make clear these are suggestions, not the only available slots.',
+      "- Make clear these are suggestions, not the only available slots.",
     );
   }
 
   lines.push(
-    '',
-    'IMPORTANT: When you offer slots, the conversation phase moves to booking.',
-    'Store the offered slots for later selection matching.',
+    "",
+    "IMPORTANT: When you offer slots, the conversation phase moves to booking.",
+    "Store the offered slots for later selection matching.",
   );
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -243,11 +259,11 @@ export function buildDayAvailabilitySection(
 ): string {
   if (slots.length === 0) {
     return [
-      '=== DAY AVAILABILITY ===',
-      'No slots are currently available for this week.',
-      'Tell the lead we are fully booked this week.',
-      'Ask if they would like to try a different week or a specific month.',
-    ].join('\n');
+      "=== DAY AVAILABILITY ===",
+      "No slots are currently available for this week.",
+      "Tell the lead we are fully booked this week.",
+      "Ask if they would like to try a different week or a specific month.",
+    ].join("\n");
   }
 
   // Collect which dates have at least one slot (keyed by date string YYYY-MM-DD)
@@ -273,7 +289,7 @@ export function buildDayAvailabilitySection(
         const dateStr = cursor.toISOString().slice(0, 10);
         const label = `${name} ${ordinal(cursor.getDate())} ${MONTHS[cursor.getMonth()]}`;
         // Avoid duplicates (in case range spans same weekday twice)
-        if (!daysInRange.some(d => d.dateStr === dateStr)) {
+        if (!daysInRange.some((d) => d.dateStr === dateStr)) {
           daysInRange.push({ name, label, dateStr });
         }
       }
@@ -281,44 +297,44 @@ export function buildDayAvailabilitySection(
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  const available = daysInRange.filter(d => datesWithSlots.has(d.dateStr));
-  const fullyBooked = daysInRange.filter(d => !datesWithSlots.has(d.dateStr));
+  const available = daysInRange.filter((d) => datesWithSlots.has(d.dateStr));
+  const fullyBooked = daysInRange.filter((d) => !datesWithSlots.has(d.dateStr));
 
-  const availableLabels = available.map(d => d.label);
-  const fullyBookedLabels = fullyBooked.map(d => d.label);
+  const availableLabels = available.map((d) => d.label);
+  const fullyBookedLabels = fullyBooked.map((d) => d.label);
 
-  const lines: string[] = [
-    '=== DAY AVAILABILITY ===',
-  ];
+  const lines: string[] = ["=== DAY AVAILABILITY ==="];
 
   if (availableLabels.length > 0) {
-    lines.push(`Available days: ${availableLabels.join(', ')}`);
+    lines.push(`Available days: ${availableLabels.join(", ")}`);
   }
   if (fullyBookedLabels.length > 0) {
-    lines.push(`Fully booked days: ${fullyBookedLabels.join(', ')}`);
+    lines.push(`Fully booked days: ${fullyBookedLabels.join(", ")}`);
   }
 
   // Build the list of days NOT to mention (past weekdays not in range + weekends)
-  const allWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const weekdayNamesInRange = daysInRange.map(d => d.name);
-  const daysNotToMention = allWeekdays.filter(d => !weekdayNamesInRange.includes(d));
-
-  lines.push(
-    '',
-    'INSTRUCTIONS:',
-    `- Tell the lead we have availability on: ${availableLabels.join(', ')}.`,
-    '- Always include the full date alongside the day name (e.g. "Monday 30th March", not just "Monday").',
-    fullyBookedLabels.length > 0
-      ? `- Mention that ${fullyBookedLabels.join(', ')} ${fullyBookedLabels.length === 1 ? 'is' : 'are'} fully booked.`
-      : '- Do NOT mention any fully booked days.',
-    daysNotToMention.length > 0
-      ? `- CRITICAL: Do NOT mention ${daysNotToMention.join(', ')} at all — ${daysNotToMention.length === 1 ? 'that day has' : 'those days have'} already passed.`
-      : '',
-    '- ONLY mention the days listed above. Do NOT add, invent, or reference any other days.',
-    '- Ask the lead which day they would prefer.',
-    '- Do NOT offer specific times yet — wait for the lead to choose a day first.',
-    '- Use natural, conversational British English.',
+  const allWeekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const weekdayNamesInRange = daysInRange.map((d) => d.name);
+  const daysNotToMention = allWeekdays.filter(
+    (d) => !weekdayNamesInRange.includes(d),
   );
 
-  return lines.join('\n');
+  lines.push(
+    "",
+    "INSTRUCTIONS:",
+    `- Tell the lead we have availability on: ${availableLabels.join(", ")}.`,
+    '- Always include the full date alongside the day name (e.g. "Monday 30th March", not just "Monday").',
+    fullyBookedLabels.length > 0
+      ? `- Mention that ${fullyBookedLabels.join(", ")} ${fullyBookedLabels.length === 1 ? "is" : "are"} fully booked.`
+      : "- Do NOT mention any fully booked days.",
+    daysNotToMention.length > 0
+      ? `- CRITICAL: Do NOT mention ${daysNotToMention.join(", ")} at all — ${daysNotToMention.length === 1 ? "that day has" : "those days have"} already passed.`
+      : "",
+    "- ONLY mention the days listed above. Do NOT add, invent, or reference any other days.",
+    "- Ask the lead which day they would prefer.",
+    "- Do NOT offer specific times yet — wait for the lead to choose a day first.",
+    "- Use natural, conversational British English.",
+  );
+
+  return lines.join("\n");
 }
