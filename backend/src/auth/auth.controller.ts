@@ -1,12 +1,23 @@
 import {
-  Controller, Post, Get, Body, Query,
-  HttpCode, HttpStatus, UseGuards, Req,
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
+  Logger,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import {
-  ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto, CreateUserDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ChangePasswordDto,
+  CreateUserDto,
 } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -18,9 +29,14 @@ import { LoginDto } from './dto/login.dto';
  *
  * Note: There is no public /register endpoint.
  * Staff accounts are created by admins via POST /auth/create-user.
+ *
+ * The login endpoint applies IP-based and account-level throttling
+ * via AuthThrottleService (wired inside AuthService.login).
  */
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   /**
@@ -55,11 +71,17 @@ export class AuthController {
     return this.authService.resendVerificationLink(email);
   }
 
-  /** Authenticates a verified user and returns a JWT access token. */
+  /**
+   * Authenticates a verified user and returns a JWT access token.
+   * Rate limited by the global guard and the auth throttle service
+   * (IP + account-level brute force protection).
+   */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+    const ip = req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
+    this.logger.log(`Login attempt for ${loginDto.email} from IP ${ip}`);
+    return this.authService.login(loginDto, ip);
   }
 
   /**
