@@ -4,6 +4,8 @@
  * Covers phase-gated intent detection:
  *   - PROVIDE_POSTCODE: various postcode formats, normalisation, phase-gating
  *   - WANT_TO_BOOK: keyword matching, case-insensitivity, phase-gating
+ *   - RESCHEDULE: keyword matching in 'booked' phase, phase-gating
+ *   - CANCEL_RESCHEDULE: keyword matching in 'rescheduling' phase, phase-gating
  *   - UNKNOWN: fallback for unrecognised messages
  */
 import { Test, TestingModule } from "@nestjs/testing";
@@ -19,6 +21,11 @@ import { PostcodeValidationService } from "./postcode-validation.service";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
+import { SlotProvider } from "../ai/slot-provider";
+import { AppointmentsService } from "../appointments/appointments.service";
+
+const mockSlotProvider = { getAvailableSlots: jest.fn() };
+const mockAppointmentsService = { bookAppointment: jest.fn() };
 
 const mockSecurityPipeline = {
   processInbound: jest.fn().mockImplementation((msg: string) =>
@@ -74,6 +81,8 @@ describe("OrchestratorService — detectIntent", () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         {
@@ -246,6 +255,99 @@ describe("OrchestratorService — detectIntent", () => {
 
     it("should return UNKNOWN for a very short input (hi) that is below the minimum length", () => {
       expect(service.detectIntent("hi", "qualifying").intent).toBe("UNKNOWN");
+    });
+  });
+
+  describe("RESCHEDULE", () => {
+    it("should detect \"reschedule\" in the booked phase", () => {
+      expect(service.detectIntent("I need to reschedule", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"rearrange\" in the booked phase", () => {
+      expect(service.detectIntent("Can I rearrange my appointment?", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"change my appointment\" in the booked phase", () => {
+      expect(service.detectIntent("I need to change my appointment", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"move my booking\" in the booked phase", () => {
+      expect(service.detectIntent("Can I move my booking to another day?", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"can't make it\" in the booked phase", () => {
+      expect(service.detectIntent("I can't make it on Tuesday", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"is it possible to reschedule\" in the booked phase", () => {
+      expect(service.detectIntent("Is it possible to reschedule?", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"switch my appointment\" in the booked phase", () => {
+      expect(service.detectIntent("I need to switch my appointment to another day", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should be case-insensitive for reschedule keywords", () => {
+      expect(service.detectIntent("I want to RESCHEDULE my APPOINTMENT", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"original appointment\" in the booked phase (post-reschedule reversal)", () => {
+      expect(service.detectIntent("I want my original appointment back", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"go back to my original\" in the booked phase", () => {
+      expect(service.detectIntent("Can I go back to my original date?", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should detect \"undo the reschedule\" in the booked phase", () => {
+      expect(service.detectIntent("I want to undo the reschedule", "booked").intent).toBe("RESCHEDULE");
+    });
+
+    it("should NOT detect RESCHEDULE when the phase is qualifying (wrong phase)", () => {
+      expect(service.detectIntent("I need to change my appointment", "qualifying").intent).toBe("UNKNOWN");
+    });
+
+    it("should NOT detect RESCHEDULE when the phase is rescheduling (already rescheduling)", () => {
+      expect(service.detectIntent("I need to change my appointment", "rescheduling").intent).toBe("UNKNOWN");
+    });
+
+    it("should return UNKNOWN for a general message in the booked phase", () => {
+      expect(service.detectIntent("hello", "booked").intent).toBe("UNKNOWN");
+    });
+  });
+
+  describe("CANCEL_RESCHEDULE", () => {
+    it("should detect \"never mind\" in the rescheduling phase", () => {
+      expect(service.detectIntent("never mind", "rescheduling").intent).toBe("CANCEL_RESCHEDULE");
+    });
+
+    it("should detect \"forget it\" in the rescheduling phase", () => {
+      expect(service.detectIntent("Forget it, keep the original", "rescheduling").intent).toBe("CANCEL_RESCHEDULE");
+    });
+
+    it("should detect \"keep my original\" in the rescheduling phase", () => {
+      expect(service.detectIntent("keep my original appointment please", "rescheduling").intent).toBe("CANCEL_RESCHEDULE");
+    });
+
+    it("should detect \"keep my appointment\" in the rescheduling phase", () => {
+      expect(service.detectIntent("Actually, keep my appointment", "rescheduling").intent).toBe("CANCEL_RESCHEDULE");
+    });
+
+    it("should detect \"actually it's fine\" in the rescheduling phase", () => {
+      expect(service.detectIntent("actually it's fine, ignore me", "rescheduling").intent).toBe("CANCEL_RESCHEDULE");
+    });
+
+    it("should be case-insensitive for cancel reschedule keywords", () => {
+      expect(service.detectIntent("NEVER MIND", "rescheduling").intent).toBe("CANCEL_RESCHEDULE");
+    });
+
+    it("should NOT detect CANCEL_RESCHEDULE when the phase is booked (wrong phase)", () => {
+      expect(service.detectIntent("never mind", "booked").intent).toBe("UNKNOWN");
+    });
+
+    it("should NOT detect CANCEL_RESCHEDULE when the phase is qualifying (wrong phase)", () => {
+      // "never mind" stripped = "nevermind" (9 chars, all letters) — caught as INVALID_POSTCODE_FORMAT in qualifying
+      expect(service.detectIntent("never mind", "qualifying").intent).toBe("INVALID_POSTCODE_FORMAT");
     });
   });
 

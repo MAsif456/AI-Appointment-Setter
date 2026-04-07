@@ -91,9 +91,17 @@ export class AppointmentsService {
       duration,
     );
 
+    const { date, time } = formatDateBritish(dto.startTime);
+
     await this.conversationModel.findByIdAndUpdate(dto.conversationId, {
       phase: "booked",
       appointmentId: appointment._id,
+      $set: {
+        'context.ghlAppointmentId': ghlResponse.id,
+        'context.appointmentDate': date,
+        'context.appointmentTime': time,
+        'context.appointmentStartTime': dto.startTime,
+      },
     });
 
     // Persist patient history so this lead can be recognised as returning in future conversations.
@@ -114,7 +122,6 @@ export class AppointmentsService {
       );
     }
 
-    const { date, time } = formatDateBritish(dto.startTime);
     const confirmationMessage = buildConfirmationMessage({
       clinicName: clinic.name,
       clinicAddress: clinic.address,

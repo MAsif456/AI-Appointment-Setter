@@ -56,7 +56,7 @@ describe("AppointmentsService", () => {
       findById: jest
         .fn()
         .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-    };
+    } as any;
     ghlApiService = {
       createAppointment: jest.fn().mockResolvedValue(mockGhlResponse),
     };

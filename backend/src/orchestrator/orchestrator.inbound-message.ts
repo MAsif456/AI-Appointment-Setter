@@ -52,23 +52,16 @@ export async function handleInboundMessageFlow(
     contactId,
     clinicObjectId,
   );
+
   if (!conversation) {
-    logger.log(
-      `No existing conversation for contactId: ${contactId}. Creating new context.`,
-    );
+    logger.log(`No existing conversation for contactId: ${contactId}. Creating new context.`);
     try {
       conversation = await conversationsService.createForNewLead(
-        clinicObjectId,
-        contactId,
-        ghlConversationId ?? "",
-        channel,
-        { firstName: "Unknown", phone: "unknown", leadSource: "other" },
+        clinicObjectId, contactId, ghlConversationId ?? '', channel,
+        { firstName: 'Unknown', phone: 'unknown', leadSource: 'other' },
       );
     } catch (error) {
-      logger.error(
-        `Failed to create conversation context — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`,
-        (error as Error).stack,
-      );
+      logger.error(`Failed to create conversation context — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`, (error as Error).stack);
       return;
     }
   }
@@ -149,7 +142,7 @@ export async function handleInboundMessageFlow(
   );
 
   logger.log(
-    `${cid}Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? "unknown"}, clinicId: ${clinicConfig.clinicId}`,
+    `${cid}Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`,
   );
 }
 

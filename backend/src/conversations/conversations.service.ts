@@ -1,7 +1,7 @@
 /** Manages live conversations: AI chat flow, slot offering, slot-selection, and auto-booking (US-15). */
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import {
   Conversation,
   ConversationDocument,
@@ -80,9 +80,18 @@ export class ConversationsService {
   }
 
   /** Lists all conversations with basic lead/clinic info. */
-  async listConversations() {
+  async listConversations(clinicIds?: string[]) {
+    // If clinicIds provided and empty → staff with no assigned clinics → return empty array
+    if (clinicIds !== undefined && clinicIds.length === 0) {
+      return [];
+    }
+    const filter =
+      clinicIds && clinicIds.length > 0
+        ? { clinicId: { $in: clinicIds.map((id) => new Types.ObjectId(id)) } }
+        : {}; // No filter = return all (for admins)
+
     return this.conversationModel
-      .find()
+      .find(filter)
       .populate("clinicId", "name")
       .populate("leadId", "firstName lastName phone")
       .sort({ lastMessageAt: -1 });

@@ -19,7 +19,12 @@ import { PostcodeValidationService } from "./postcode-validation.service";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
+import { SlotProvider } from "../ai/slot-provider";
+import { AppointmentsService } from "../appointments/appointments.service";
 import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+
+const mockSlotProvider = { getAvailableSlots: jest.fn() };
+const mockAppointmentsService = { bookAppointment: jest.fn() };
 
 const mockGreetingService = { generateGreeting: jest.fn() };
 const mockGroqService = {
@@ -93,6 +98,8 @@ describe("OrchestratorService — cancellation responses", () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         {

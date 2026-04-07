@@ -76,14 +76,31 @@ build:frontend:
   script:
     - npm run build
 
-# --- Deploy to Vercel ---
+# --- Deploy to Vercel (Frontend) ---
 deploy:vercel:
   stage: deploy
   retry: 2
   only:
     - development
+  variables:
+    # Maps GitLab variables to the specific names Vercel CLI looks for
+    VERCEL_ORG_ID: $VERCEL_ORG_ID
+    VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
   script:
     - npm install --global vercel
     - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
     - vercel build --prod --token=$VERCEL_TOKEN
     - vercel deploy --prebuilt --prod --force --token=$VERCEL_TOKEN
+
+# --- Deploy to Render (Backend) ---
+deploy:render:
+  stage: deploy
+  only:
+    - development
+  script:
+    - |
+      if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+        echo "Render Deploy Hook URL is missing!"
+        exit 1
+      fi
+    - curl -X POST "$RENDER_DEPLOY_HOOK_URL"
