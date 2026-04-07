@@ -17,7 +17,15 @@ import {
 import { SlotsService } from './services/slots.service';
 import { FetchSlotsQueryDto } from './dto/fetch-slots.dto';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
+import { SensitiveData } from '../security-headers/sensitive-data.decorator';
 
+/*
+ * Appointment slot availability and booking both tie a contactId or
+ * clinicId to a time, so responses here must never be cached by any
+ * browser, proxy or CDN. Marked at class level so any future handler
+ * (e.g. cancellation, rescheduling) inherits the same protection.
+ */
+@SensitiveData()
 @Controller('appointments')
 export class AppointmentsController {
   private readonly logger = new Logger(AppointmentsController.name);

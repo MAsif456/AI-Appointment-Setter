@@ -13,6 +13,7 @@ import {
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
+import { SensitiveData } from '../security-headers/sensitive-data.decorator';
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -32,7 +33,12 @@ import { LoginDto } from './dto/login.dto';
  *
  * The login endpoint applies IP-based and account-level throttling
  * via AuthThrottleService (wired inside AuthService.login).
+ *
+ * Marked with @SensitiveData() because responses from this controller
+ * carry JWT access tokens, user profile data and password reset
+ * outcomes. None of that should ever end up in a shared cache.
  */
+@SensitiveData()
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
