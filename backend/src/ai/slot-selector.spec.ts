@@ -7,6 +7,38 @@
 import { detectSlotSelection, OfferedSlotRef } from './slot-selector';
 
 // ---------------------------------------------------------------------------
+// Date helpers — keeps date-sensitive tests from breaking as time passes
+// ---------------------------------------------------------------------------
+
+/** Returns the next occurrence of a given weekday (0=Sun … 6=Sat), always in the future. */
+function nextWeekday(targetDay: number, hour = 0, minute = 0): Date {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  const daysAhead = ((targetDay - d.getDay()) + 7) % 7 || 7;
+  d.setDate(d.getDate() + daysAhead);
+  return d;
+}
+
+function ordinalSuffix(n: number): string {
+  if (n >= 11 && n <= 13) return 'th';
+  return ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function toLocalIso(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+}
+
+function fridayDisplayText(d: Date, time: string): string {
+  return `Friday ${d.getDate()}${ordinalSuffix(d.getDate())} ${MONTH_NAMES[d.getMonth()]} at ${time}`;
+}
+
+// ---------------------------------------------------------------------------
 // Shared test fixtures
 // ---------------------------------------------------------------------------
 
@@ -962,26 +994,48 @@ describe('"that date" resolution from offered slots', () => {
   });
 
   it('resolves bare day name "Friday" to the offered Friday slot date, not last week', () => {
-  const offeredSlots: OfferedSlotRef[] = [
-    { dateTime: '2028-09-26T14:00:00', displayText: 'Tuesday 26th September at 2pm' },
-    { dateTime: '2028-10-04T13:30:00', displayText: 'Wednesday 4th October at 1:30pm' },
-    { dateTime: '2028-10-06T12:50:00', displayText: 'Friday 6th October at 12:50pm' },
-  ];
-  const result = detectSlotSelection(
-    'Any other times available on Friday 6th October',
-    offeredSlots,
-  );
-  expect(result.intent).toBe('DIFFERENT_DATE');
-  expect(result.requestedStartDate).toBeDefined();
-  // Should resolve to October 6th, not a past Friday
-  const startDate = new Date(result.requestedStartDate!);
-  expect(startDate.getMonth()).toBe(9); // October = 9
-  expect(startDate.getDate()).toBe(6);
-});
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2028-09-26T14:00:00', displayText: 'Tuesday 26th September at 2pm' },
+      { dateTime: '2028-10-04T13:30:00', displayText: 'Wednesday 4th October at 1:30pm' },
+      { dateTime: '2028-10-06T12:50:00', displayText: 'Friday 6th October at 12:50pm' },
+    ];
+    const result = detectSlotSelection(
+      'Any other times available on Friday 6th October',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    // Should resolve to October 6th, not a past Friday
+    const startDate = new Date(result.requestedStartDate!);
+    expect(startDate.getMonth()).toBe(9); // October = 9
+    expect(startDate.getDate()).toBe(6);
+  });
+
+  it('resolves day+date+month "Friday Nth Month" to the offered Friday slot date', () => {
+    const friday = nextWeekday(5, 12, 50);
+    const dayNum = friday.getDate();
+    const monthName = MONTH_NAMES[friday.getMonth()];
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2026-03-24T14:00:00', displayText: 'Tuesday 24th March at 2pm' },
+      { dateTime: '2026-04-01T13:30:00', displayText: 'Wednesday 1st April at 1:30pm' },
+      { dateTime: toLocalIso(friday), displayText: fridayDisplayText(friday, '12:50pm') },
+    ];
+    // Include month name in the message to explicitly reference the offered month
+    const result = detectSlotSelection(
+      `Any other times available on Friday ${dayNum}${ordinalSuffix(dayNum)} ${monthName}`,
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    const startDate = new Date(result.requestedStartDate!);
+    expect(startDate.getMonth()).toBe(friday.getMonth());
+    expect(startDate.getDate()).toBe(dayNum);
+  });
 
   it('resolves "other times on Friday" to offered Friday slot date range', () => {
+    const friday = nextWeekday(5, 12, 50);
     const offeredSlots: OfferedSlotRef[] = [
-      { dateTime: '2026-04-03T12:50:00', displayText: 'Friday 3rd April at 12:50pm' },
+      { dateTime: toLocalIso(friday), displayText: fridayDisplayText(friday, '12:50pm') },
     ];
     const result = detectSlotSelection(
       'Any more times available on the Friday',
@@ -997,10 +1051,11 @@ describe('"that date" resolution from offered slots', () => {
 // 4-digit bare time matching (e.g. "1030 is good" → 10:30am)
 // ---------------------------------------------------------------------------
 describe('4-digit bare time matching', () => {
+  const fri = nextWeekday(5);
   const fridaySlots: OfferedSlotRef[] = [
-    { dateTime: '2026-04-03T10:10:00', displayText: 'Friday 3rd April at 10:10am' },
-    { dateTime: '2026-04-03T10:20:00', displayText: 'Friday 3rd April at 10:20am' },
-    { dateTime: '2026-04-03T10:30:00', displayText: 'Friday 3rd April at 10:30am' },
+    { dateTime: toLocalIso(new Date(fri.getFullYear(), fri.getMonth(), fri.getDate(), 10, 10)), displayText: fridayDisplayText(fri, '10:10am') },
+    { dateTime: toLocalIso(new Date(fri.getFullYear(), fri.getMonth(), fri.getDate(), 10, 20)), displayText: fridayDisplayText(fri, '10:20am') },
+    { dateTime: toLocalIso(new Date(fri.getFullYear(), fri.getMonth(), fri.getDate(), 10, 30)), displayText: fridayDisplayText(fri, '10:30am') },
   ];
 
   it('selects 10:30am slot when lead says "1030 is good"', () => {

@@ -250,30 +250,71 @@ describe('selectLatestSlots', () => {
 // buildDayAvailabilitySection — weekday availability overview
 // ---------------------------------------------------------------------------
 describe('buildDayAvailabilitySection', () => {
-  // Use a fixed future week range: Monday 6 April to Friday 10 April 2026
-  const rangeStart = new Date('2026-04-06T00:00:00');
-  const rangeEnd = new Date('2026-04-10T23:59:59');
+  // buildDayAvailabilitySection filters out past days at runtime, so the
+  // range must always be in the future. Compute a Monday that is at least
+  // two weeks ahead of today so the test is time-independent.
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const ordinal = (n: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+  };
+  const toDateStr = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const label = (d: Date, dayName: string): string =>
+    `${dayName} ${ordinal(d.getDate())} ${MONTH_NAMES[d.getMonth()]}`;
+
+  // Next Monday that is at least 14 days away — guarantees the whole week
+  // is in the future regardless of when the test runs.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monday = new Date(today);
+  const daysUntilMonday = (1 - monday.getDay() + 7) % 7 || 7;
+  monday.setDate(monday.getDate() + daysUntilMonday + 14);
+
+  const tuesday = new Date(monday); tuesday.setDate(monday.getDate() + 1);
+  const wednesday = new Date(monday); wednesday.setDate(monday.getDate() + 2);
+  const thursday = new Date(monday); thursday.setDate(monday.getDate() + 3);
+  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const saturday = new Date(monday); saturday.setDate(monday.getDate() + 5);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+
+  const rangeStart = new Date(monday); rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(friday); rangeEnd.setHours(23, 59, 59, 999);
+
+  const mondayLabel = label(monday, 'Monday');
+  const tuesdayLabel = label(tuesday, 'Tuesday');
+  const wednesdayLabel = label(wednesday, 'Wednesday');
+  const thursdayLabel = label(thursday, 'Thursday');
+  const fridayLabel = label(friday, 'Friday');
 
   const weekSlots: Slot[] = [
-    { date: '2026-04-06', startTime: '09:00', endTime: '09:30' }, // Monday
-    { date: '2026-04-07', startTime: '10:00', endTime: '10:30' }, // Tuesday
-    { date: '2026-04-08', startTime: '11:00', endTime: '11:30' }, // Wednesday
-    // Thursday 9th and Friday 10th have no slots
+    { date: toDateStr(monday), startTime: '09:00', endTime: '09:30' },
+    { date: toDateStr(tuesday), startTime: '10:00', endTime: '10:30' },
+    { date: toDateStr(wednesday), startTime: '11:00', endTime: '11:30' },
+    // Thursday and Friday have no slots — they should appear as fully booked
   ];
 
   it('should show available days with full dates when slots exist', () => {
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
     expect(result).toContain('DAY AVAILABILITY');
-    expect(result).toContain('Monday 6th April');
-    expect(result).toContain('Tuesday 7th April');
-    expect(result).toContain('Wednesday 8th April');
+    expect(result).toContain(mondayLabel);
+    expect(result).toContain(tuesdayLabel);
+    expect(result).toContain(wednesdayLabel);
   });
 
   it('should mention fully booked days with full dates', () => {
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
     expect(result).toContain('Fully booked');
-    expect(result).toContain('Thursday 9th April');
-    expect(result).toContain('Friday 10th April');
+    expect(result).toContain(thursdayLabel);
+    expect(result).toContain(fridayLabel);
   });
 
   it('should instruct AI not to offer specific times yet', () => {
@@ -289,7 +330,7 @@ describe('buildDayAvailabilitySection', () => {
 
   it('should not mention weekend days', () => {
     // Extend range to include Saturday/Sunday
-    const extendedEnd = new Date('2026-04-12T23:59:59');
+    const extendedEnd = new Date(sunday); extendedEnd.setHours(23, 59, 59, 999);
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, extendedEnd);
     expect(result).not.toContain('Saturday');
     expect(result).not.toContain('Sunday');

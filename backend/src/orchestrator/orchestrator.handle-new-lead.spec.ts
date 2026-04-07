@@ -21,6 +21,8 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { PatientHistoryService } from '../patient-history/patient-history.service';
 
@@ -37,6 +39,8 @@ const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfir
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn(), flagForHumanIntervention: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
+const mockSlotProvider = { getAvailableSlots: jest.fn() };
+const mockAppointmentsService = { bookAppointment: jest.fn() };
 
 /** Clinic config with a valid 24-char hex ObjectId required by handleNewLead. */
 const clinicConfig: ClinicConfig = {
@@ -68,6 +72,8 @@ describe('OrchestratorService — handleNewLead', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },

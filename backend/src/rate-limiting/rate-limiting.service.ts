@@ -34,26 +34,47 @@ export class RateLimitingService {
     // Load tier configs from env vars, falling back to defaults
     this.authTier = {
       tier: "auth",
-      limit: this.config.get<number>(ENV_AUTH_LIMIT) ?? DEFAULT_AUTH_TIER.limit,
-      windowSeconds:
-        this.config.get<number>(ENV_AUTH_WINDOW) ??
+      limit: this.readNumericEnv(ENV_AUTH_LIMIT, DEFAULT_AUTH_TIER.limit),
+      windowSeconds: this.readNumericEnv(
+        ENV_AUTH_WINDOW,
         DEFAULT_AUTH_TIER.windowSeconds,
+      ),
     };
     this.readTier = {
       tier: "read",
-      limit: this.config.get<number>(ENV_READ_LIMIT) ?? DEFAULT_READ_TIER.limit,
-      windowSeconds:
-        this.config.get<number>(ENV_READ_WINDOW) ??
+      limit: this.readNumericEnv(ENV_READ_LIMIT, DEFAULT_READ_TIER.limit),
+      windowSeconds: this.readNumericEnv(
+        ENV_READ_WINDOW,
         DEFAULT_READ_TIER.windowSeconds,
+      ),
     };
     this.writeTier = {
       tier: "write",
-      limit:
-        this.config.get<number>(ENV_WRITE_LIMIT) ?? DEFAULT_WRITE_TIER.limit,
-      windowSeconds:
-        this.config.get<number>(ENV_WRITE_WINDOW) ??
+      limit: this.readNumericEnv(ENV_WRITE_LIMIT, DEFAULT_WRITE_TIER.limit),
+      windowSeconds: this.readNumericEnv(
+        ENV_WRITE_WINDOW,
         DEFAULT_WRITE_TIER.windowSeconds,
+      ),
     };
+  }
+
+  /**
+   * Reads a numeric environment variable, coercing strings to numbers.
+   * Falls back to the provided default if the value is missing or NaN.
+   */
+  private readNumericEnv(envKey: string, defaultValue: number): number {
+    const raw = this.config.get<string | number>(envKey);
+    if (raw === undefined || raw === null || raw === "") {
+      return defaultValue;
+    }
+    const parsed = Number(raw);
+    if (Number.isNaN(parsed)) {
+      this.logger.warn(
+        `Invalid numeric value for ${envKey}: "${raw}", using default ${defaultValue}`,
+      );
+      return defaultValue;
+    }
+    return parsed;
   }
 
   /**

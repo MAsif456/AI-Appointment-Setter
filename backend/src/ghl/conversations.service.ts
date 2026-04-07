@@ -7,6 +7,7 @@ import {
 } from '../database/schemas/conversation.schema';
 import { Lead, LeadDocument } from '../database/schemas/lead.schema';
 import { InboundWebhookDto } from './dto/inbound-webhook.dto';
+import { mapMessageTypeToChannel } from '../orchestrator/orchestrator.prompts';
 
 @Injectable()
 export class ConversationsService {
@@ -107,7 +108,7 @@ export class ConversationsService {
       return existing;
     }
 
-    const channel = this.mapMessageTypeToChannel(payload.messageType);
+    const channel = mapMessageTypeToChannel(payload.messageType);
 
     return this.createForNewLead(
       clinicId,
@@ -191,23 +192,4 @@ export class ConversationsService {
       .exec();
   }
 
-  /**
-   * Maps a message type to a channel type.
-   * @param {string} messageType - The message type (e.g. SMS, WhatsApp, FB, IG, Live Chat).
-   * @returns {string} - The mapped channel type (e.g. sms, whatsapp, facebook, instagram, website).
-   * @remarks If the message type is not found in the map, it defaults to 'sms'.
-   */
-  private mapMessageTypeToChannel(messageType: string): string {
-    const channelMap: Record<string, string> = {
-      SMS: 'sms',
-      WhatsApp: 'whatsapp',
-      FB: 'facebook',
-      IG: 'instagram',
-      Email: 'email',
-      Live_Chat: 'website',
-      'Live Chat': 'website',
-      Custom: 'custom',
-    };
-    return channelMap[messageType] || 'sms';
-  }
 }
