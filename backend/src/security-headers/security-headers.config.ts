@@ -5,7 +5,7 @@ import type { HelmetOptions } from "helmet";
  *
  * Centralising the helmet options here (rather than inlining them in
  * `main.ts`) keeps the bootstrap file thin and makes the security policy
- * unit-testable in isolation — we can assert the exact options returned
+ * unit-testable in isolation. We can assert the exact options returned
  * for each environment without having to boot the whole Nest application.
  *
  * Design notes:
@@ -13,7 +13,7 @@ import type { HelmetOptions } from "helmet";
  *   while developing against `http://localhost` would force browsers to require
  *   HTTPS on localhost for a full year, breaking every teammate's local workflow.
  * - CSP is intentionally disabled on the backend (`contentSecurityPolicy: false`).
- *   The Next.js frontend owns the Content-Security-Policy header — it is the only
+ *   The Next.js frontend owns the Content-Security-Policy header. It is the only
  *   component that serves HTML pages, and having two sources of CSP would produce
  *   conflicting / duplicated policies. The backend serves JSON APIs for which CSP
  *   is a no-op in modern browsers.
@@ -39,7 +39,7 @@ export function buildHelmetOptions(nodeEnv: string | undefined): HelmetOptions {
   const isProduction = nodeEnv === "production";
 
   return {
-    // Frontend owns CSP — see module header comment for rationale.
+    // Frontend owns CSP - see module header comment for rationale.
     contentSecurityPolicy: false,
 
     // HSTS: production only. In development this resolves to `false`, which
@@ -51,7 +51,7 @@ export function buildHelmetOptions(nodeEnv: string | undefined): HelmetOptions {
         }
       : false,
 
-    // Defence-in-depth against clickjacking — complements `frame-ancestors 'none'`
+    // Defence-in-depth against clickjacking - complements `frame-ancestors 'none'`
     // in the frontend CSP so older browsers that don't honour CSP still refuse
     // to render the app inside an iframe.
     frameguard: { action: "deny" },

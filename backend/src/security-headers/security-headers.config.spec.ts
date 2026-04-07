@@ -61,7 +61,7 @@ describe("buildHelmetOptions", () => {
 
   describe("CSP ownership", () => {
     it("disables helmet CSP so the Next.js frontend can own it", () => {
-      // The backend serves only JSON APIs — CSP is a no-op on those responses
+      // The backend serves only JSON APIs. CSP is a no-op on those responses
       // in modern browsers, and having two CSP sources would produce duplicate
       // / conflicting headers on HTML responses proxied through the API.
       const options = buildHelmetOptions("production");
