@@ -107,7 +107,91 @@ export class GhlApiService {
     return data;
   }
 
-  /** Creates an appointment in the GHL Calendar (circuit-breaker protected). */
+  /**
+   * Cancels an appointment in the GHL Calendar by its GHL appointment ID.
+   * Uses PUT with appointmentStatus "cancelled" (GHL API v2 cancel pattern).
+   * Returns the response data, or null on failure.
+   */
+  async cancelAppointment(appointmentId: string): Promise<any | null> {
+    try {
+      const { data } = await lastValueFrom(
+        this.httpService.put(
+          `/calendars/events/appointments/${appointmentId}`,
+          { appointmentStatus: 'cancelled' },
+          { headers: this.getHeaders() },
+        ),
+      );
+      return data;
+    } catch (error) {
+      this.logger.error(`Cancel appointment ${appointmentId} failed: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Adds a tag to a GHL contact.
+   * Returns the response data, or null on failure.
+   */
+  async addContactTag(contactId: string, tag: string): Promise<any | null> {
+    try {
+      const { data } = await lastValueFrom(
+        this.httpService.post(`/contacts/${contactId}/tags`, { tags: [tag] }, { headers: this.getHeaders() }),
+      );
+      return data;
+    } catch (error) {
+      this.logger.error(`Add tag to contact ${contactId} failed: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Removes a tag from a contact in GHL.
+   * @param {string} contactId - The GHL contact ID.
+   * @param {string} tag - The tag to remove.
+   * @returns {Promise<any | null>} - The response data, or null on failure.
+   */
+  async removeContactTag(contactId: string, tag: string): Promise<any | null> {
+    try {
+      const { data } = await lastValueFrom(
+        this.httpService.delete(
+          `/contacts/${contactId}/tags`,
+          { headers: this.getHeaders(), data: { tags: [tag] } },
+        ),
+      );
+      return data;
+    } catch (error) {
+      this.logger.warn(`GHL remove tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Updates a single custom field on a GHL contact.
+   * Errors are logged and re-thrown so callers can handle non-critical failures gracefully.
+   */
+  async updateContactCustomField(contactId: string, fieldKey: string, fieldValue: string): Promise<void> {
+    await lastValueFrom(
+      this.httpService.put(
+        `/contacts/${contactId}`,
+        { customFields: [{ key: fieldKey, value: fieldValue }] },
+        { headers: this.getHeaders() },
+      ),
+    ).catch((error) => {
+      this.logger.error(`Update custom field ${fieldKey} for contact ${contactId} failed: ${(error as Error).message}`);
+      throw error;
+    });
+  }
+
+  /**
+   * Creates an appointment in the GHL Calendar.
+   *
+   * @param {string} calendarId - The GHL calendar ID.
+   * @param {string} locationId - The GHL location ID.
+   * @param {string} contactId - The GHL contact ID.
+   * @param {string} startTime - ISO 8601 start time.
+   * @param {string} endTime - ISO 8601 end time.
+   * @returns {Promise<any>} - The created appointment data from GHL.
+   */
   async createAppointment(
     calendarId: string,
     locationId: string,
@@ -140,68 +224,5 @@ export class GhlApiService {
       messaging: this.messagingCircuitBreaker.getState(),
       appointments: this.appointmentCircuitBreaker.getState(),
     };
-  }
-
-  /**
-   * Deletes (cancels) an appointment in GHL via the Delete Event endpoint.
-   * @param {string} eventId - The GHL calendar event ID.
-   * @returns {Promise<any | null>} - The response data, or null on failure.
-   */
-  async cancelAppointment(eventId: string): Promise<any | null> {
-    try {
-      const { data } = await lastValueFrom(
-        this.httpService.delete(
-          `/calendars/events/${eventId}`,
-          { headers: this.getHeaders() },
-        ),
-      );
-      return data;
-    } catch (error) {
-      this.logger.error(`GHL cancel appointment failed for eventId: ${eventId}`, error.message);
-      return null;
-    }
-  }
-
-  /**
-   * Adds a tag to a contact in GHL.
-   * @param {string} contactId - The GHL contact ID.
-   * @param {string} tag - The tag to add.
-   * @returns {Promise<any | null>} - The response data, or null on failure.
-   */
-  async addContactTag(contactId: string, tag: string): Promise<any | null> {
-    try {
-      const { data } = await lastValueFrom(
-        this.httpService.post(
-          `/contacts/${contactId}/tags`,
-          { tags: [tag] },
-          { headers: this.getHeaders() },
-        ),
-      );
-      return data;
-    } catch (error) {
-      this.logger.warn(`GHL add tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Removes a tag from a contact in GHL.
-   * @param {string} contactId - The GHL contact ID.
-   * @param {string} tag - The tag to remove.
-   * @returns {Promise<any | null>} - The response data, or null on failure.
-   */
-  async removeContactTag(contactId: string, tag: string): Promise<any | null> {
-    try {
-      const { data } = await lastValueFrom(
-        this.httpService.delete(
-          `/contacts/${contactId}/tags`,
-          { headers: this.getHeaders(), data: { tags: [tag] } },
-        ),
-      );
-      return data;
-    } catch (error) {
-      this.logger.warn(`GHL remove tag '${tag}' skipped for contact ${contactId}: ${error.message}`);
-      return null;
-    }
   }
 }

@@ -12,6 +12,8 @@ import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { PatientHistoryService } from '../patient-history/patient-history.service';
 
@@ -28,6 +30,8 @@ const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfir
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
+const mockSlotProvider = { getAvailableSlots: jest.fn() };
+const mockAppointmentsService = { bookAppointment: jest.fn() };
 
 describe('OrchestratorService', () => {
   let service: OrchestratorService;
@@ -42,6 +46,8 @@ describe('OrchestratorService', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
