@@ -184,13 +184,6 @@ export class ConversationsService {
         score: urgencyAssessment.score,
       },
     );
-    await this.persistence.saveMessage(
-      conversation,
-      clinic,
-      lead,
-      "lead",
-      userMessage,
-    );
 
     const abuseHandled = await this.abuseHandler.handle(
       conversation,
