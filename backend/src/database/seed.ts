@@ -54,7 +54,7 @@ async function seedDatabase() {
     const conversations = await seedConversations(ConversationModel, clinics, leads, adminUser);
 
     await seedMessages(MessageModel, clinics, leads, conversations);
-    await seedAppointments(AppointmentModel, clinics, leads, conversations);
+    await seedAppointments(AppointmentModel, clinics, leads, conversations, ConversationModel);
     await seedAuditLogs(AuditLogModel, clinics, adminUser);
     await seedPatientHistory(PatientHistoryModel, clinics, leads, conversations);
 
