@@ -11,6 +11,9 @@
  *   - WANT_TO_BOOK intent → phase transitions to 'booking'
  *   - UNKNOWN intent → no phase change
  *   - Channel mapping from GHL message type (e.g. WhatsApp → whatsapp)
+ *   - RESCHEDULE intent → phase transitions to 'rescheduling'
+ *   - CANCEL_RESCHEDULE intent → phase transitions back to 'booked'
+ *   - Rescheduling slot flow (offer slots, select slot, cancel+rebook)
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
@@ -24,7 +27,9 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
 import { PostcodeValidationService } from './postcode-validation.service';
-import { INVALID_POSTCODE_RESPONSE } from './orchestrator.types';
+import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
+import { INVALID_POSTCODE_RESPONSE, NO_APPOINTMENT_RESPONSE } from './orchestrator.types';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { PatientHistoryService } from '../patient-history/patient-history.service';
 
@@ -40,7 +45,16 @@ const mockGroqService = { generateResponse: jest.fn(), generateChatResponse: jes
 const mockCancellationService = { checkAppointmentExists: jest.fn(), buildConfirmationPrompt: jest.fn(), evaluatePolicy: jest.fn(), executeCancellation: jest.fn(), isAwaitingReason: jest.fn(), requestReason: jest.fn(), storeReason: jest.fn() };
 const mockConversationsService = { findByGhlContactId: jest.fn(), createForNewLead: jest.fn(), updatePhase: jest.fn(), flagForHumanIntervention: jest.fn(), setContext: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn(), getByConversation: jest.fn() };
-const mockGhlApiService = { sendMessageWithRetry: jest.fn(), getConversation: jest.fn(), createConversation: jest.fn() };
+const mockGhlApiService = {
+  sendMessageWithRetry: jest.fn(),
+  getConversation: jest.fn(),
+  createConversation: jest.fn(),
+  cancelAppointment: jest.fn(),
+  addContactTag: jest.fn(),
+  updateContactCustomField: jest.fn(),
+};
+const mockSlotProvider = { getAvailableSlots: jest.fn() };
+const mockAppointmentsService = { bookAppointment: jest.fn() };
 
 /** Clinic config with a valid 24-char hex ObjectId required by handleInboundMessage. */
 const clinicConfig: ClinicConfig = {
@@ -73,6 +87,8 @@ describe('OrchestratorService — handleInboundMessage', () => {
         { provide: ConversationsService, useValue: mockConversationsService },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: SlotProvider, useValue: mockSlotProvider },
+        { provide: AppointmentsService, useValue: mockAppointmentsService },
         PostcodeValidationService,
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
@@ -93,8 +109,13 @@ describe('OrchestratorService — handleInboundMessage', () => {
     mockGroqService.generateChatResponse.mockResolvedValue('AI chat response');
     mockGroqService.generateResponse.mockResolvedValue('AI response');
     mockGhlApiService.sendMessageWithRetry.mockResolvedValue({ id: 'msg_001' });
+    mockGhlApiService.cancelAppointment.mockResolvedValue(undefined);
+    mockGhlApiService.addContactTag.mockResolvedValue(undefined);
+    mockGhlApiService.updateContactCustomField.mockResolvedValue(undefined);
     mockConversationsService.updatePhase.mockResolvedValue({});
     mockConversationsService.setContext.mockResolvedValue(undefined);
+    mockSlotProvider.getAvailableSlots.mockResolvedValue([]);
+    mockAppointmentsService.bookAppointment.mockResolvedValue({ success: true, appointmentId: 'appt_new_001', ghlAppointmentId: 'ghl_new_001', confirmationMessage: 'Appointment confirmed!' });
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -283,6 +304,273 @@ describe('OrchestratorService — handleInboundMessage', () => {
       'lead',
       'Hi',
       'whatsapp',
+    );
+  });
+
+  // ── RESCHEDULE intent ──────────────────────────────────────────────────────
+
+  it('should transition phase to "rescheduling" when RESCHEDULE intent detected in booked phase', async () => {
+    const bookedConversation = {
+      ...mockConversation,
+      phase: 'booked',
+      context: new Map([
+        ['ghlAppointmentId', 'ghl_appt_001'],
+        ['appointmentDate', '15 April 2026'],
+        ['appointmentTime', '10:00'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(bookedConversation);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'I need to reschedule' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'rescheduling');
+  });
+
+  it('should return NO_APPOINTMENT_RESPONSE when RESCHEDULE intent detected but no appointment in context', async () => {
+    const bookedNoAppt = { ...mockConversation, phase: 'booked', context: new Map() };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(bookedNoAppt);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'I need to reschedule' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: NO_APPOINTMENT_RESPONSE }),
+    );
+    expect(mockConversationsService.updatePhase).not.toHaveBeenCalled();
+  });
+
+  it('should transition phase back to "booked" when CANCEL_RESCHEDULE intent detected', async () => {
+    const reschedulingConv = { ...mockConversation, phase: 'rescheduling', context: new Map() };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'never mind, keep my appointment' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(expect.anything(), 'booked');
+  });
+
+  // ── Rescheduling slot flow ─────────────────────────────────────────────────
+
+  it('should fetch available slots when in rescheduling phase with an UNKNOWN message', async () => {
+    const reschedulingConv = { ...mockConversation, phase: 'rescheduling', context: new Map() };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    mockSlotProvider.getAvailableSlots.mockResolvedValue([
+      { date: '2026-04-20', startTime: '09:00', endTime: '09:30' },
+    ]);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'Some time next week' } } as any,
+      clinicConfig,
+    );
+    expect(mockSlotProvider.getAvailableSlots).toHaveBeenCalledWith(clinicConfig.clinicId);
+  });
+
+  it('should send FULLY_BOOKED_RESPONSE when no slots are available during rescheduling', async () => {
+    const reschedulingConv = { ...mockConversation, phase: 'rescheduling', context: new Map() };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    mockSlotProvider.getAvailableSlots.mockResolvedValue([]);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'Can we move it?' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "We're fully booked on that date. Would you like to try a different day?" }),
+    );
+  });
+
+  it('should store offered slots in context when slots are available during rescheduling', async () => {
+    const reschedulingConv = { ...mockConversation, phase: 'rescheduling', context: new Map() };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    mockSlotProvider.getAvailableSlots.mockResolvedValue([
+      { date: '2026-04-20', startTime: '09:00', endTime: '09:30' },
+    ]);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'Some time next week' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.setContext).toHaveBeenCalledWith(
+      expect.anything(),
+      'reschedulingOfferedSlots',
+      expect.any(String),
+    );
+  });
+
+  it('should cancel the old appointment when a slot is selected from offered slots', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.cancelAppointment).toHaveBeenCalledWith('ghl_old_001');
+  });
+
+  it('should book a new appointment after cancelling the old one when a slot is selected', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockAppointmentsService.bookAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({ clinicId: clinicConfig.clinicId, contactId: 'contact_001' }),
+    );
+  });
+
+  it('should add "rescheduled" tag to the contact after a successful reschedule', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.addContactTag).toHaveBeenCalledWith('contact_001', 'rescheduled');
+  });
+
+  it('should update the appointment_date custom field after a successful reschedule', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.updateContactCustomField).toHaveBeenCalledWith(
+      'contact_001',
+      'appointment_date',
+      expect.any(String),
+    );
+  });
+
+  it('should send the booking confirmation message after a successful reschedule', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Appointment confirmed!' }),
+    );
+  });
+
+  it('should not book a new appointment when cancelling the old one fails', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    mockGhlApiService.cancelAppointment.mockResolvedValue(null);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockAppointmentsService.bookAppointment).not.toHaveBeenCalled();
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('issue rescheduling') }),
+    );
+  });
+
+  it('should respond with an error message when new appointment booking fails after cancellation', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    mockAppointmentsService.bookAppointment.mockResolvedValue({ success: false, error: 'Slot taken' });
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('issue booking') }),
+    );
+  });
+
+  it('should clear the offered slots buffer from context after a successful reschedule', async () => {
+    const offeredSlots = JSON.stringify([
+      { dateTime: '2026-04-20T09:00:00.000Z', displayText: 'Monday 20th April at 9am' },
+    ]);
+    const reschedulingConv = {
+      ...mockConversation,
+      phase: 'rescheduling',
+      context: new Map([
+        ['reschedulingOfferedSlots', offeredSlots],
+        ['ghlAppointmentId', 'ghl_old_001'],
+      ]),
+    };
+    mockConversationsService.findByGhlContactId.mockResolvedValue(reschedulingConv);
+    await service.handleInboundMessage(
+      { type: 'InboundMessage', location: { id: 'loc_001' }, id: 'contact_001', message: { body: 'The first one please' } } as any,
+      clinicConfig,
+    );
+    expect(mockConversationsService.setContext).toHaveBeenCalledWith(
+      expect.anything(),
+      'reschedulingOfferedSlots',
+      '',
     );
   });
 });

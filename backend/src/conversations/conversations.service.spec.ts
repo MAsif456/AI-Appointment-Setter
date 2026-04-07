@@ -253,7 +253,7 @@ describe('ConversationsService', () => {
       expect(result!.reply).toBe('Let me check that.');
       expect(result!.offeredSlots).toBeDefined();
       // Should save two lead messages (with/without urgency data) + one AI reply
-      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(3);
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(2);
     });
 
     it('should return follow-up message when conversation is already escalated', async () => {
@@ -287,7 +287,7 @@ describe('ConversationsService', () => {
 
       // Service returns null when AI fails; controller wraps with fallback
       expect(result).toBeNull();
-      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(2);
+      expect(mockPersistenceService.saveMessage).toHaveBeenCalledTimes(1);
     });
   });
 

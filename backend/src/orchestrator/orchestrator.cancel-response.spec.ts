@@ -13,6 +13,8 @@ import { ConversationsService } from '../ghl/conversations.service';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { PostcodeValidationService } from './postcode-validation.service';
+import { SlotProvider } from '../ai/slot-provider';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { PatientHistoryService } from '../patient-history/patient-history.service';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
@@ -71,6 +73,8 @@ describe('OrchestratorService — cancellation responses', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         PostcodeValidationService,
+        { provide: SlotProvider, useValue: { getAvailableSlots: jest.fn() } },
+        { provide: AppointmentsService, useValue: { bookAppointment: jest.fn() } },
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },
       ],

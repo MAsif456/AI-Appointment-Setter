@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Clinic } from '@/types/clinic';
 import { getClinicById } from '@/lib/api/clinics';
+import { useAuth } from '@/contexts/AuthContext';
 import ClinicDetailTabs, { type ClinicDetailTabsHandle } from '@/components/clinics/ClinicDetailTabs';
 import styles from './ClinicDetail.module.css';
 
 export default function ClinicDetailPage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const { user, isAdmin } = useAuth();
+  const router = useRouter();
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -24,11 +27,17 @@ export default function ClinicDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+  
+    // Block staff from accessing clinics they are not assigned to
+    if (!isAdmin && !user?.assignedClinics?.includes(id)) {
+      router.replace('/clinics');
+      return;
+    }
     getClinicById(id)
       .then(setClinic)
       .catch((err) => console.error('Error fetching clinic:', err))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, isAdmin, user?.assignedClinics, router]);
 
   if (loading) {
     return <p className={styles.loading}>Loading clinic...</p>;

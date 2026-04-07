@@ -17,6 +17,7 @@ import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
 import { FollowUpModule } from "./follow-up/follow-up.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
     HealthModule,
     ScheduleModule.forRoot(),
     FollowUpModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
