@@ -5,6 +5,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { CacheControlInterceptor } from "./security-headers/cache-control.interceptor";
+import { SecurityHeadersModule } from "./security-headers/security-headers.module";
 import { AiSettingsModule } from "./ai-settings/ai-settings.module";
 import { ClinicsModule } from "./clinics/clinics.module";
 import { GhlModule } from "./ghl/ghl.module";
@@ -38,6 +39,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
       inject: [ConfigService],
     }),
     RateLimitingModule,
+    SecurityHeadersModule,
     AuthModule,
     AnalyticsModule,
     AiSettingsModule,

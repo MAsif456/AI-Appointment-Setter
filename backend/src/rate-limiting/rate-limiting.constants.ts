@@ -32,9 +32,18 @@ export const DEFAULT_WRITE_TIER: RateLimitConfig = {
 
 /**
  * Path prefixes excluded from the global rate limiter.
- * These routes have their own security (peer's webhook implementation).
+ * - /webhooks and /ghl/webhook have their own signature-based protection
+ *   in the peer's webhook implementation.
+ * - /security/csp-report receives unauthenticated, browser-generated
+ *   Content-Security-Policy violation reports. A page with a misconfigured
+ *   CSP can produce dozens of reports per load and throttling them would
+ *   hide the very policy errors we want visibility into.
  */
-export const EXCLUDED_PATH_PREFIXES = ["/webhooks", "/ghl/webhook"];
+export const EXCLUDED_PATH_PREFIXES = [
+  "/webhooks",
+  "/ghl/webhook",
+  "/security/csp-report",
+];
 
 // --- Internal service bypass ---
 
