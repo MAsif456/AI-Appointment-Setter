@@ -199,18 +199,20 @@ export class GhlApiService {
     startTime: string,
     endTime: string,
   ): Promise<any> {
+    const payload = {
+      calendarId,
+      locationId,
+      contactId,
+      startTime,
+      endTime,
+      appointmentStatus: "confirmed",
+    };
+    this.logger.debug(`Creating GHL appointment: ${JSON.stringify(payload)}`);
     return this.appointmentCircuitBreaker.execute(async () => {
       const { data } = await lastValueFrom(
         this.httpService.post(
           "/calendars/events/appointments",
-          {
-            calendarId,
-            locationId,
-            contactId,
-            startTime,
-            endTime,
-            appointmentStatus: "confirmed",
-          },
+          payload,
           { headers: this.getHeaders() },
         ),
       );

@@ -183,7 +183,11 @@ export class AppointmentsService {
       this.logger.warn(`Slot no longer available for contact ${contactId}`);
       return { success: false, error: 'Slot no longer available', slotTaken: true };
     }
-    this.logger.error(`GHL appointment creation failed: ${error.message}`);
+    const responseData = error?.response?.data;
+    this.logger.error(
+      `GHL appointment creation failed: ${error.message}` +
+      (responseData ? ` — GHL response: ${JSON.stringify(responseData)}` : ''),
+    );
     return { success: false, error: 'Failed to create appointment' };
   }
 
