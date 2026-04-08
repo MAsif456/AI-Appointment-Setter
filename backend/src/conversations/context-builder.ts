@@ -1,9 +1,9 @@
-import { Types } from 'mongoose';
-import { ClinicDocument } from '../database/schemas/clinic.schema';
-import { LeadDocument } from '../database/schemas/lead.schema';
-import { ConversationDocument } from '../database/schemas/conversation.schema';
-import { LeadInfo } from '../ai/interfaces/lead-info.interface';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { Types } from "mongoose";
+import { ClinicDocument } from "../database/schemas/clinic.schema";
+import { LeadDocument } from "../database/schemas/lead.schema";
+import { ConversationDocument } from "../database/schemas/conversation.schema";
+import { LeadInfo } from "../ai/interfaces/lead-info.interface";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
 
 /**
  * Converts MongoDB Clinic + Lead documents into the AI service interfaces.
@@ -13,14 +13,23 @@ import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
  * @param conversation - Optional conversation document for returning patient context
  * @returns LeadInfo and ClinicConfig for AI services
  */
-export function buildContextFromDb(lead: LeadDocument, clinic: ClinicDocument, conversation?: ConversationDocument) {
-  const validatedPostcode = conversation?.context?.get('validatedPostcode') as string | undefined;
-  const returningPatientPostcode = conversation?.context?.get('returningPatientPostcode') as string | undefined;
+export function buildContextFromDb(
+  lead: LeadDocument,
+  clinic: ClinicDocument,
+  conversation?: ConversationDocument,
+) {
+  const validatedPostcode = conversation?.context?.get("validatedPostcode");
+  const returningPatientPostcode = conversation?.context?.get(
+    "returningPatientPostcode",
+  );
 
   // detailsJustUpdated is true when a returning patient provided a new postcode
   // (validatedPostcode exists but differs from the stored historical postcode)
-  const detailsJustUpdated =
-    !!(conversation?.isReturningPatient && validatedPostcode && validatedPostcode !== returningPatientPostcode);
+  const detailsJustUpdated = !!(
+    conversation?.isReturningPatient &&
+    validatedPostcode &&
+    validatedPostcode !== returningPatientPostcode
+  );
 
   const leadInfo: LeadInfo = {
     firstName: lead.firstName,
@@ -34,9 +43,10 @@ export function buildContextFromDb(lead: LeadDocument, clinic: ClinicDocument, c
     detailsJustUpdated,
   };
 
-  const tone = clinic.aiConfig?.tone === 'professional' ? 'Professional' : 'Friendly';
+  const tone =
+    clinic.aiConfig?.tone === "professional" ? "Professional" : "Friendly";
   const clinicConfig: ClinicConfig = {
-    clinicId: (clinic._id as Types.ObjectId).toString(),
+    clinicId: clinic._id.toString(),
     name: clinic.name,
     tone,
     greetingTemplate: clinic.aiConfig?.greetingTemplate || undefined,

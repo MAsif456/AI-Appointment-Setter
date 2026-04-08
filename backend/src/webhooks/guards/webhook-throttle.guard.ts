@@ -80,7 +80,6 @@ export class WebhookThrottleGuard implements CanActivate, OnModuleDestroy {
     return true;
   }
 
-  
   /**
    * Checks if the given rate limit key has exceeded the rate limit.
    * Calculates the effective count of requests in the current window by
@@ -90,7 +89,7 @@ export class WebhookThrottleGuard implements CanActivate, OnModuleDestroy {
    *
    * @param key The rate limit key to check.
    * @returns A boolean indicating whether the rate limit has been exceeded.
-   * 
+   *
    * Ref: https://arpitbhayani.me/blogs/sliding-window-ratelimiter/
    */
   private isRateLimited(key: string): boolean {

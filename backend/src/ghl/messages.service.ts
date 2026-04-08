@@ -1,21 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Message, MessageDocument } from '../database/schemas/message.schema';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import { Message, MessageDocument } from "../database/schemas/message.schema";
 import {
   Conversation,
   ConversationDocument,
-} from '../database/schemas/conversation.schema';
+} from "../database/schemas/conversation.schema";
 
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
 
-/**
- * Constructor.
- * @param messageModel - The Mongoose model for messages.
- * @param conversationModel - The Mongoose model for conversations.
- */
+  /**
+   * Constructor.
+   * @param messageModel - The Mongoose model for messages.
+   * @param conversationModel - The Mongoose model for conversations.
+   */
   constructor(
     @InjectModel(Message.name)
     private readonly messageModel: Model<MessageDocument>,
@@ -40,7 +40,7 @@ export class MessagesService {
     conversationId: Types.ObjectId,
     clinicId: Types.ObjectId,
     leadId: Types.ObjectId,
-    sender: 'lead' | 'ai' | 'system',
+    sender: "lead" | "ai" | "system",
     content: string,
     channel: string,
     ghlMessageId?: string,
@@ -53,7 +53,7 @@ export class MessagesService {
       content,
       channel,
       ghlMessageId,
-      status: 'sent',
+      status: "sent",
     });
 
     await this.conversationModel.findByIdAndUpdate(conversationId, {

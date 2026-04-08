@@ -10,7 +10,7 @@ export interface ClinicConfig {
   name: string;
 
   /** AI conversation tone setting */
-  tone: 'Friendly' | 'Professional';
+  tone: "Friendly" | "Professional";
 
   /** Optional custom greeting template with {{placeholder}} variables */
   greetingTemplate?: string;

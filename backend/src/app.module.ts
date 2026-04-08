@@ -15,7 +15,9 @@ import { AppointmentsModule } from "./appointments/appointments.module";
 import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
-import { AuthModule } from './auth/auth.module';
+import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
+import { AuthModule } from "./auth/auth.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReminderModule } from "./reminder/reminder.module";
 
 @Module({
@@ -35,6 +37,9 @@ import { ReminderModule } from "./reminder/reminder.module";
       }),
       inject: [ConfigService],
     }),
+    RateLimitingModule,
+    AuthModule,
+    AnalyticsModule,
     AiSettingsModule,
     ClinicsModule,
     GhlModule,
@@ -45,7 +50,6 @@ import { ReminderModule } from "./reminder/reminder.module";
     AppointmentsModule,
     CancellationModule,
     HealthModule,
-    AuthModule,
     ReminderModule,
   ],
   controllers: [AppController],

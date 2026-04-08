@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 export type IdempotencyKeyDocument = IdempotencyKey & Document;
 
@@ -25,7 +25,8 @@ export class IdempotencyKey {
   createdAt: Date;
 }
 
-export const IdempotencyKeySchema = SchemaFactory.createForClass(IdempotencyKey);
+export const IdempotencyKeySchema =
+  SchemaFactory.createForClass(IdempotencyKey);
 
 // Auto-expire keys after 24 hours
 IdempotencyKeySchema.index({ createdAt: 1 }, { expireAfterSeconds: 86_400 });

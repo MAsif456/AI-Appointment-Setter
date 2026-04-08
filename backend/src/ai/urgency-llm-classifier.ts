@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { GroqService } from './groq.service';
-import { UrgencyLevel } from './urgency-detector.types';
+import { Injectable, Logger } from "@nestjs/common";
+import { GroqService } from "./groq.service";
+import { UrgencyLevel } from "./urgency-detector.types";
 
 /** Timeout for the LLM micro-classification call (shorter than main 30s). */
 const LLM_CLASSIFY_TIMEOUT_MS = 3_000;
@@ -29,9 +29,9 @@ export class UrgencyLlmClassifier {
    */
   async classify(text: string, leadIssue?: string): Promise<UrgencyLevel> {
     const systemPrompt =
-      'You are a medical triage classifier. Classify the following patient message ' +
-      'as ROUTINE, URGENT, or EMERGENCY. Consider the medical context. ' +
-      'Respond with ONLY one word: ROUTINE, URGENT, or EMERGENCY.';
+      "You are a medical triage classifier. Classify the following patient message " +
+      "as ROUTINE, URGENT, or EMERGENCY. Consider the medical context. " +
+      "Respond with ONLY one word: ROUTINE, URGENT, or EMERGENCY.";
 
     const userContent = leadIssue
       ? `Patient issue: ${leadIssue}\nMessage: ${text}`
@@ -40,18 +40,23 @@ export class UrgencyLlmClassifier {
     try {
       const result = await Promise.race([
         this.groqService.generateChatResponse([
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
         ]),
         new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('LLM classification timeout')), LLM_CLASSIFY_TIMEOUT_MS),
+          setTimeout(
+            () => reject(new Error("LLM classification timeout")),
+            LLM_CLASSIFY_TIMEOUT_MS,
+          ),
         ),
       ]);
 
       return this.parseResponse(result);
     } catch (error) {
-      this.logger.warn(`Layer 2 classification failed, defaulting to urgent: ${error.message}`);
-      return 'urgent';
+      this.logger.warn(
+        `Layer 2 classification failed, defaulting to urgent: ${error.message}`,
+      );
+      return "urgent";
     }
   }
 
@@ -63,11 +68,11 @@ export class UrgencyLlmClassifier {
    * @returns an UrgencyLevel value
    */
   private parseResponse(response: string | null): UrgencyLevel {
-    if (!response) return 'urgent';
+    if (!response) return "urgent";
     const cleaned = response.trim().toUpperCase();
-    if (cleaned.includes('EMERGENCY')) return 'emergency';
-    if (cleaned.includes('ROUTINE')) return 'routine';
-    if (cleaned.includes('URGENT')) return 'urgent';
-    return 'urgent'; // safe default for unexpected output
+    if (cleaned.includes("EMERGENCY")) return "emergency";
+    if (cleaned.includes("ROUTINE")) return "routine";
+    if (cleaned.includes("URGENT")) return "urgent";
+    return "urgent"; // safe default for unexpected output
   }
 }

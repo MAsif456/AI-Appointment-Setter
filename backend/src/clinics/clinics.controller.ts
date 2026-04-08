@@ -2,16 +2,24 @@
  * Controller for clinic endpoints.
  * Handles listing, individual clinic retrieval, and clinic creation.
  */
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ClinicsService } from './clinics.service';
-import { CreateClinicDto } from './dto/create-clinic.dto';
-import type { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
+import { ClinicsService } from "./clinics.service";
+import { CreateClinicDto } from "./dto/create-clinic.dto";
+import type { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 
 /**
  * REST controller exposing clinic endpoints.
  * All routes are prefixed with /clinics.
  */
-@Controller('clinics')
+@Controller("clinics")
 export class ClinicsController {
   constructor(private readonly clinicsService: ClinicsService) {}
 
@@ -32,7 +40,7 @@ export class ClinicsController {
    * @param search - partial name to filter on (case-insensitive)
    */
   @Get()
-  findAll(@Query('search') search?: string) {
+  findAll(@Query("search") search?: string) {
     return this.clinicsService.findAll(search);
   }
 
@@ -41,8 +49,8 @@ export class ClinicsController {
    * Returns a single clinic by its MongoDB ObjectId.
    * Throws 400 if the ID format is invalid, 404 if no clinic is found.
    */
-  @Get(':id')
-  findById(@Param('id') id: string) {
+  @Get(":id")
+  findById(@Param("id") id: string) {
     return this.clinicsService.findById(id);
   }
 
@@ -50,8 +58,8 @@ export class ClinicsController {
    * PATCH /clinics/:id/deactivate
    * Marks the clinic as inactive.
    */
-  @Patch(':id/deactivate')
-  deactivate(@Param('id') id: string) {
+  @Patch(":id/deactivate")
+  deactivate(@Param("id") id: string) {
     return this.clinicsService.deactivate(id);
   }
 
@@ -59,8 +67,8 @@ export class ClinicsController {
    * PATCH /clinics/:id/activate
    * Marks the clinic as active.
    */
-  @Patch(':id/activate')
-  activate(@Param('id') id: string) {
+  @Patch(":id/activate")
+  activate(@Param("id") id: string) {
     return this.clinicsService.activate(id);
   }
 
@@ -70,9 +78,9 @@ export class ClinicsController {
    * Only fields present in the request body are applied.
    * Throws 400 for an invalid ID, 404 if the clinic does not exist.
    */
-  @Patch(':id/settings')
+  @Patch(":id/settings")
   updateSettings(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() body: UpdateClinicSettingsDto,
   ) {
     return this.clinicsService.updateBasicSettings(id, body);

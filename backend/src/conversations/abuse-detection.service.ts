@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 /**
  * Default profanity blocklist.
@@ -7,9 +7,26 @@ import { ConfigService } from '@nestjs/config';
  * (comma-separated words).
  */
 const DEFAULT_BLOCKLIST: readonly string[] = [
-  'fuck', 'fucking', 'shit', 'bitch', 'asshole', 'bastard', 'cunt',
-  'dick', 'piss', 'moron', 'idiot', 'retard', 'twat', 'wanker',
-  'bollocks', 'arse', 'prick', 'useless', 'stupid', 'pathetic',
+  "fuck",
+  "fucking",
+  "shit",
+  "bitch",
+  "asshole",
+  "bastard",
+  "cunt",
+  "dick",
+  "piss",
+  "moron",
+  "idiot",
+  "retard",
+  "twat",
+  "wanker",
+  "bollocks",
+  "arse",
+  "prick",
+  "useless",
+  "stupid",
+  "pathetic",
 ];
 
 /**
@@ -60,7 +77,7 @@ const DIRECTED_HOSTILITY_THRESHOLD = 5;
 /** Sent for each directed-hostile message below the threshold. */
 const CALM_REDIRECT_RESPONSE =
   "I understand you may be frustrated — I'm here to help you book an appointment. " +
-  'How can I assist you today?';
+  "How can I assist you today?";
 
 /**
  * Sent once the threshold is reached, and repeated on every subsequent
@@ -69,13 +86,13 @@ const CALM_REDIRECT_RESPONSE =
 const HUMAN_OFFER_RESPONSE =
   "I want to help, but I'm not able to continue if the language remains " +
   "inappropriate. As this conversation isn't going anywhere, would you like " +
-  'me to have someone from the team reach out instead?';
+  "me to have someone from the team reach out instead?";
 
 /** Sent when the lead accepts the human offer. */
 const ESCALATION_CONFIRMATION_RESPONSE =
   "Great, I'll have a team member reach out to you directly. They'll be in touch soon.";
 
-export type AbuseClassification = 'none' | 'casual' | 'directed';
+export type AbuseClassification = "none" | "casual" | "directed";
 
 export interface AbuseCheckResult {
   classification: AbuseClassification; // How the message was classified
@@ -85,7 +102,7 @@ export interface AbuseCheckResult {
 
   shouldEscalate: boolean; // True when the lead has accepted the human offer and should be escalated
   newDirectedCount: number; // Updated count to store on the conversation (incremented for directed hostility)
-  
+
   offerIsPending: boolean; // True when the human offer is active and awaiting a response
 }
 
@@ -105,13 +122,15 @@ export class AbuseDetectionService {
   private readonly blocklist: Set<string>;
 
   constructor(private readonly configService: ConfigService) {
-    const extra = this.configService.get<string>('ABUSE_BLOCKLIST_EXTRA') ?? '';
+    const extra = this.configService.get<string>("ABUSE_BLOCKLIST_EXTRA") ?? "";
     const extraWords = extra
-      .split(',')
-      .map(w => w.trim().toLowerCase())
+      .split(",")
+      .map((w) => w.trim().toLowerCase())
       .filter(Boolean);
     this.blocklist = new Set([...DEFAULT_BLOCKLIST, ...extraWords]);
-    this.logger.log(`Abuse blocklist loaded with ${this.blocklist.size} entries`);
+    this.logger.log(
+      `Abuse blocklist loaded with ${this.blocklist.size} entries`,
+    );
   }
 
   /**
@@ -129,7 +148,7 @@ export class AbuseDetectionService {
     // If the offer was already made, check whether this message is an acceptance
     if (offerWasPending && this.isAcceptingOffer(message)) {
       return {
-        classification: 'none',
+        classification: "none",
         matchedWords: [],
         response: ESCALATION_CONFIRMATION_RESPONSE,
         shouldEscalate: true,
@@ -141,7 +160,7 @@ export class AbuseDetectionService {
     const classification = this.classify(message);
 
     // Casual swearing or clean message — pass through to the AI
-    if (classification !== 'directed') {
+    if (classification !== "directed") {
       return {
         classification,
         matchedWords: [],
@@ -153,10 +172,10 @@ export class AbuseDetectionService {
     }
 
     // Directed hostility — increment count and select the correct response
-    const normalised = message.toLowerCase().replace(/[^a-z\s]/g, ' ');
+    const normalised = message.toLowerCase().replace(/[^a-z\s]/g, " ");
     const matchedWords = normalised
       .split(/\s+/)
-      .filter(w => this.blocklist.has(w));
+      .filter((w) => this.blocklist.has(w));
 
     const newDirectedCount = directedCount + 1;
     const offerShouldBeActive =
@@ -164,13 +183,15 @@ export class AbuseDetectionService {
 
     this.logger.warn(
       `Directed hostility detected — directedCount now: ${newDirectedCount}, ` +
-      `offerActive: ${offerShouldBeActive}, matched: [${matchedWords.join(', ')}]`,
+        `offerActive: ${offerShouldBeActive}, matched: [${matchedWords.join(", ")}]`,
     );
 
     return {
-      classification: 'directed',
+      classification: "directed",
       matchedWords,
-      response: offerShouldBeActive ? HUMAN_OFFER_RESPONSE : CALM_REDIRECT_RESPONSE,
+      response: offerShouldBeActive
+        ? HUMAN_OFFER_RESPONSE
+        : CALM_REDIRECT_RESPONSE,
       shouldEscalate: false,
       newDirectedCount,
       offerIsPending: offerShouldBeActive,
@@ -184,14 +205,14 @@ export class AbuseDetectionService {
    * A message with profanity but no target is 'casual' and is ignored.
    */
   private classify(message: string): AbuseClassification {
-    const normalised = message.toLowerCase().replace(/[^a-z\s]/g, ' ');
+    const normalised = message.toLowerCase().replace(/[^a-z\s]/g, " ");
     const words = normalised.split(/\s+/).filter(Boolean);
-    const hasBlocklistWord = words.some(w => this.blocklist.has(w));
+    const hasBlocklistWord = words.some((w) => this.blocklist.has(w));
 
-    if (!hasBlocklistWord) return 'none';
+    if (!hasBlocklistWord) return "none";
 
-    const isDirected = DIRECTED_TARGET_PATTERNS.some(p => p.test(message));
-    return isDirected ? 'directed' : 'casual';
+    const isDirected = DIRECTED_TARGET_PATTERNS.some((p) => p.test(message));
+    return isDirected ? "directed" : "casual";
   }
 
   /**
@@ -199,6 +220,6 @@ export class AbuseDetectionService {
    * Only called when offerWasPending is true on the conversation.
    */
   private isAcceptingOffer(message: string): boolean {
-    return HUMAN_REQUEST_PATTERNS.some(p => p.test(message));
+    return HUMAN_REQUEST_PATTERNS.some((p) => p.test(message));
   }
 }

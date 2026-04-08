@@ -4,9 +4,12 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import {
-  LoginDto, ForgotPasswordDto, ResetPasswordDto,
-  ChangePasswordDto, CreateUserDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ChangePasswordDto,
+  CreateUserDto,
 } from './dto/auth.dto';
+import { LoginDto } from './dto/login.dto';
 
 /** Bypass guards in unit tests — we test guard logic separately */
 const mockGuard = { canActivate: () => true };
@@ -76,13 +79,33 @@ describe('AuthController', () => {
 
   // login
   describe('login', () => {
-    it('delegates to authService.login and returns token response', async () => {
+    const mockReq = { ip: '192.168.1.1', socket: { remoteAddress: '192.168.1.1' } } as any;
+
+    it('delegates to authService.login with dto and extracted IP', async () => {
       const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
-      const response = { user: { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', assignedClinics: [] }, accessToken: 'jwt' };
+      const response = {
+        user: { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', assignedClinics: [] },
+        accessToken: 'jwt',
+      };
       mockAuthService.login.mockResolvedValue(response);
-      const result = await controller.login(dto);
-      expect(mockAuthService.login).toHaveBeenCalledWith(dto);
+      const result = await controller.login(dto, mockReq);
+      expect(mockAuthService.login).toHaveBeenCalledWith(dto, '192.168.1.1');
       expect(result).toEqual(response);
+    });
+
+    it('falls back to req.socket.remoteAddress when req.ip is missing', async () => {
+      const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
+      const req = { socket: { remoteAddress: '10.0.0.5' } } as any;
+      mockAuthService.login.mockResolvedValue({});
+      await controller.login(dto, req);
+      expect(mockAuthService.login).toHaveBeenCalledWith(dto, '10.0.0.5');
+    });
+
+    it('falls back to "unknown" when no IP can be extracted', async () => {
+      const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
+      mockAuthService.login.mockResolvedValue({});
+      await controller.login(dto, {} as any);
+      expect(mockAuthService.login).toHaveBeenCalledWith(dto, 'unknown');
     });
   });
 

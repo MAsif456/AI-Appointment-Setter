@@ -2,11 +2,19 @@
  * Controller for clinic AI settings endpoints.
  * Handles HTTP request/response for GET and PUT operations.
  */
-import { Controller, Get, Put, Param, Body, UsePipes, ValidationPipe } from '@nestjs/common';
-import { AiSettingsService, AiSettingsResponse } from './ai-settings.service';
-import { UpdateAiSettingsDto } from './ai-settings.dto';
+import {
+  Controller,
+  Get,
+  Put,
+  Param,
+  Body,
+  UsePipes,
+  ValidationPipe,
+} from "@nestjs/common";
+import { AiSettingsService, AiSettingsResponse } from "./ai-settings.service";
+import { UpdateAiSettingsDto } from "./ai-settings.dto";
 
-@Controller('api/clinics/:clinicId/ai-settings')
+@Controller("api/clinics/:clinicId/ai-settings")
 export class AiSettingsController {
   constructor(private readonly aiSettingsService: AiSettingsService) {}
 
@@ -16,7 +24,9 @@ export class AiSettingsController {
    * @returns The clinic's AI settings with defaults applied
    */
   @Get()
-  async getAiSettings(@Param('clinicId') clinicId: string): Promise<AiSettingsResponse> {
+  async getAiSettings(
+    @Param("clinicId") clinicId: string,
+  ): Promise<AiSettingsResponse> {
     return this.aiSettingsService.getAiSettings(clinicId);
   }
 
@@ -30,7 +40,7 @@ export class AiSettingsController {
   @Put()
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async updateAiSettings(
-    @Param('clinicId') clinicId: string,
+    @Param("clinicId") clinicId: string,
     @Body() updateDto: UpdateAiSettingsDto,
   ): Promise<AiSettingsResponse> {
     return this.aiSettingsService.updateAiSettings(clinicId, updateDto);

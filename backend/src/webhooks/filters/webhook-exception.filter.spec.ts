@@ -31,12 +31,12 @@ describe("WebhookExceptionFilter", () => {
       body: { type: "ContactCreate", location: { id: "loc-1" } },
     };
     mockHost = {
-/**
- * Returns an object with getRequest and getResponse methods,
- * which can be used to mock out the switch to HTTP context.
- *
- * @returns {{ getRequest: () => Request, getResponse: () => Response }}
- */
+      /**
+       * Returns an object with getRequest and getResponse methods,
+       * which can be used to mock out the switch to HTTP context.
+       *
+       * @returns {{ getRequest: () => Request, getResponse: () => Response }}
+       */
       switchToHttp: () => ({
         getRequest: () => mockRequest,
         getResponse: () => mockResponse,

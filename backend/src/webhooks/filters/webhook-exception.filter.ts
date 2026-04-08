@@ -105,7 +105,7 @@ export class WebhookExceptionFilter implements ExceptionFilter {
    *
    * @param originalStatus - The HTTP status code to map.
    * @returns The response status code.
-   * 
+   *
    * Ref: https://dev.to/digital_trubador/webhook-security-best-practices-for-production-2025-2026-384n
    */
   private mapResponseStatus(originalStatus: number): number {

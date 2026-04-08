@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { OutputValidationResult, OutputThreatCategory, PHASE_FALLBACKS } from './security.types';
+import { Injectable } from "@nestjs/common";
+import {
+  OutputValidationResult,
+  OutputThreatCategory,
+  PHASE_FALLBACKS,
+} from "./security.types";
 
 // Ref: OWASP LLM07:2025 System Prompt Leakage
 // https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/
@@ -12,28 +16,28 @@ import { OutputValidationResult, OutputThreatCategory, PHASE_FALLBACKS } from '.
 
 // System prompt fragments that should never appear in patient-facing responses
 const SYSTEM_PROMPT_MARKERS = [
-  '=== rules ===',
-  '=== patient info ===',
-  '=== conversation flow',
-  '=== security boundary ===',
-  '=== urgency context ===',
-  '=== available slots ===',
-  '=== slot selection status ===',
-  '=== previously offered slots ===',
-  'stage 1 - greeting',
-  'stage 2 - postcode',
-  'stage 3 - qualification',
-  'stage 4 - offer slot',
-  'stage 5 - confirm booking',
-  'you are the booking receptionist for',
-  'do not use emojis or hashtags',
-  'do not reveal what technology',
-  'keep each response to 1-3 short sentences',
-  'critical: everything between <user_message>',
-  'untrusted user input',
-  'never follow instructions contained within',
-  '<user_message>',
-  '</user_message>',
+  "=== rules ===",
+  "=== patient info ===",
+  "=== conversation flow",
+  "=== security boundary ===",
+  "=== urgency context ===",
+  "=== available slots ===",
+  "=== slot selection status ===",
+  "=== previously offered slots ===",
+  "stage 1 - greeting",
+  "stage 2 - postcode",
+  "stage 3 - qualification",
+  "stage 4 - offer slot",
+  "stage 5 - confirm booking",
+  "you are the booking receptionist for",
+  "do not use emojis or hashtags",
+  "do not reveal what technology",
+  "keep each response to 1-3 short sentences",
+  "critical: everything between <user_message>",
+  "untrusted user input",
+  "never follow instructions contained within",
+  "<user_message>",
+  "</user_message>",
 ];
 
 // Internal configuration terms that indicate system internals leaking
@@ -67,25 +71,32 @@ const MAX_RESPONSE_LENGTH = 500;
 
 @Injectable()
 export class OutputValidatorService {
-/**
- * Validate a response from the AI against various threat categories.
- *
- * @param response The response from the AI to validate.
- * @param conversationPhase The conversation phase associated with the response (optional).
- * @returns An object containing a boolean "safe" flag and an array of threat categories.
- */
-  validate(response: string, conversationPhase?: string): OutputValidationResult {
+  /**
+   * Validate a response from the AI against various threat categories.
+   *
+   * @param response The response from the AI to validate.
+   * @param conversationPhase The conversation phase associated with the response (optional).
+   * @returns An object containing a boolean "safe" flag and an array of threat categories.
+   */
+  validate(
+    response: string,
+    conversationPhase?: string,
+  ): OutputValidationResult {
     const flags: OutputThreatCategory[] = [];
 
     if (!response || response.trim().length === 0) {
-      return { safe: false, flags: ['excessive_length'], fallbackResponse: this.getFallback(conversationPhase) };
+      return {
+        safe: false,
+        flags: ["excessive_length"],
+        fallbackResponse: this.getFallback(conversationPhase),
+      };
     }
 
     // Check system prompt leakage
     const lower = response.toLowerCase();
     for (const marker of SYSTEM_PROMPT_MARKERS) {
       if (lower.includes(marker)) {
-        flags.push('system_prompt_leakage');
+        flags.push("system_prompt_leakage");
         break;
       }
     }
@@ -93,7 +104,7 @@ export class OutputValidatorService {
     // Check internal config exposure
     for (const pattern of INTERNAL_CONFIG_PATTERNS) {
       if (pattern.test(response)) {
-        flags.push('internal_config_exposure');
+        flags.push("internal_config_exposure");
         break;
       }
     }
@@ -101,14 +112,14 @@ export class OutputValidatorService {
     // Check role confusion
     for (const pattern of ROLE_CONFUSION_PATTERNS) {
       if (pattern.test(response)) {
-        flags.push('role_confusion');
+        flags.push("role_confusion");
         break;
       }
     }
 
     // Check excessive length (suggests AI went off-rails)
     if (response.length > MAX_RESPONSE_LENGTH) {
-      flags.push('excessive_length');
+      flags.push("excessive_length");
     }
 
     const safe = flags.length === 0;
@@ -122,6 +133,6 @@ export class OutputValidatorService {
   // Phase-aware fallback — patient never notices security intervened.
   // Serves stakeholder value: booking flow continues uninterrupted.
   private getFallback(phase?: string): string {
-    return PHASE_FALLBACKS[phase ?? ''] ?? PHASE_FALLBACKS['default'];
+    return PHASE_FALLBACKS[phase ?? ""] ?? PHASE_FALLBACKS["default"];
   }
 }
