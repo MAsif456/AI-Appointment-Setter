@@ -14,7 +14,7 @@ describe("AppointmentsService", () => {
   let service: AppointmentsService;
   let appointmentModel: { create: jest.Mock };
   let clinicModel: { findById: jest.Mock };
-  let conversationModel: { findByIdAndUpdate: jest.Mock };
+  let conversationModel: { findByIdAndUpdate: jest.Mock; findById: jest.Mock };
   let leadModel: { findById: jest.Mock };
   let patientHistoryService: { persistHistory: jest.Mock };
   let ghlApiService: { createAppointment: jest.Mock };
@@ -78,24 +78,6 @@ describe("AppointmentsService", () => {
         { provide: getModelToken(Conversation.name), useValue: conversationModel },
         { provide: getModelToken(Lead.name), useValue: leadModel },
         { provide: PatientHistoryService, useValue: patientHistoryService },
-        {
-          provide: getModelToken(Conversation.name),
-          useValue: conversationModel,
-        },
-        {
-          provide: getModelToken(Lead.name),
-          useValue: {
-            findById: jest.fn().mockReturnValue({
-              lean: jest
-                .fn()
-                .mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-            }),
-          },
-        },
-        {
-          provide: PatientHistoryService,
-          useValue: { persistHistory: jest.fn().mockResolvedValue(undefined) },
-        },
         { provide: GhlApiService, useValue: ghlApiService },
       ],
     }).compile();

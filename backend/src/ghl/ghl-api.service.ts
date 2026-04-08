@@ -68,13 +68,6 @@ export class GhlApiService {
     }
     if (dto.type === "Email") {
       payload.html = dto.html ?? dto.message;
-      payload.subject = dto.subject ?? "AppointHealth";
-    } else {
-      payload.message = dto.message;
-    }
-    // GHL email requires 'html' for the body and a 'subject'; other channels use 'message'
-    if (dto.type === 'Email') {
-      payload.html = dto.message;
       if (dto.subject) payload.subject = dto.subject;
     } else {
       payload.message = dto.message;
