@@ -2,7 +2,7 @@ export async function seedAppointments(
   AppointmentModel: any,
   clinics: any[],
   leads: any[],
-  conversations: any[],,
+  conversations: any[],
   ConversationModel?: any,
 ) {
   console.log("Creating appointments...");
