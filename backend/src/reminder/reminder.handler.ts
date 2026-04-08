@@ -6,6 +6,8 @@ import { format } from 'date-fns';
 import { AppointmentDocument } from '../database/schemas/appointment.schema';
 import { ClinicDocument } from '../database/schemas/clinic.schema';
 
+export { generateReminderEmailHtml } from './reminder.email';
+
 /**
  * Determine if a reminder should be sent for this appointment.
  * AC: Check timing window (15min tolerance) and prevent duplicate sends.
@@ -74,12 +76,10 @@ export function generateReminderMessage(
   const timeFormatted = appointment.appointmentTime; // "14:00"
 
   if (hoursBeforeAppointment === 1) {
-    // AC: 1-hour reminder format
     return `Just a reminder - your appointment is in 1 hour! ${clinic.name}, ${clinicAddress}.`;
   }
 
   if (hoursBeforeAppointment === 24) {
-    // AC: 24-hour reminder format with full details
     return (
       `Reminder: Your appointment at ${clinic.name} is tomorrow ` +
       `(${dayName} ${dateFormatted}) at ${timeFormatted}. ` +
@@ -89,7 +89,6 @@ export function generateReminderMessage(
   }
 
   if (hoursBeforeAppointment === 48) {
-    // 48-hour reminder format
     return (
       `Upcoming appointment: ${clinic.name} on ${dayName} ${dateFormatted} ` +
       `at ${timeFormatted}. Address: ${clinicAddress}. ` +
@@ -97,7 +96,6 @@ export function generateReminderMessage(
     );
   }
 
-  // Custom interval reminder
   const daysUntil = Math.floor(hoursBeforeAppointment / 24);
   const timeReference =
     daysUntil > 0

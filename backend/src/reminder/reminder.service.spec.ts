@@ -269,6 +269,61 @@ describe('ReminderService', () => {
         '24_hour',
       );
     });
+
+    it('should also send an email reminder when the lead has an email address', async () => {
+      const convWithLeadEmail = {
+        ...makeConversation('sms'),
+        leadId: { _id: 'lead123', email: 'patient@example.com', preferredChannel: 'sms' },
+      };
+      mockConvFind(convWithLeadEmail);
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      const result = await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(result).toBe(true);
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'Email', subject: expect.stringContaining('Test Clinic') }),
+      );
+    });
+
+    it('should still succeed and return true when email send fails', async () => {
+      const convWithLeadEmail = {
+        ...makeConversation('sms'),
+        leadId: { _id: 'lead123', email: 'patient@example.com', preferredChannel: 'sms' },
+      };
+      mockConvFind(convWithLeadEmail);
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry
+        .mockResolvedValueOnce(undefined)   // SMS succeeds
+        .mockRejectedValueOnce(new Error('Email 422')); // Email fails
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      const result = await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(result).toBe(true);
+      expect(mockReminderTrackerService.trackSent).toHaveBeenCalled();
+    });
+
+    it('should not send email when lead has no email address', async () => {
+      const convWithLeadNoEmail = {
+        ...makeConversation('sms'),
+        leadId: { _id: 'lead123', preferredChannel: 'sms' },
+      };
+      mockConvFind(convWithLeadNoEmail);
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
+      expect(mockGhlApiService.sendMessageWithRetry).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'Email' }),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

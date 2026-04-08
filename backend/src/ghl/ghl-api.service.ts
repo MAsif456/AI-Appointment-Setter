@@ -50,12 +50,18 @@ export class GhlApiService {
    * @returns {Promise<any>} - The result of the message send.
    */
   async sendMessageWithRetry(dto: SendMessageDto): Promise<any> {
-    const payload = {
+    const payload: Record<string, string> = {
       type: dto.type,
       contactId: dto.contactId,
-      message: dto.message,
       status: "pending",
     };
+    // GHL email requires 'html' for the body and a 'subject'; other channels use 'message'
+    if (dto.type === 'Email') {
+      payload.html = dto.message;
+      if (dto.subject) payload.subject = dto.subject;
+    } else {
+      payload.message = dto.message;
+    }
 
     return this.messagingCircuitBreaker.execute(() =>
       retryWithBackoff(

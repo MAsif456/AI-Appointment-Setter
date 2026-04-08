@@ -11,4 +11,7 @@ export class SendMessageDto {
   @IsString()
   @IsNotEmpty()
   message: string;
+
+  @IsString()
+  subject?: string;
 }

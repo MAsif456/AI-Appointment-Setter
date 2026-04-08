@@ -15,6 +15,8 @@ describe('AppointmentsService', () => {
   let appointmentModel: { create: jest.Mock };
   let clinicModel: { findById: jest.Mock };
   let conversationModel: { findByIdAndUpdate: jest.Mock };
+  let leadModel: { findById: jest.Mock };
+  let patientHistoryService: { persistHistory: jest.Mock };
   let ghlApiService: { createAppointment: jest.Mock };
 
   const mockClinic = {
@@ -55,6 +57,12 @@ describe('AppointmentsService', () => {
       findByIdAndUpdate: jest.fn().mockResolvedValue({}),
       findById: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
     };
+    leadModel = {
+      findById: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+      }),
+    };
+    patientHistoryService = { persistHistory: jest.fn().mockResolvedValue(undefined) };
     ghlApiService = {
       createAppointment: jest.fn().mockResolvedValue(mockGhlResponse),
     };
@@ -65,8 +73,8 @@ describe('AppointmentsService', () => {
         { provide: getModelToken(Appointment.name), useValue: appointmentModel },
         { provide: getModelToken(Clinic.name), useValue: clinicModel },
         { provide: getModelToken(Conversation.name), useValue: conversationModel },
-        { provide: getModelToken(Lead.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
-        { provide: PatientHistoryService, useValue: { persistHistory: jest.fn().mockResolvedValue(undefined) } },
+        { provide: getModelToken(Lead.name), useValue: leadModel },
+        { provide: PatientHistoryService, useValue: patientHistoryService },
         { provide: GhlApiService, useValue: ghlApiService },
       ],
     }).compile();
@@ -237,5 +245,36 @@ describe('AppointmentsService', () => {
 
     expect(appointmentModel.create).not.toHaveBeenCalled();
     expect(conversationModel.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should call persistHistory when lead is found', async () => {
+    const mockLead = {
+      phone: '+441234567890',
+      email: 'patient@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+    };
+    leadModel.findById.mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockLead),
+      }),
+    });
+    conversationModel.findById = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        context: { get: jest.fn().mockReturnValue('CF10 2BX') },
+      }),
+    });
+
+    await service.bookAppointment(mockDto);
+
+    expect(patientHistoryService.persistHistory).toHaveBeenCalledWith(
+      mockDto.clinicId,
+      mockLead.phone,
+      mockLead.email,
+      mockLead.firstName,
+      mockLead.lastName,
+      'CF10 2BX',
+      expect.any(Types.ObjectId),
+    );
   });
 });

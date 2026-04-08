@@ -254,6 +254,15 @@ describe('buildDayAvailabilitySection', () => {
   const rangeStart = new Date('2026-04-06T00:00:00');
   const rangeEnd = new Date('2026-04-10T23:59:59');
 
+  beforeAll(() => {
+    // Pin "today" to Sunday 5th April so the whole Mon–Fri range is in the future
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-05T12:00:00'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   const weekSlots: Slot[] = [
     { date: '2026-04-06', startTime: '09:00', endTime: '09:30' }, // Monday
     { date: '2026-04-07', startTime: '10:00', endTime: '10:30' }, // Tuesday

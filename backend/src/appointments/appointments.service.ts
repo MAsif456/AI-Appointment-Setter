@@ -72,7 +72,7 @@ export class AppointmentsService {
     const duration = this.resolveDuration(clinic, dto.serviceType);
     const endTime = this.calculateEndTime(dto.startTime, duration);
 
-    let ghlResponse;
+    let ghlResponse: any;
     try {
       ghlResponse = await this.ghlApiService.createAppointment(
         clinic.ghlCalendarId,
@@ -94,6 +94,7 @@ export class AppointmentsService {
     await this.conversationModel.findByIdAndUpdate(dto.conversationId, {
       phase: 'booked',
       appointmentId: appointment._id,
+      ghlContactId: dto.contactId,
       $set: {
         'context.ghlAppointmentId': ghlResponse.id,
         'context.appointmentDate': date,
@@ -179,7 +180,12 @@ export class AppointmentsService {
  */
   private handleGhlError(error: any, contactId: string): BookingResult {
     const status = error?.response?.status;
-    if (status === 409 || status === 422) {
+    const responseMessage: string = error?.response?.data?.message ?? '';
+    const isSlotUnavailable =
+      status === 409 ||
+      status === 422 ||
+      (status === 400 && responseMessage.toLowerCase().includes('no longer available'));
+    if (isSlotUnavailable) {
       this.logger.warn(`Slot no longer available for contact ${contactId}`);
       return { success: false, error: 'Slot no longer available', slotTaken: true };
     }

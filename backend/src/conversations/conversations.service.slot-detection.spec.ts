@@ -19,6 +19,7 @@ import { SecurityPipelineService } from '../security/security-pipeline.service';
 import { CancellationService } from '../cancellation/cancellation.service';
 import { PatientHistoryService } from '../patient-history/patient-history.service';
 import { PostcodeValidationService } from '../orchestrator/postcode-validation.service';
+import { GhlApiService } from '../ghl/ghl-api.service';
 
 describe('ConversationsService – slot selection detection', () => {
   let service: ConversationsService;
@@ -70,6 +71,7 @@ describe('ConversationsService – slot selection detection', () => {
     lastName: 'Williams',
     phone: '07700 900123',
     issue: 'Back Pain',
+    ghlContactId: 'ghl_contact_001',
   };
 
   const mockConversationModel = {
@@ -141,6 +143,7 @@ describe('ConversationsService – slot selection detection', () => {
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
+        { provide: GhlApiService, useValue: { cancelAppointment: jest.fn().mockResolvedValue({}) } },
         { provide: CancellationService, useValue: mockCancellationService },
         { provide: ConversationsPersistenceService, useValue: mockPersistenceService },
         { provide: PatientHistoryService, useValue: { findReturningPatient: jest.fn().mockResolvedValue(null), persistHistory: jest.fn() } },

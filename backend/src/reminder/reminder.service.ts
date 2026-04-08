@@ -6,7 +6,7 @@ import { Conversation, ConversationDocument } from '../database/schemas/conversa
 import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ReminderTrackerService } from './reminder-tracker.service';
-import { generateReminderMessage, shouldSendReminder } from './reminder.handler';
+import { generateReminderMessage, generateReminderEmailHtml, shouldSendReminder } from './reminder.handler';
 
 /**
  * Core service for appointment reminder management.
@@ -99,12 +99,35 @@ export class ReminderService {
         hoursBeforeAppointment,
       );
 
-      // Send via GHL
+      // Resolve GHL message type — prefer lead's channel, fall back to SMS
+      const lead = conversation.leadId as any;
+      const channel = lead?.preferredChannel ?? conversation.channel;
+      const ghlType = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+
+      // Send via GHL (SMS or WhatsApp)
       await this.ghlApiService.sendMessageWithRetry({
-        type: conversation.channel === 'whatsapp' ? 'WhatsApp' : 'SMS',
+        type: ghlType,
         contactId: conversation.ghlContactId,
         message,
       });
+
+      // Also send email reminder if the lead has an email address
+      if (lead?.email) {
+        try {
+          const emailHtml = generateReminderEmailHtml(appointment, clinic, hoursBeforeAppointment);
+          await this.ghlApiService.sendMessageWithRetry({
+            type: 'Email',
+            contactId: conversation.ghlContactId,
+            subject: `Appointment Reminder — ${clinic.name}`,
+            message: emailHtml,
+          });
+          this.logger.log(`Email reminder sent for appointment ${appointment._id}`);
+        } catch (emailError) {
+          this.logger.warn(
+            `Email reminder failed for appointment ${appointment._id}: ${emailError.message}`,
+          );
+        }
+      }
 
       // Track successful send
       await this.reminderTrackerService.trackSent(
