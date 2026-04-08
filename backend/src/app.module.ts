@@ -18,6 +18,7 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { IntegrationsModule } from "./integrations/integrations.module";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     RateLimitingModule,
     AuthModule,
     AnalyticsModule,
+    IntegrationsModule,
     AiSettingsModule,
     ClinicsModule,
     GhlModule,
