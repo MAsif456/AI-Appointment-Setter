@@ -1,8 +1,7 @@
 /**
  * Seeds conversation data — exactly one conversation per lead/phase.
  * leads[0] = Sarah (Confirmed), leads[1] = John (Qualified),
- * leads[2] = Rachel (Booking, 0 messages), leads[3] = Lisa (Declined),
- * leads[4] = James (Returning patient, greeting phase).
+ * leads[2] = Rachel (Booking, 0 messages), leads[3] = Lisa (Declined).
  */
 export async function seedConversations(
   ConversationModel: any,
@@ -62,23 +61,6 @@ export async function seedConversations(
       lastMessageFrom: "ai",
       closedAt: new Date("2026-03-03T12:02:00"),
       closedReason: "outside_service_area",
-    },
-    // James Morgan — Returning patient (pre-seeded for demo, postcode already known)
-    {
-      clinicId: clinics[0]._id,
-      leadId: leads[4]._id,
-      phase: "greeting",
-      channel: "sms",
-      messageCount: 0,
-      startedAt: new Date(),
-      isHighPriority: false,
-      requiresHumanIntervention: false,
-      isReturningPatient: true,
-      returningPatientConfidence: "high",
-      context: new Map([
-        ["returningPatientPostcode", "CF14"],
-        ["validatedPostcode", "CF14"],
-      ]),
     },
   ]);
 
