@@ -45,43 +45,32 @@ export function formatDateBritish(datetime: string): {
 } {
   const d = new Date(datetime);
 
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
+  // Use Europe/London so BST/GMT is handled automatically regardless of server timezone
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(d);
 
-  const dayName = days[d.getDay()];
-  const dayNum = d.getDate();
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+
+  const dayName = get('weekday');
+  const dayNum = parseInt(get('day'), 10);
+  const monthName = get('month');
   const suffix = getDaySuffix(dayNum);
-  const monthName = months[d.getMonth()];
 
-  const hours = d.getHours();
-  const minutes = d.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const displayHour = hours % 12 || 12;
+  // Some ICU versions return "0" instead of "12" for midnight/noon — normalise it
+  const hour = get('hour') === '0' ? '12' : get('hour');
+  const minute = get('minute');
+  const dayPeriod = get('dayPeriod').toUpperCase(); // 'am'→'AM'
   const timeStr =
-    minutes === 0
-      ? `${displayHour}:00 ${ampm}`
-      : `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+    minute === '00'
+      ? `${hour}:00 ${dayPeriod}`
+      : `${hour}:${minute} ${dayPeriod}`;
 
   return {
     date: `${dayName} ${dayNum}${suffix} ${monthName}`,

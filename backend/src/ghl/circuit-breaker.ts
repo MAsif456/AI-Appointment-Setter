@@ -63,7 +63,7 @@ export class CircuitBreaker {
           `Circuit breaker is OPEN – failing fast (retry in ${Math.ceil(waitMs / 1000)}s)`,
         );
         throw new Error(
-          "Circuit breaker is OPEN – the GHL API is temporarily unavailable. Please try again shortly.",
+          `Circuit breaker is OPEN – ${this.options.name ?? 'external service'} is temporarily unavailable. Please try again shortly.`,
         );
       }
     }

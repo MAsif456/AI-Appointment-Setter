@@ -34,7 +34,12 @@ export async function handleBooking(
       : new Date(selectedSlot.dateTime).toISOString();
 
   const contactId =
-    lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
+    lead.ghlContactId ?? conversation.ghlContactId;
+  if (!contactId) {
+    logger.warn(`No GHL contact ID for lead ${lead._id} — cannot book in GHL`);
+    return { success: false, error: 'No GHL contact ID available for this lead' };
+  }
+
   const bookingDto = {
     clinicId: clinic._id.toString(),
     contactId,

@@ -18,6 +18,7 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { ReminderModule } from "./reminder/reminder.module";
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     AppointmentsModule,
     CancellationModule,
     HealthModule,
+    ReminderModule,
   ],
   controllers: [AppController],
   providers: [

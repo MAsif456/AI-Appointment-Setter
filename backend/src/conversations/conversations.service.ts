@@ -27,8 +27,9 @@ import {
   FALLBACK_AI_UNAVAILABLE,
   DETAILS_UNCHANGED_KEYWORDS,
   DETAILS_CHANGED_KEYWORDS,
-  matchesKeywords,
+  RESCHEDULE_KEYWORDS, matchesKeywords,
 } from "../orchestrator/orchestrator.types";
+import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from "../cancellation/cancellation.service";
 import { ConversationsPersistenceService } from "./conversations.persistence.service";
 import { resolveSlotSelectionIntent } from "./slot-selection.resolver";
@@ -59,6 +60,7 @@ export class ConversationsService {
     private readonly escalationService: EscalationService,
     private readonly abuseHandler: AbuseHandlerService,
     private readonly securityPipeline: SecurityPipelineService,
+    private readonly ghlApiService: GhlApiService,
     private readonly cancellationService: CancellationService,
     private readonly persistence: ConversationsPersistenceService,
     private readonly patientHistoryService: PatientHistoryService,
@@ -254,6 +256,12 @@ export class ConversationsService {
     );
     if (cancelResult) return cancelResult;
 
+    // Transition to rescheduling phase when the lead asks to reschedule from a booked state
+    if (conversation.phase === 'booked' && RESCHEDULE_KEYWORDS.some(kw => userMessage.toLowerCase().includes(kw))) {
+      await this.persistence.updateConversationMeta(conversation, 'lead', 'rescheduling');
+      conversation.phase = 'rescheduling';
+    }
+
     // Returning patient detail confirmation — LiveChat API path.
     // NOTE: The GHL webhook path handles the same signals in orchestrator.inbound-message.ts.
     // See that file for an explanation of why both paths exist.
@@ -408,6 +416,16 @@ export class ConversationsService {
       selectionResult?.intent === "SLOT_SELECTED" &&
       selectionResult.selectedSlot
     ) {
+      // If rescheduling, cancel the existing GHL appointment before booking the new one
+      if (conversation.phase === 'rescheduling') {
+        const oldGhlApptId = conversation.context?.get('ghlAppointmentId');
+        if (oldGhlApptId) {
+          const cancelled = await this.ghlApiService.cancelAppointment(oldGhlApptId);
+          if (cancelled === null) {
+            this.logger.error(`Failed to cancel old appointment ${oldGhlApptId} during reschedule`);
+          }
+        }
+      }
       bookingResult = await handleBooking(
         conversation,
         clinic,
