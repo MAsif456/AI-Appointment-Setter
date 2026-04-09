@@ -250,30 +250,75 @@ describe('selectLatestSlots', () => {
 // buildDayAvailabilitySection — weekday availability overview
 // ---------------------------------------------------------------------------
 describe('buildDayAvailabilitySection', () => {
-  // Use a fixed future week range: Monday 6 April to Friday 10 April 2026
-  const rangeStart = new Date('2026-04-06T00:00:00');
-  const rangeEnd = new Date('2026-04-10T23:59:59');
+  // Compute next Monday dynamically so all 5 weekdays are always in the future
+  function nextMonday(): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay(); // 0=Sun, 1=Mon, ...
+    const daysUntil = day === 1 ? 7 : (8 - day) % 7;
+    d.setDate(d.getDate() + daysUntil);
+    return d;
+  }
+
+  function addDays(d: Date, n: number): Date {
+    const result = new Date(d);
+    result.setDate(result.getDate() + n);
+    return result;
+  }
+
+  function ordinalSuffix(n: number): string {
+    if (n >= 11 && n <= 13) return `${n}th`;
+    switch (n % 10) {
+      case 1: return `${n}st`;
+      case 2: return `${n}nd`;
+      case 3: return `${n}rd`;
+      default: return `${n}th`;
+    }
+  }
+
+  const MONTH_NAMES_LOCAL = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  function dayLabel(d: Date, dayName: string): string {
+    return `${dayName} ${ordinalSuffix(d.getDate())} ${MONTH_NAMES_LOCAL[d.getMonth()]}`;
+  }
+
+  function toDateStr(d: Date): string {
+    return d.toISOString().slice(0, 10);
+  }
+
+  const monday = nextMonday();
+  const tuesday = addDays(monday, 1);
+  const wednesday = addDays(monday, 2);
+  const thursday = addDays(monday, 3);
+  const friday = addDays(monday, 4);
+
+  const rangeStart = monday;
+  const rangeEnd = addDays(friday, 0);
+  rangeEnd.setHours(23, 59, 59, 999);
 
   const weekSlots: Slot[] = [
-    { date: '2026-04-06', startTime: '09:00', endTime: '09:30' }, // Monday
-    { date: '2026-04-07', startTime: '10:00', endTime: '10:30' }, // Tuesday
-    { date: '2026-04-08', startTime: '11:00', endTime: '11:30' }, // Wednesday
-    // Thursday 9th and Friday 10th have no slots
+    { date: toDateStr(monday), startTime: '09:00', endTime: '09:30' },
+    { date: toDateStr(tuesday), startTime: '10:00', endTime: '10:30' },
+    { date: toDateStr(wednesday), startTime: '11:00', endTime: '11:30' },
+    // Thursday and Friday have no slots
   ];
 
   it('should show available days with full dates when slots exist', () => {
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
     expect(result).toContain('DAY AVAILABILITY');
-    expect(result).toContain('Monday 6th April');
-    expect(result).toContain('Tuesday 7th April');
-    expect(result).toContain('Wednesday 8th April');
+    expect(result).toContain(dayLabel(monday, 'Monday'));
+    expect(result).toContain(dayLabel(tuesday, 'Tuesday'));
+    expect(result).toContain(dayLabel(wednesday, 'Wednesday'));
   });
 
   it('should mention fully booked days with full dates', () => {
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, rangeEnd);
     expect(result).toContain('Fully booked');
-    expect(result).toContain('Thursday 9th April');
-    expect(result).toContain('Friday 10th April');
+    expect(result).toContain(dayLabel(thursday, 'Thursday'));
+    expect(result).toContain(dayLabel(friday, 'Friday'));
   });
 
   it('should instruct AI not to offer specific times yet', () => {
@@ -288,8 +333,8 @@ describe('buildDayAvailabilitySection', () => {
   });
 
   it('should not mention weekend days', () => {
-    // Extend range to include Saturday/Sunday
-    const extendedEnd = new Date('2026-04-12T23:59:59');
+    const extendedEnd = addDays(friday, 2); // Saturday
+    extendedEnd.setHours(23, 59, 59, 999);
     const result = buildDayAvailabilitySection(weekSlots, rangeStart, extendedEnd);
     expect(result).not.toContain('Saturday');
     expect(result).not.toContain('Sunday');
