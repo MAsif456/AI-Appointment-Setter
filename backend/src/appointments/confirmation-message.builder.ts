@@ -51,7 +51,7 @@ export function formatDateBritish(datetime: string): {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
     hour12: true,
   }).formatToParts(d);
