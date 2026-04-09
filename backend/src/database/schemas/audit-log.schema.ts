@@ -1,14 +1,14 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type AuditLogDocument = AuditLog & Document;
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class AuditLog {
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({ type: Types.ObjectId, ref: "User" })
   userId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Clinic' })
+  @Prop({ type: Types.ObjectId, ref: "Clinic" })
   clinicId?: Types.ObjectId;
 
   @Prop({ required: true })
@@ -29,7 +29,7 @@ export class AuditLog {
   @Prop()
   userAgent?: string;
 
-  @Prop({ type: String, enum: ['info', 'warning', 'error'], default: 'info' })
+  @Prop({ type: String, enum: ["info", "warning", "error"], default: "info" })
   severity: string;
 
   @Prop({ type: Object })

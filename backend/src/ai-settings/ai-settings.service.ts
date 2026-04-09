@@ -1,14 +1,13 @@
-
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
-import { UpdateAiSettingsDto } from './ai-settings.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+import { UpdateAiSettingsDto } from "./ai-settings.dto";
 import {
   DEFAULT_TONE,
   DEFAULT_GREETING_TEMPLATE,
   DEFAULT_QUALIFICATION_QUESTIONS,
-} from './ai-settings.defaults';
+} from "./ai-settings.defaults";
 /**
  * Interface for the AI settings response.
  * Contains the tone, greeting template, qualification questions, and custom instructions.
@@ -42,7 +41,8 @@ export class AiSettingsService {
    * @param clinicModel - The Mongoose model for clinics.
    */
   constructor(
-    @InjectModel(Clinic.name) private readonly clinicModel: Model<ClinicDocument>,
+    @InjectModel(Clinic.name)
+    private readonly clinicModel: Model<ClinicDocument>,
   ) {}
 
   /**
@@ -66,7 +66,9 @@ export class AiSettingsService {
           ? config.qualificationQuestions
           : DEFAULT_QUALIFICATION_QUESTIONS,
       // Handle legacy format where customInstructions was stored as string[]
-      customInstructions: normalizeCustomInstructions(config?.customInstructions),
+      customInstructions: normalizeCustomInstructions(
+        config?.customInstructions,
+      ),
     };
   }
 
@@ -83,16 +85,17 @@ export class AiSettingsService {
   ): Promise<AiSettingsResponse> {
     const setFields: Record<string, unknown> = {};
     if (updateDto.tone !== undefined) {
-      setFields['aiConfig.tone'] = updateDto.tone;
+      setFields["aiConfig.tone"] = updateDto.tone;
     }
     if (updateDto.greetingTemplate !== undefined) {
-      setFields['aiConfig.greetingTemplate'] = updateDto.greetingTemplate;
+      setFields["aiConfig.greetingTemplate"] = updateDto.greetingTemplate;
     }
     if (updateDto.qualificationQuestions !== undefined) {
-      setFields['aiConfig.qualificationQuestions'] = updateDto.qualificationQuestions;
+      setFields["aiConfig.qualificationQuestions"] =
+        updateDto.qualificationQuestions;
     }
     if (updateDto.customInstructions !== undefined) {
-      setFields['aiConfig.customInstructions'] = updateDto.customInstructions;
+      setFields["aiConfig.customInstructions"] = updateDto.customInstructions;
     }
 
     const clinic = await this.clinicModel
@@ -112,7 +115,9 @@ export class AiSettingsService {
         config?.qualificationQuestions?.length > 0
           ? config.qualificationQuestions
           : DEFAULT_QUALIFICATION_QUESTIONS,
-      customInstructions: normalizeCustomInstructions(config?.customInstructions),
+      customInstructions: normalizeCustomInstructions(
+        config?.customInstructions,
+      ),
     };
   }
 }
@@ -125,10 +130,10 @@ export class AiSettingsService {
  */
 function normalizeCustomInstructions(value: unknown): string {
   if (Array.isArray(value)) {
-    return value.join(', ');
+    return value.join(", ");
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value;
   }
-  return '';
+  return "";
 }

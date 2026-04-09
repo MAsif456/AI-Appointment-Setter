@@ -7,53 +7,53 @@
 import {
   handleDetailsUnchanged,
   handleDetailsChanged,
-} from './orchestrator.returning-patient-handlers';
+} from "./orchestrator.returning-patient-handlers";
 
-describe('orchestrator returning patient handlers', () => {
-  describe('handleDetailsUnchanged', () => {
-    it('returns a non-empty string', () => {
+describe("orchestrator returning patient handlers", () => {
+  describe("handleDetailsUnchanged", () => {
+    it("returns a non-empty string", () => {
       expect(handleDetailsUnchanged()).toBeTruthy();
     });
 
-    it('returns a string under 160 characters for SMS compatibility', () => {
+    it("returns a string under 160 characters for SMS compatibility", () => {
       expect(handleDetailsUnchanged().length).toBeLessThanOrEqual(160);
     });
 
-    it('does not mention any AI technology', () => {
+    it("does not mention any AI technology", () => {
       const response = handleDetailsUnchanged().toLowerCase();
-      expect(response).not.toContain('groq');
-      expect(response).not.toContain('llama');
-      expect(response).not.toContain('chatgpt');
-      expect(response).not.toContain('openai');
+      expect(response).not.toContain("groq");
+      expect(response).not.toContain("llama");
+      expect(response).not.toContain("chatgpt");
+      expect(response).not.toContain("openai");
     });
 
-    it('returns a consistent value on repeated calls', () => {
+    it("returns a consistent value on repeated calls", () => {
       expect(handleDetailsUnchanged()).toBe(handleDetailsUnchanged());
     });
   });
 
-  describe('handleDetailsChanged', () => {
-    it('returns a non-empty string', () => {
+  describe("handleDetailsChanged", () => {
+    it("returns a non-empty string", () => {
       expect(handleDetailsChanged()).toBeTruthy();
     });
 
-    it('returns a string under 160 characters for SMS compatibility', () => {
+    it("returns a string under 160 characters for SMS compatibility", () => {
       expect(handleDetailsChanged().length).toBeLessThanOrEqual(160);
     });
 
-    it('does not mention any AI technology', () => {
+    it("does not mention any AI technology", () => {
       const response = handleDetailsChanged().toLowerCase();
-      expect(response).not.toContain('groq');
-      expect(response).not.toContain('llama');
-      expect(response).not.toContain('chatgpt');
-      expect(response).not.toContain('openai');
+      expect(response).not.toContain("groq");
+      expect(response).not.toContain("llama");
+      expect(response).not.toContain("chatgpt");
+      expect(response).not.toContain("openai");
     });
 
-    it('asks for a postcode', () => {
-      expect(handleDetailsChanged().toLowerCase()).toContain('postcode');
+    it("asks for a postcode", () => {
+      expect(handleDetailsChanged().toLowerCase()).toContain("postcode");
     });
 
-    it('returns a consistent value on repeated calls', () => {
+    it("returns a consistent value on repeated calls", () => {
       expect(handleDetailsChanged()).toBe(handleDetailsChanged());
     });
   });

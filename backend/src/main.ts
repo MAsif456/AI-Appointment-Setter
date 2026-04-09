@@ -1,8 +1,8 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import helmet from 'helmet';
-import { AppModule } from './app.module';
-import { buildHelmetOptions } from './security-headers/security-headers.config';
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import helmet from "helmet";
+import { AppModule } from "./app.module";
+import { buildHelmetOptions } from "./security-headers/security-headers.config";
 
 async function bootstrap() {
   /**
@@ -27,10 +27,11 @@ async function bootstrap() {
   app.use(helmet(buildHelmetOptions(process.env.NODE_ENV)));
 
   // Enable global validation so DTOs are automatically validated
-  app.enableCors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  app.enableCors({
+    origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   const port = process.env.PORT || 3001;

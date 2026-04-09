@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { GreetingService } from './greeting.service';
-import { GroqService } from './groq.service';
-import { LeadInfo } from './interfaces/lead-info.interface';
-import { ClinicConfig } from './interfaces/clinic-config.interface';
-import { ReturningPatientResult } from '../patient-history/patient-history.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { GreetingService } from "./greeting.service";
+import { GroqService } from "./groq.service";
+import { LeadInfo } from "./interfaces/lead-info.interface";
+import { ClinicConfig } from "./interfaces/clinic-config.interface";
+import { ReturningPatientResult } from "../patient-history/patient-history.service";
 
-describe('GreetingService', () => {
+describe("GreetingService", () => {
   let service: GreetingService;
   let groqService: GroqService;
 
@@ -27,77 +27,77 @@ describe('GreetingService', () => {
   });
 
   const baseLead: LeadInfo = {
-    firstName: 'Sarah',
-    lastName: 'Williams',
-    issue: 'Back pain',
+    firstName: "Sarah",
+    lastName: "Williams",
+    issue: "Back pain",
   };
 
   const clinicWithTemplate: ClinicConfig = {
-    clinicId: 'clinic_002',
-    name: 'Newport Sports Clinic',
-    tone: 'Professional',
+    clinicId: "clinic_002",
+    name: "Newport Sports Clinic",
+    tone: "Professional",
     greetingTemplate:
-      'Hello {{firstName}}! Thanks for contacting {{clinicName}} about your {{issue}}.',
-    ghlLocationId: 'loc_002',
+      "Hello {{firstName}}! Thanks for contacting {{clinicName}} about your {{issue}}.",
+    ghlLocationId: "loc_002",
     isActive: true,
   };
 
   const clinicWithoutTemplate: ClinicConfig = {
-    clinicId: 'clinic_001',
-    name: 'Cardiff Chiropractic',
-    tone: 'Friendly',
-    ghlLocationId: 'loc_001',
+    clinicId: "clinic_001",
+    name: "Cardiff Chiropractic",
+    tone: "Friendly",
+    ghlLocationId: "loc_001",
     isActive: true,
   };
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('generateGreeting with custom template', () => {
-    it('should return template with variables replaced', async () => {
+  describe("generateGreeting with custom template", () => {
+    it("should return template with variables replaced", async () => {
       const lead: LeadInfo = {
-        firstName: 'Tom',
-        issue: 'neck pain',
+        firstName: "Tom",
+        issue: "neck pain",
       };
 
       const result = await service.generateGreeting(lead, clinicWithTemplate);
 
       expect(result).toBe(
-        'Hello Tom! Thanks for contacting Newport Sports Clinic about your neck pain.',
+        "Hello Tom! Thanks for contacting Newport Sports Clinic about your neck pain.",
       );
       // Should NOT call Groq API
       expect(mockGroqService.generateResponse).not.toHaveBeenCalled();
     });
 
-    it('should replace all supported placeholders', async () => {
+    it("should replace all supported placeholders", async () => {
       const result = await service.generateGreeting(
         baseLead,
         clinicWithTemplate,
       );
 
-      expect(result).toContain('Sarah');
-      expect(result).toContain('Newport Sports Clinic');
-      expect(result).toContain('Back pain');
+      expect(result).toContain("Sarah");
+      expect(result).toContain("Newport Sports Clinic");
+      expect(result).toContain("Back pain");
     });
 
-    it('should handle missing optional variables gracefully', async () => {
-      const leadNoIssue: LeadInfo = { firstName: 'Jane' };
+    it("should handle missing optional variables gracefully", async () => {
+      const leadNoIssue: LeadInfo = { firstName: "Jane" };
       const result = await service.generateGreeting(
         leadNoIssue,
         clinicWithTemplate,
       );
 
-      expect(result).toContain('Jane');
-      expect(result).toContain('Newport Sports Clinic');
+      expect(result).toContain("Jane");
+      expect(result).toContain("Newport Sports Clinic");
       // issue placeholder should be replaced with empty string
-      expect(result).not.toContain('{{issue}}');
+      expect(result).not.toContain("{{issue}}");
     });
   });
 
-  describe('generateGreeting without template (AI generation)', () => {
-    it('should call GroqService and return AI-generated greeting', async () => {
-      const aiGreeting = 'Hi Sarah! Welcome to Cardiff Chiropractic.';
+  describe("generateGreeting without template (AI generation)", () => {
+    it("should call GroqService and return AI-generated greeting", async () => {
+      const aiGreeting = "Hi Sarah! Welcome to Cardiff Chiropractic.";
       mockGroqService.generateResponse.mockResolvedValue(aiGreeting);
 
       const result = await service.generateGreeting(
@@ -109,7 +109,7 @@ describe('GreetingService', () => {
       expect(mockGroqService.generateResponse).toHaveBeenCalledTimes(1);
     });
 
-    it('should return null when GroqService returns null', async () => {
+    it("should return null when GroqService returns null", async () => {
       mockGroqService.generateResponse.mockResolvedValue(null);
 
       const result = await service.generateGreeting(
@@ -120,71 +120,79 @@ describe('GreetingService', () => {
       expect(result).toBeNull();
     });
 
-    it('should pass a prompt string to GroqService', async () => {
-      mockGroqService.generateResponse.mockResolvedValue('Hello!');
+    it("should pass a prompt string to GroqService", async () => {
+      mockGroqService.generateResponse.mockResolvedValue("Hello!");
 
       await service.generateGreeting(baseLead, clinicWithoutTemplate);
 
       const passedPrompt = mockGroqService.generateResponse.mock.calls[0][0];
-      expect(typeof passedPrompt).toBe('string');
-      expect(passedPrompt).toContain('Sarah');
-      expect(passedPrompt).toContain('Cardiff Chiropractic');
+      expect(typeof passedPrompt).toBe("string");
+      expect(passedPrompt).toContain("Sarah");
+      expect(passedPrompt).toContain("Cardiff Chiropractic");
     });
   });
 
-  describe('generateReturningPatientGreeting', () => {
+  describe("generateReturningPatientGreeting", () => {
     const returningPatientHigh: ReturningPatientResult = {
-      firstName: 'Sarah',
-      lastName: 'Williams',
-      validatedPostcode: 'CF10 1AA',
+      firstName: "Sarah",
+      lastName: "Williams",
+      validatedPostcode: "CF10 1AA",
       lastBookedAt: new Date(Date.now() - 30 * 86_400_000),
-      confidence: 'high',
+      confidence: "high",
     };
 
     const returningPatientStale: ReturningPatientResult = {
       ...returningPatientHigh,
       lastBookedAt: new Date(Date.now() - 400 * 86_400_000),
-      confidence: 'stale',
+      confidence: "stale",
     };
 
     const clinicWithReturningTemplate: ClinicConfig = {
       ...clinicWithoutTemplate,
-      returningPatientGreetingTemplate: 'Welcome back, {{firstName}}! Good to hear from {{clinicName}} again.',
+      returningPatientGreetingTemplate:
+        "Welcome back, {{firstName}}! Good to hear from {{clinicName}} again.",
     };
 
-    it('uses returningPatientGreetingTemplate when configured and skips AI call', async () => {
+    it("uses returningPatientGreetingTemplate when configured and skips AI call", async () => {
       const result = await service.generateReturningPatientGreeting(
         baseLead,
         clinicWithReturningTemplate,
         returningPatientHigh,
       );
-      expect(result).toBe('Welcome back, Sarah! Good to hear from Cardiff Chiropractic again.');
+      expect(result).toBe(
+        "Welcome back, Sarah! Good to hear from Cardiff Chiropractic again.",
+      );
       expect(mockGroqService.generateResponse).not.toHaveBeenCalled();
     });
 
-    it('calls Groq when no returningPatientGreetingTemplate is set', async () => {
-      mockGroqService.generateResponse.mockResolvedValue('Welcome back, Sarah!');
+    it("calls Groq when no returningPatientGreetingTemplate is set", async () => {
+      mockGroqService.generateResponse.mockResolvedValue(
+        "Welcome back, Sarah!",
+      );
       const result = await service.generateReturningPatientGreeting(
         baseLead,
         clinicWithoutTemplate,
         returningPatientHigh,
       );
-      expect(result).toBe('Welcome back, Sarah!');
+      expect(result).toBe("Welcome back, Sarah!");
       expect(mockGroqService.generateResponse).toHaveBeenCalledTimes(1);
     });
 
-    it('passes a stale-aware prompt to Groq when confidence is stale', async () => {
-      mockGroqService.generateResponse.mockResolvedValue('Good to hear from you again!');
+    it("passes a stale-aware prompt to Groq when confidence is stale", async () => {
+      mockGroqService.generateResponse.mockResolvedValue(
+        "Good to hear from you again!",
+      );
       await service.generateReturningPatientGreeting(
         baseLead,
         clinicWithoutTemplate,
         returningPatientStale,
       );
-      const prompt = mockGroqService.generateResponse.mock.calls[0][0] as string;
-      expect(prompt.toLowerCase()).toContain('been a while');
+      const prompt = mockGroqService.generateResponse.mock
+        .calls[0][0] as string;
+      expect(prompt.toLowerCase()).toContain("been a while");
     });
 
-    it('returns null when Groq fails', async () => {
+    it("returns null when Groq fails", async () => {
       mockGroqService.generateResponse.mockResolvedValue(null);
       const result = await service.generateReturningPatientGreeting(
         baseLead,

@@ -8,18 +8,22 @@
  *   - orchestrator.prompts.ts         (prompt builders, channel mappers)
  *   - orchestrator.types.ts           (shared interfaces and constants)
  */
-import { Injectable, Logger } from '@nestjs/common';
-import { GroqService } from '../ai/groq.service';
-import { GreetingService } from '../ai/greeting.service';
-import { SlotProvider } from '../ai/slot-provider';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { CancellationService } from '../cancellation/cancellation.service';
-import { ConversationsService } from '../ghl/conversations.service';
-import { MessagesService } from '../ghl/messages.service';
-import { GhlApiService } from '../ghl/ghl-api.service';
-import { AppointmentsService } from '../appointments/appointments.service';
-import { PatientHistoryService } from '../patient-history/patient-history.service';
-import { GhlContactCreatePayload, GhlInboundMessagePayload } from '../webhooks/dto/ghl-webhook.dto';
+import { Injectable, Logger } from "@nestjs/common";
+import { GroqService } from "../ai/groq.service";
+import { GreetingService } from "../ai/greeting.service";
+import { SlotProvider } from "../ai/slot-provider";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { CancellationService } from "../cancellation/cancellation.service";
+import { ConversationsService } from "../ghl/conversations.service";
+import { MessagesService } from "../ghl/messages.service";
+import { GhlApiService } from "../ghl/ghl-api.service";
+import { AppointmentsService } from "../appointments/appointments.service";
+import { PatientHistoryService } from "../patient-history/patient-history.service";
+import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
+import {
+  GhlContactCreatePayload,
+  GhlInboundMessagePayload,
+} from "../webhooks/dto/ghl-webhook.dto";
 import {
   FALLBACK_MESSAGE,
   OrchestratorMessage,
@@ -31,7 +35,7 @@ import { handleNewLeadFlow } from "./orchestrator.new-lead";
 import { handleInboundMessageFlow } from "./orchestrator.inbound-message";
 import { generateOrchestratorResponse } from "./orchestrator.generate-response";
 import { detectOrchestratorIntent } from "./orchestrator.detect-intent";
-import { SecurityPipelineService } from '../security/security-pipeline.service';
+import { SecurityPipelineService } from "../security/security-pipeline.service";
 
 export { FALLBACK_MESSAGE };
 export type { OrchestratorMessage, OrchestratorContext, IntentResult };
@@ -52,6 +56,7 @@ export class OrchestratorService {
     private readonly appointmentsService: AppointmentsService,
     private readonly securityPipeline: SecurityPipelineService,
     private readonly patientHistoryService: PatientHistoryService,
+    private readonly chatConversationsService: ChatConversationsService,
   ) {}
 
   async handleNewLead(
@@ -65,6 +70,7 @@ export class OrchestratorService {
       messagesService: this.messagesService,
       ghlApiService: this.ghlApiService,
       patientHistoryService: this.patientHistoryService,
+      securityPipeline: this.securityPipeline,
       logger: this.logger,
       correlationId,
     });
@@ -77,17 +83,10 @@ export class OrchestratorService {
   ): Promise<void> {
     return handleInboundMessageFlow(webhookData, clinicConfig, {
       conversationsService: this.conversationsService,
-      messagesService: this.messagesService,
       ghlApiService: this.ghlApiService,
       logger: this.logger,
-      detectIntent: this.detectIntent.bind(this),
-      generateResponse: this.generateResponse.bind(this),
       correlationId,
-      postcodeValidationService: this.postcodeValidationService,
-      slotProvider: this.slotProvider,
-      appointmentsService: this.appointmentsService,
-      groqService: this.groqService,
-      securityPipeline: this.securityPipeline,
+      chatConversationsService: this.chatConversationsService,
     });
   }
 
@@ -95,7 +94,7 @@ export class OrchestratorService {
   detectIntent(
     messageContent: string,
     currentPhase: string,
-    context?: Pick<OrchestratorContext, 'isReturningPatient'>,
+    context?: Pick<OrchestratorContext, "isReturningPatient">,
   ): IntentResult {
     return detectOrchestratorIntent(messageContent, currentPhase, context);
   }
@@ -109,7 +108,13 @@ export class OrchestratorService {
     context: OrchestratorContext,
     clinicConfig: ClinicConfig,
   ): Promise<string | null> {
-    return generateOrchestratorResponse(intent, context, clinicConfig, this.groqService, this.cancellationService);
+    return generateOrchestratorResponse(
+      intent,
+      context,
+      clinicConfig,
+      this.groqService,
+      this.cancellationService,
+    );
   }
 
   /** Creates a structured message object representing a conversation turn. */

@@ -8,13 +8,13 @@
  * All public methods return null / void on failure (null-on-failure pattern)
  * so any database error gracefully falls back to treating the lead as new.
  */
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
 import {
   PatientHistory,
   PatientHistoryDocument,
-} from '../database/schemas/patient-history.schema';
+} from "../database/schemas/patient-history.schema";
 
 /** Result returned when a previous booking is found for this patient + clinic. */
 export interface ReturningPatientResult {
@@ -28,7 +28,7 @@ export interface ReturningPatientResult {
    *  - medium: email-only match, booking within expiry window
    *  - stale:  match found but lastBookedAt is older than patientDataExpiryDays
    */
-  confidence: 'high' | 'medium' | 'stale';
+  confidence: "high" | "medium" | "stale";
 }
 
 @Injectable()
@@ -70,7 +70,7 @@ export class PatientHistoryService {
           .exec();
 
         if (record) {
-          return this.buildResult(record, patientDataExpiryDays, 'high');
+          return this.buildResult(record, patientDataExpiryDays, "high");
         }
       }
 
@@ -82,7 +82,7 @@ export class PatientHistoryService {
           .exec();
 
         if (record) {
-          return this.buildResult(record, patientDataExpiryDays, 'medium');
+          return this.buildResult(record, patientDataExpiryDays, "medium");
         }
       }
 
@@ -119,7 +119,9 @@ export class PatientHistoryService {
     conversationId: Types.ObjectId,
   ): Promise<void> {
     if (!phone) {
-      this.logger.warn(`persistHistory called without a phone number — clinicId: ${clinicId}. Skipping.`);
+      this.logger.warn(
+        `persistHistory called without a phone number — clinicId: ${clinicId}. Skipping.`,
+      );
       return;
     }
     try {
@@ -160,10 +162,10 @@ export class PatientHistoryService {
    * e.g. "+44 7911 123456" → "07911123456"
    */
   private normalisePhone(phone: string): string {
-    const stripped = phone.replace(/\s+/g, '').replace(/[()+-]/g, '');
+    const stripped = phone.replace(/\s+/g, "").replace(/[()+-]/g, "");
     // Convert international UK prefix to national format
-    if (stripped.startsWith('44') && stripped.length > 10) {
-      return '0' + stripped.slice(2);
+    if (stripped.startsWith("44") && stripped.length > 10) {
+      return "0" + stripped.slice(2);
     }
     return stripped;
   }
@@ -175,7 +177,7 @@ export class PatientHistoryService {
   private buildResult(
     record: PatientHistoryDocument,
     patientDataExpiryDays: number,
-    baseConfidence: 'high' | 'medium',
+    baseConfidence: "high" | "medium",
   ): ReturningPatientResult {
     const daysSinceBooking =
       (Date.now() - record.lastBookedAt.getTime()) / 86_400_000;
@@ -187,7 +189,7 @@ export class PatientHistoryService {
       validatedPostcode: record.validatedPostcode,
       previousConversationId: record.previousConversationId,
       lastBookedAt: record.lastBookedAt,
-      confidence: isStale ? 'stale' : baseConfidence,
+      confidence: isStale ? "stale" : baseConfidence,
     };
   }
 }

@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type PatientHistoryDocument = PatientHistory & Document;
 
@@ -14,7 +14,7 @@ export type PatientHistoryDocument = PatientHistory & Document;
 @Schema({ timestamps: true })
 export class PatientHistory {
   /** Clinic this history record belongs to — scopes all lookups. */
-  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Clinic", required: true, index: true })
   clinicId: Types.ObjectId;
 
   /** Normalised phone number used as the primary lookup key. */
@@ -39,7 +39,7 @@ export class PatientHistory {
   validatedPostcode?: string;
 
   /** Reference to the conversation that resulted in the most recent booking. */
-  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  @Prop({ type: Types.ObjectId, ref: "Conversation" })
   previousConversationId?: Types.ObjectId;
 
   /** Date of the most recent completed booking — used for stale data expiry checks. */
@@ -49,7 +49,8 @@ export class PatientHistory {
   // timestamps: createdAt, updatedAt (automatic)
 }
 
-export const PatientHistorySchema = SchemaFactory.createForClass(PatientHistory);
+export const PatientHistorySchema =
+  SchemaFactory.createForClass(PatientHistory);
 
 // Primary lookup path: phone + clinic (high-confidence match).
 // unique: true means each patient has exactly one record per clinic — re-bookings upsert.

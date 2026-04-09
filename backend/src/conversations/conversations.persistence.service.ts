@@ -1,19 +1,23 @@
 /** Low-level MongoDB persistence for conversations: messages, metadata, slots, and date context. */
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Conversation, ConversationDocument } from '../database/schemas/conversation.schema';
-import { Message, MessageDocument } from '../database/schemas/message.schema';
-import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
-import { Lead, LeadDocument } from '../database/schemas/lead.schema';
-import { Slot } from '../ai/interfaces/slot.interface';
-import { formatSlotDisplay } from '../ai/slot-formatter';
-import { SlotSelectionResult } from '../ai/slot-selector';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import {
+  Conversation,
+  ConversationDocument,
+} from "../database/schemas/conversation.schema";
+import { Message, MessageDocument } from "../database/schemas/message.schema";
+import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+import { Lead, LeadDocument } from "../database/schemas/lead.schema";
+import { Slot } from "../ai/interfaces/slot.interface";
+import { formatSlotDisplay } from "../ai/slot-formatter";
+import { SlotSelectionResult } from "../ai/slot-selector";
 
 @Injectable()
 export class ConversationsPersistenceService {
   constructor(
-    @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
+    @InjectModel(Conversation.name)
+    private conversationModel: Model<ConversationDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
   ) {}
 
@@ -30,7 +34,7 @@ export class ConversationsPersistenceService {
     conversation: ConversationDocument,
     clinic: ClinicDocument,
     lead: LeadDocument,
-    sender: 'ai' | 'lead',
+    sender: "ai" | "lead",
     content: string,
     urgencyData?: { level: string; score: number },
   ) {
@@ -44,8 +48,8 @@ export class ConversationsPersistenceService {
     };
     if (urgencyData) {
       doc.extractedData = new Map([
-        ['urgency', urgencyData.level],
-        ['urgencyScore', urgencyData.score.toString()],
+        ["urgency", urgencyData.level],
+        ["urgencyScore", urgencyData.score.toString()],
       ]);
     }
     return this.messageModel.create(doc);
@@ -80,14 +84,16 @@ export class ConversationsPersistenceService {
    */
   async storeOfferedSlots(conversation: ConversationDocument, slots: Slot[]) {
     if (slots.length === 0) return;
-    const offeredSlots = slots.map(s => ({
+    const offeredSlots = slots.map((s) => ({
       dateTime: new Date(`${s.date}T${s.startTime}:00`),
       displayText: formatSlotDisplay(s),
     }));
     const existingHistory: { dateTime: Date; displayText: string }[] =
       (conversation.slotHistory as any[]) ?? [];
-    const existingKeys = new Set(existingHistory.map(s => s.displayText));
-    const newEntries = offeredSlots.filter(s => !existingKeys.has(s.displayText));
+    const existingKeys = new Set(existingHistory.map((s) => s.displayText));
+    const newEntries = offeredSlots.filter(
+      (s) => !existingKeys.has(s.displayText),
+    );
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       offeredSlots,
       slotHistory: [...existingHistory, ...newEntries],
@@ -106,16 +112,22 @@ export class ConversationsPersistenceService {
   ): Promise<void> {
     const dateCtxUpdate: Record<string, any> = {};
     if (selectionResult?.requestedDate) {
-      dateCtxUpdate.lastRequestedDay = selectionResult.requestedDate.toLowerCase();
+      dateCtxUpdate.lastRequestedDay =
+        selectionResult.requestedDate.toLowerCase();
     }
     if (selectionResult?.requestedStartDate) {
-      dateCtxUpdate.lastRequestedDateStart = new Date(selectionResult.requestedStartDate);
+      dateCtxUpdate.lastRequestedDateStart = new Date(
+        selectionResult.requestedStartDate,
+      );
       dateCtxUpdate.lastRequestedDateEnd = selectionResult.requestedEndDate
         ? new Date(selectionResult.requestedEndDate)
         : new Date(selectionResult.requestedStartDate);
     }
     if (Object.keys(dateCtxUpdate).length > 0) {
-      await this.conversationModel.findByIdAndUpdate(conversation._id, dateCtxUpdate);
+      await this.conversationModel.findByIdAndUpdate(
+        conversation._id,
+        dateCtxUpdate,
+      );
     }
   }
 }

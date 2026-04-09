@@ -1,11 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Conversation, ConversationDocument } from '../database/schemas/conversation.schema';
-import { Message, MessageDocument } from '../database/schemas/message.schema';
-import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
-import { Lead, LeadDocument } from '../database/schemas/lead.schema';
-import { AbuseDetectionService } from './abuse-detection.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import {
+  Conversation,
+  ConversationDocument,
+} from "../database/schemas/conversation.schema";
+import { Message, MessageDocument } from "../database/schemas/message.schema";
+import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+import { Lead, LeadDocument } from "../database/schemas/lead.schema";
+import { AbuseDetectionService } from "./abuse-detection.service";
 
 export interface AbuseHandleResult {
   reply: string;
@@ -37,7 +40,8 @@ export class AbuseHandlerService {
   private readonly logger = new Logger(AbuseHandlerService.name);
 
   constructor(
-    @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
+    @InjectModel(Conversation.name)
+    private conversationModel: Model<ConversationDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     private readonly abuseDetectionService: AbuseDetectionService,
   ) {}
@@ -60,20 +64,29 @@ export class AbuseHandlerService {
     userMessage: string,
   ): Promise<AbuseHandleResult | null> {
     const abuseResult = this.abuseDetectionService.check(
-    userMessage,
-    conversation.directedHostilityCount ?? 0,
-    conversation.abuseOfferPending ?? false,
-  );
-  this.logger.log(`abuse check: offerPending=${conversation.abuseOfferPending}, 
+      userMessage,
+      conversation.directedHostilityCount ?? 0,
+      conversation.abuseOfferPending ?? false,
+    );
+    this.logger
+      .log(`abuse check: offerPending=${conversation.abuseOfferPending}, 
     classification=${abuseResult.classification}, shouldEscalate=${abuseResult.shouldEscalate}`);
 
     // check escalation before classification check
     if (abuseResult.shouldEscalate) {
-      return this.signalEscalation(conversation, clinic, lead, abuseResult.response!);
+      return this.signalEscalation(
+        conversation,
+        clinic,
+        lead,
+        abuseResult.response!,
+      );
     }
 
     // Then check classification — if it's 'none' or 'casual', we can skip the abuse flow entirely
-    if (abuseResult.classification === 'none' || abuseResult.classification === 'casual') {
+    if (
+      abuseResult.classification === "none" ||
+      abuseResult.classification === "casual"
+    ) {
       return null;
     }
 
@@ -93,14 +106,14 @@ export class AbuseHandlerService {
   ): Promise<AbuseHandleResult> {
     this.logger.warn(
       `Escalation requested via abuse flow — conversation: ${conversation._id}, ` +
-      `lead: ${lead._id}. Handing off to US-20 escalation service.`,
+        `lead: ${lead._id}. Handing off to US-20 escalation service.`,
     );
 
     // Clear the pending offer flag so it does not repeat after escalation
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       abuseOfferPending: false,
       lastMessageAt: new Date(),
-      lastMessageFrom: 'ai',
+      lastMessageFrom: "ai",
       $inc: { messageCount: 1 },
     });
 
@@ -124,13 +137,13 @@ export class AbuseHandlerService {
     conversation: ConversationDocument,
     clinic: ClinicDocument,
     lead: LeadDocument,
-    abuseResult: ReturnType<AbuseDetectionService['check']>,
+    abuseResult: ReturnType<AbuseDetectionService["check"]>,
   ): Promise<AbuseHandleResult> {
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       directedHostilityCount: abuseResult.newDirectedCount,
       abuseOfferPending: abuseResult.offerIsPending,
       lastMessageAt: new Date(),
-      lastMessageFrom: 'ai',
+      lastMessageFrom: "ai",
       $inc: { messageCount: 1 },
     });
 
@@ -163,7 +176,7 @@ export class AbuseHandlerService {
       conversationId: conversation._id,
       clinicId: clinic._id,
       leadId: lead._id,
-      sender: 'ai',
+      sender: "ai",
       content,
       channel: conversation.channel,
     });

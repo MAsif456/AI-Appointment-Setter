@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import {
   DetectionResult,
   SecurityFlag,
   THREAT_THRESHOLDS,
-} from './security.types';
-import { DETECTION_RULES, PatternRule } from './injection-patterns';
+} from "./security.types";
+import { DETECTION_RULES, PatternRule } from "./injection-patterns";
 
 // Ref: DEV.to — 3-Layer Detection (Pattern + Heuristic + LLM)
 // https://dev.to/zeshama/how-to-detect-prompt-injection-attacks-in-your-ai-agent-3-layers-5-minutes-2emd
@@ -57,11 +57,11 @@ export class InjectionDetectorService {
     // Cap at 1.0
     score = Math.min(score, 1.0);
 
-    let action: DetectionResult['action'] = 'pass';
+    let action: DetectionResult["action"] = "pass";
     if (score >= THREAT_THRESHOLDS.BLOCK) {
-      action = 'block';
+      action = "block";
     } else if (score >= THREAT_THRESHOLDS.SANITISE) {
-      action = 'sanitise';
+      action = "sanitise";
     }
 
     return { threatScore: score, flags, action };
@@ -76,11 +76,12 @@ export class InjectionDetectorService {
     // Normal medical text rarely has >10% non-ASCII; homoglyph attacks substitute
     // many Latin characters with visually similar Unicode glyphs
     const nonAsciiCount = (message.match(/[^\x00-\xFF]/g) || []).length;
-    const nonAsciiRatio = message.length > 0 ? nonAsciiCount / message.length : 0;
+    const nonAsciiRatio =
+      message.length > 0 ? nonAsciiCount / message.length : 0;
     if (nonAsciiRatio > 0.3 && message.length > 10) {
       flags.push({
-        category: 'encoding_obfuscation',
-        pattern: 'excessive_unicode',
+        category: "encoding_obfuscation",
+        pattern: "excessive_unicode",
         weight: 0.25,
       });
     }
@@ -92,8 +93,8 @@ export class InjectionDetectorService {
     const base64Match = message.match(/[A-Za-z0-9+/=]{40,}/);
     if (base64Match && new Set(base64Match[0]).size >= 4) {
       flags.push({
-        category: 'encoding_obfuscation',
-        pattern: 'base64_payload',
+        category: "encoding_obfuscation",
+        pattern: "base64_payload",
         weight: 0.3,
       });
     }
@@ -101,13 +102,17 @@ export class InjectionDetectorService {
     // Leetspeak density — checks if the message contains injection keywords
     // written in leetspeak (e.g., "1gn0r3 pr3v10us 1nstruct10ns")
     const normalised = message
-      .replace(/1/g, 'i').replace(/0/g, 'o').replace(/3/g, 'e')
-      .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+      .replace(/1/g, "i")
+      .replace(/0/g, "o")
+      .replace(/3/g, "e")
+      .replace(/4/g, "a")
+      .replace(/5/g, "s")
+      .replace(/7/g, "t");
     if (normalised !== message) {
       for (const rule of this.rules) {
         if (rule.pattern.test(normalised) && !rule.pattern.test(message)) {
           flags.push({
-            category: 'encoding_obfuscation',
+            category: "encoding_obfuscation",
             pattern: `leetspeak_${rule.label}`,
             weight: rule.weight * 0.8,
           });
