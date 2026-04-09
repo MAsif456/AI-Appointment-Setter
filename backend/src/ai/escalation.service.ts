@@ -1,12 +1,23 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Conversation, ConversationDocument } from '../database/schemas/conversation.schema';
-import { Lead, LeadDocument } from '../database/schemas/lead.schema';
-import { ClinicDocument } from '../database/schemas/clinic.schema';
-import { GhlApiService } from '../ghl/ghl-api.service';
-import { UrgencyAssessment, UrgencyLevel, EscalationResult } from './urgency-detector.types';
-import { PATIENT_EMERGENCY_RESPONSE, PATIENT_NO_SLOTS_URGENT, buildStaffAlert } from './urgency-messages';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import {
+  Conversation,
+  ConversationDocument,
+} from "../database/schemas/conversation.schema";
+import { Lead, LeadDocument } from "../database/schemas/lead.schema";
+import { ClinicDocument } from "../database/schemas/clinic.schema";
+import { GhlApiService } from "../ghl/ghl-api.service";
+import {
+  UrgencyAssessment,
+  UrgencyLevel,
+  EscalationResult,
+} from "./urgency-detector.types";
+import {
+  PATIENT_EMERGENCY_RESPONSE,
+  PATIENT_NO_SLOTS_URGENT,
+  buildStaffAlert,
+} from "./urgency-messages";
 
 /**
  * Orchestrates emergency escalation, clinic staff notifications,
@@ -24,7 +35,8 @@ export class EscalationService {
    */
   constructor(
     private readonly ghlApiService: GhlApiService,
-    @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
+    @InjectModel(Conversation.name)
+    private conversationModel: Model<ConversationDocument>,
     @InjectModel(Lead.name) private leadModel: Model<LeadDocument>,
   ) {}
 
@@ -42,28 +54,29 @@ export class EscalationService {
     assessment: UrgencyAssessment,
   ): Promise<EscalationResult> {
     const reason = assessment.emergencyKeywordsMatched.length
-      ? `Emergency keywords detected: ${assessment.emergencyKeywordsMatched.join(', ')}`
-      : 'Emergency classified by urgency detector';
+      ? `Emergency keywords detected: ${assessment.emergencyKeywordsMatched.join(", ")}`
+      : "Emergency classified by urgency detector";
 
     // 1. Update conversation flags
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       isEmergency: true,
       requiresHumanIntervention: true,
       humanInterventionReason: reason,
-      phase: 'escalated',
+      phase: "escalated",
       escalatedAt: new Date(),
       escalationReason: reason,
     });
 
     // 2. Notify clinic staff via GHL (fire-and-forget — don't block patient response)
-    const contactId = lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
-    this.notifyClinicStaff(clinic, lead, reason, contactId).catch(
-      (err) => this.logger.warn(`GHL emergency notification failed: ${err.message}`),
+    const contactId =
+      lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
+    this.notifyClinicStaff(clinic, lead, reason, contactId).catch((err) =>
+      this.logger.warn(`GHL emergency notification failed: ${err.message}`),
     );
 
     // 3. Update lead tags
-    this.updateGhlTags(lead, 'emergency').catch(
-      (err) => this.logger.warn(`GHL tag update failed: ${err.message}`),
+    this.updateGhlTags(lead, "emergency").catch((err) =>
+      this.logger.warn(`GHL tag update failed: ${err.message}`),
     );
 
     return { aiMessage: PATIENT_EMERGENCY_RESPONSE, escalationReason: reason };
@@ -80,13 +93,19 @@ export class EscalationService {
   ): Promise<string> {
     await this.conversationModel.findByIdAndUpdate(conversation._id, {
       requiresHumanIntervention: true,
-      humanInterventionReason: 'Urgent patient — no slots available',
+      humanInterventionReason: "Urgent patient — no slots available",
     });
 
-    const contactId = lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
+    const contactId =
+      lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
     this.notifyClinicStaff(
-      clinic, lead, 'Urgent patient with no available slots', contactId,
-    ).catch((err) => this.logger.warn(`GHL no-slots notification failed: ${err.message}`));
+      clinic,
+      lead,
+      "Urgent patient with no available slots",
+      contactId,
+    ).catch((err) =>
+      this.logger.warn(`GHL no-slots notification failed: ${err.message}`),
+    );
 
     return PATIENT_NO_SLOTS_URGENT;
   }
@@ -99,7 +118,7 @@ export class EscalationService {
     contactId: string,
   ): Promise<void> {
     await this.ghlApiService.sendMessageWithRetry({
-      type: 'SMS',
+      type: "SMS",
       contactId,
       message: buildStaffAlert(lead, reason),
     });

@@ -1,12 +1,12 @@
 /** All possible outcomes of analysing a lead's slot-selection reply */
 export type SlotSelectionIntent =
-  | 'SLOT_SELECTED'    // Lead confirmed exactly one slot
-  | 'AMBIGUOUS'        // Reply matches more than one offered slot
-  | 'DIFFERENT_DATE'   // Lead is asking for a different day
-  | 'DIFFERENT_TIME'   // Lead is asking for a different time of day
-  | 'FURTHER_DATE'     // Lead wants later/furthest available dates
-  | 'NONE_SUITABLE'    // None of the offered slots work
-  | 'DAY_OVERVIEW';    // Show available days (Mon-Fri) before offering specific slots
+  | "SLOT_SELECTED" // Lead confirmed exactly one slot
+  | "AMBIGUOUS" // Reply matches more than one offered slot
+  | "DIFFERENT_DATE" // Lead is asking for a different day
+  | "DIFFERENT_TIME" // Lead is asking for a different time of day
+  | "FURTHER_DATE" // Lead wants later/furthest available dates
+  | "NONE_SUITABLE" // None of the offered slots work
+  | "DAY_OVERVIEW"; // Show available days (Mon-Fri) before offering specific slots
 
 /** Minimal representation of a previously offered slot */
 export interface OfferedSlotRef {

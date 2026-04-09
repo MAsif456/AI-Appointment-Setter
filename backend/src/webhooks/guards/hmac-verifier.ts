@@ -12,7 +12,6 @@ export interface HmacVerifyResult {
   reason?: string;
 }
 
-
 /**
  * Verifies the HMAC signature of the incoming request.
  * If the signature is invalid or the GHL_WEBHOOK_SECRET is not configured,
@@ -23,7 +22,7 @@ export interface HmacVerifyResult {
  * @param {string} secret - The webhook secret.
  * @returns {HmacVerifyResult} An object containing the result of the HMAC verification and an optional reason string.
  * @throws {UnauthorizedException} If the signature is invalid or the GHL_WEBHOOK_SECRET is not configured.
- * 
+ *
  * Ref: https://webhooks.fyi/security/hmac
  * Ref: https://webhooks.fyi/security/replay-prevention
  * Ref: https://nodejs.org/api/crypto.html

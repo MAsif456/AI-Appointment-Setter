@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from "bcrypt";
 
 /**
  * Seeds the initial admin user.
@@ -7,15 +7,15 @@ import * as bcrypt from 'bcrypt';
  * guaranteeing there is always a way back into the system.
  */
 export async function seedUsers(UserModel: any) {
-  console.log('Creating users...');
+  console.log("Creating users...");
 
-  const password = await bcrypt.hash('admin123', 10);
+  const password = await bcrypt.hash("admin123", 10);
 
   const adminUser = await UserModel.create({
-    name: 'Admin User',
-    email: 'admin@lunaxdigital.com',
+    name: "Admin User",
+    email: "admin@lunaxdigital.com",
     passwordHash: password,
-    role: 'admin',
+    role: "admin",
     isActive: true,
     isVerified: true,
     isSuperAdmin: true,

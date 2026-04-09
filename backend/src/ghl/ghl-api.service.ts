@@ -16,6 +16,9 @@ export class GhlApiService {
    * Constructs a GhlApiService instance.
    * Initialises per-service circuit breakers to protect against cascading
    * failures when the GHL API is unresponsive.
+   *
+   * Ref: Nygard, M. (2018). Release It! Design and Deploy Production-Ready Software, 2nd ed.
+   *   Pragmatic Bookshelf, Ch. 4: "Circuit Breaker" stability pattern.
    */
   constructor(
     private readonly httpService: HttpService,
@@ -50,12 +53,25 @@ export class GhlApiService {
    * @returns {Promise<any>} - The result of the message send.
    */
   async sendMessageWithRetry(dto: SendMessageDto): Promise<any> {
-    const payload = {
+    // Ref: GHL Conversations API — Send a New Message. Email type uses html + subject, others use message.
+    // conversationId threads messages into the same GHL conversation (critical for email threading).
+    const payload: Record<string, string> = {
       type: dto.type,
       contactId: dto.contactId,
-      message: dto.message,
       status: "pending",
     };
+    if (dto.conversationId) {
+      payload.conversationId = dto.conversationId;
+    }
+    if (dto.emailMessageId) {
+      payload.emailMessageId = dto.emailMessageId;
+    }
+    if (dto.type === "Email") {
+      payload.html = dto.html ?? dto.message;
+      payload.subject = dto.subject ?? "AppointHealth";
+    } else {
+      payload.message = dto.message;
+    }
 
     return this.messagingCircuitBreaker.execute(() =>
       retryWithBackoff(

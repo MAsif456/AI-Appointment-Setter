@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type AppointmentDocument = Appointment & Document;
 
@@ -11,19 +11,19 @@ export class ReminderLog {
   @Prop({ required: true })
   type: string; // '24_hour', '1_hour', '48_hour', etc.
 
-  @Prop({ type: String, enum: ['sent', 'failed'], required: true })
+  @Prop({ type: String, enum: ["sent", "failed"], required: true })
   status: string;
 }
 
 @Schema({ timestamps: true })
 export class Appointment {
-  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Clinic", required: true, index: true })
   clinicId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Lead', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Lead", required: true, index: true })
   leadId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  @Prop({ type: Types.ObjectId, ref: "Conversation" })
   conversationId?: Types.ObjectId;
 
   @Prop({ required: true })
@@ -33,7 +33,7 @@ export class Appointment {
   appointmentDate: Date;
 
   @Prop({ required: true })
-  appointmentTime: string; 
+  appointmentTime: string;
 
   @Prop({ required: true })
   durationMinutes: number;
@@ -44,7 +44,11 @@ export class Appointment {
   @Prop()
   price?: number;
 
-  @Prop({ type: String, enum: ['confirmed', 'rescheduled', 'cancelled', 'completed', 'no_show'], default: 'confirmed' })
+  @Prop({
+    type: String,
+    enum: ["confirmed", "rescheduled", "cancelled", "completed", "no_show"],
+    default: "confirmed",
+  })
   status: string;
 
   // Rescheduling tracking
@@ -91,7 +95,11 @@ export class Appointment {
   @Prop()
   paymentAmount?: number;
 
-  @Prop({ type: String, enum: ['pending', 'completed', 'failed', 'refunded'], default: 'pending' })
+  @Prop({
+    type: String,
+    enum: ["pending", "completed", "failed", "refunded"],
+    default: "pending",
+  })
   paymentStatus?: string;
 
   @Prop()

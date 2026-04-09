@@ -40,6 +40,7 @@
     "dotenv": "^17.3.1",
     "groq-sdk": "^0.37.0",
     "mongoose": "^9.2.4",
+    "node-email-reply-parser": "^0.1.4",
     "nodemailer": "^8.0.4",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

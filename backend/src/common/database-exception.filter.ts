@@ -17,12 +17,12 @@ import { Error as MongooseError } from "mongoose";
 export class DatabaseExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(DatabaseExceptionFilter.name);
 
-/**
- * Catches Mongoose connection and server errors and returns a 503 Service Unavailable response.
- * Logs the incoming request body so the webhook payload can be manually replayed if needed.
- * @param {MongooseError} exception - The Mongoose error that was thrown.
- * @param {ArgumentsHost} host - The execution context of the request.
- */
+  /**
+   * Catches Mongoose connection and server errors and returns a 503 Service Unavailable response.
+   * Logs the incoming request body so the webhook payload can be manually replayed if needed.
+   * @param {MongooseError} exception - The Mongoose error that was thrown.
+   * @param {ArgumentsHost} host - The execution context of the request.
+   */
   catch(exception: MongooseError, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();

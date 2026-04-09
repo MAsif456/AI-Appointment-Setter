@@ -17,11 +17,11 @@ describe("WebhookThrottleGuard", () => {
     if (locationId) body.location = { id: locationId };
 
     return {
-  /**
-   * Returns a mock HTTP request object containing the provided IP address and body.
-   *
-   * @returns {{ getRequest: () => { ip: string, socket: { remoteAddress: string }, body: Record<string, unknown> } }}
-   */
+      /**
+       * Returns a mock HTTP request object containing the provided IP address and body.
+       *
+       * @returns {{ getRequest: () => { ip: string, socket: { remoteAddress: string }, body: Record<string, unknown> } }}
+       */
       switchToHttp: () => ({
         getRequest: () => ({ ip, socket: { remoteAddress: ip }, body }),
       }),

@@ -4,12 +4,13 @@
  * Extracted to keep orchestrator.service.ts under the 200-line limit.
  * Each handler is a standalone function receiving its dependencies as arguments.
  */
-import { Types } from 'mongoose';
-import { CancellationService } from '../cancellation/cancellation.service';
-import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
-import { OrchestratorContext, FALLBACK_MESSAGE } from './orchestrator.types';
+import { Types } from "mongoose";
+import { CancellationService } from "../cancellation/cancellation.service";
+import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
+import { OrchestratorContext, FALLBACK_MESSAGE } from "./orchestrator.types";
 
-const NO_BOOKING_MSG = "I don't have a booking on file for you. Is there something else I can help with?";
+const NO_BOOKING_MSG =
+  "I don't have a booking on file for you. Is there something else I can help with?";
 
 /** Handles CANCEL intent: checks for existing appointment, returns confirmation prompt or guard. */
 export async function handleCancelIntent(
@@ -17,7 +18,9 @@ export async function handleCancelIntent(
   cancellationService: CancellationService,
 ): Promise<string> {
   if (!context.conversationId) return NO_BOOKING_MSG;
-  const appointment = await cancellationService.checkAppointmentExists(new Types.ObjectId(context.conversationId));
+  const appointment = await cancellationService.checkAppointmentExists(
+    new Types.ObjectId(context.conversationId),
+  );
   if (!appointment) return NO_BOOKING_MSG;
   return cancellationService.buildConfirmationPrompt(appointment);
 }
@@ -34,8 +37,11 @@ export async function handleConfirmCancel(
   if (!appointment) return NO_BOOKING_MSG;
 
   // If coming from 'cancelling' (first confirmation), check policy
-  if (context.phase === 'cancelling') {
-    const policy = await cancellationService.evaluatePolicy(appointment, new Types.ObjectId(clinicConfig.clinicId));
+  if (context.phase === "cancelling") {
+    const policy = await cancellationService.evaluatePolicy(
+      appointment,
+      new Types.ObjectId(clinicConfig.clinicId),
+    );
     if (policy.withinNotice && policy.feeEnabled && policy.warningMessage) {
       return policy.warningMessage;
     }
@@ -49,17 +55,21 @@ export async function handleConfirmCancel(
 
   // Reason already collected (or skipped) — execute cancellation
   const result = await cancellationService.executeCancellation(
-    convId, appointment._id as Types.ObjectId, context.ghlContactId,
+    convId,
+    appointment._id,
+    context.ghlContactId,
   );
   return result.message;
 }
 
 /** Handles DECLINE_CANCEL intent: reassures lead or offers rescheduling. */
-export async function handleDeclineCancel(context: OrchestratorContext): Promise<string> {
-  if (context.phase === 'cancelling_warned') {
+export async function handleDeclineCancel(
+  context: OrchestratorContext,
+): Promise<string> {
+  if (context.phase === "cancelling_warned") {
     return "No problem! Let's look at rescheduling your appointment instead. When would suit you better?";
   }
-  return 'No problem, your appointment is still confirmed. Is there anything else I can help with?';
+  return "No problem, your appointment is still confirmed. Is there anything else I can help with?";
 }
 
 /** Handles freeform text in cancelling phases — stores as reason and executes cancellation. */
@@ -73,14 +83,17 @@ export async function handleCancellationReason(
 
   // The last user message is the reason
   const lastMsg = context.messages[context.messages.length - 1];
-  const reason = lastMsg?.role === 'user' ? lastMsg.content : undefined;
+  const reason = lastMsg?.role === "user" ? lastMsg.content : undefined;
   if (reason) await cancellationService.storeReason(convId, reason);
 
   const appointment = await cancellationService.checkAppointmentExists(convId);
   if (!appointment || !context.ghlContactId) return FALLBACK_MESSAGE;
 
   const result = await cancellationService.executeCancellation(
-    convId, appointment._id as Types.ObjectId, context.ghlContactId, reason,
+    convId,
+    appointment._id,
+    context.ghlContactId,
+    reason,
   );
   return result.message;
 }

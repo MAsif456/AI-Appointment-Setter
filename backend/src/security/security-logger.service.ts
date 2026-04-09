@@ -1,14 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Conversation, ConversationDocument } from '../database/schemas/conversation.schema';
-import { Message, MessageDocument } from '../database/schemas/message.schema';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import {
+  Conversation,
+  ConversationDocument,
+} from "../database/schemas/conversation.schema";
+import { Message, MessageDocument } from "../database/schemas/message.schema";
 import {
   SecurityLogEntry,
   SecurityEventType,
   SecurityAction,
   SecurityFlag,
-} from './security.types';
+} from "./security.types";
 
 // Structured security logging with conversation flagging and audit trail.
 // Logs are JSON-serializable for SIEM integration.
@@ -17,7 +20,7 @@ import {
 
 @Injectable()
 export class SecurityLoggerService {
-  private readonly logger = new Logger('SecurityPipeline');
+  private readonly logger = new Logger("SecurityPipeline");
 
   /**
    * Constructor for SecurityLoggerService.
@@ -25,8 +28,10 @@ export class SecurityLoggerService {
    * @param messageModel - Mongoose model for messages.
    */
   constructor(
-    @InjectModel(Conversation.name) private readonly conversationModel: Model<ConversationDocument>,
-    @InjectModel(Message.name) private readonly messageModel: Model<MessageDocument>,
+    @InjectModel(Conversation.name)
+    private readonly conversationModel: Model<ConversationDocument>,
+    @InjectModel(Message.name)
+    private readonly messageModel: Model<MessageDocument>,
   ) {}
 
   /**
@@ -37,14 +42,16 @@ export class SecurityLoggerService {
     // Structured log output — JSON-friendly for log aggregation tools
     this.logger.warn(
       `[${entry.eventType}] action=${entry.action} score=${entry.threatScore.toFixed(2)} ` +
-      `flags=[${entry.flags.join(',')}] conversationId=${entry.conversationId} ` +
-      `clinicId=${entry.clinicId}`,
+        `flags=[${entry.flags.join(",")}] conversationId=${entry.conversationId} ` +
+        `clinicId=${entry.clinicId}`,
     );
 
-    if (entry.action === 'block' || entry.action === 'sanitise') {
+    if (entry.action === "block" || entry.action === "sanitise") {
       this.logger.warn(
         `[${entry.eventType}] originalMessage="${entry.originalMessage.substring(0, 200)}"` +
-        (entry.sanitisedMessage ? ` sanitised="${entry.sanitisedMessage.substring(0, 200)}"` : ''),
+          (entry.sanitisedMessage
+            ? ` sanitised="${entry.sanitisedMessage.substring(0, 200)}"`
+            : ""),
       );
     }
   }
@@ -56,7 +63,10 @@ export class SecurityLoggerService {
    * @returns A promise that resolves when the conversation is flagged.
    * @throws An error is logged to the security logger if the flag operation fails.
    */
-  async flagConversation(conversationId: string, reason: string): Promise<void> {
+  async flagConversation(
+    conversationId: string,
+    reason: string,
+  ): Promise<void> {
     try {
       await this.conversationModel.findByIdAndUpdate(
         new Types.ObjectId(conversationId),
@@ -68,7 +78,9 @@ export class SecurityLoggerService {
       );
     } catch (error) {
       // Logging failure should never break the message pipeline
-      this.logger.error(`Failed to flag conversation ${conversationId}: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to flag conversation ${conversationId}: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -87,7 +99,9 @@ export class SecurityLoggerService {
       );
       return updated?.injectionAttemptCount ?? 0;
     } catch (error) {
-      this.logger.error(`Failed to increment injection count for ${conversationId}: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to increment injection count for ${conversationId}: ${(error as Error).message}`,
+      );
       return 0;
     }
   }
@@ -99,7 +113,9 @@ export class SecurityLoggerService {
    */
   async getInjectionCount(conversationId: string): Promise<number> {
     try {
-      const conversation = await this.conversationModel.findById(new Types.ObjectId(conversationId)).select('injectionAttemptCount');
+      const conversation = await this.conversationModel
+        .findById(new Types.ObjectId(conversationId))
+        .select("injectionAttemptCount");
       return conversation?.injectionAttemptCount ?? 0;
     } catch {
       return 0;
@@ -118,10 +134,10 @@ export class SecurityLoggerService {
         conversationId: new Types.ObjectId(conversationId),
         clinicId: new Types.ObjectId(clinicId),
         leadId: new Types.ObjectId(leadId),
-        sender: 'system',
+        sender: "system",
         content,
-        channel: 'sms',
-        status: 'sent',
+        channel: "sms",
+        status: "sent",
         isAbusive: false,
         isFallback: false,
         isFollowUp: false,
@@ -129,7 +145,9 @@ export class SecurityLoggerService {
         retryCount: 0,
       });
     } catch (error) {
-      this.logger.error(`Failed to persist audit message: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to persist audit message: ${(error as Error).message}`,
+      );
     }
   }
 }

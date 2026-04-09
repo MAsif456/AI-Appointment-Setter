@@ -1,6 +1,9 @@
 import {
-  BadRequestException, ConflictException, Injectable,
-  UnauthorizedException, Logger,
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -9,8 +12,15 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User, UserDocument } from '../database/schemas/user.schema';
 import { LoginDto } from './dto/login.dto';
-import { CreateUserDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from './dto/auth.dto';
+import {
+  CreateUserDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ChangePasswordDto,
+} from './dto/auth.dto';
 import { EmailService } from './email.service';
+import { AuthThrottleService } from './auth-throttle.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -20,6 +30,9 @@ function generateToken(): string {
  * Core authentication service.
  * Staff accounts are created by admins only — no public registration.
  * Email verification and password reset use token-based links.
+ *
+ * The login flow applies IP-based and account-level throttling via
+ * AuthThrottleService, and emits security events via AnalyticsService.
  */
 @Injectable()
 export class AuthService {
@@ -29,6 +42,8 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private readonly authThrottleService: AuthThrottleService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   async createUser(dto: CreateUserDto): Promise<{ message: string }> {
@@ -88,21 +103,64 @@ export class AuthService {
 
   /**
    * Authenticates a user and returns a JWT token.
-   * tokenVersion is embedded in the payload so the JWT strategy can detect
-   * stale tokens when a user's role has changed since they last logged in.
+   *
+   * Applies IP-based and account-level throttling before touching credentials:
+   * - Progressive delay for repeated failures (6-10).
+   * - IP lockout (11+).
+   * - Account lockout across IPs (10+).
+   *
+   * Uses a generic error message on any failure to prevent account enumeration.
+   * tokenVersion is embedded in the JWT so the strategy can detect stale tokens
+   * when a user's role has changed since they last logged in.
+   *
+   * @param dto - The login DTO containing email and password.
+   * @param ip - The client IP address for throttle tracking. Defaults to "unknown".
    */
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ip: string = 'unknown') {
+    // Check throttle state before doing any credential work
+    await this.authThrottleService.checkThrottle(ip, dto.email);
+
     const user = await this.userModel.findOne({ email: dto.email.toLowerCase() });
 
-    if (!user) throw new UnauthorizedException('Invalid email or password');
-    if (!user.isVerified) throw new UnauthorizedException('Please verify your email before logging in.');
-    if (!user.isActive) throw new UnauthorizedException('Invalid email or password');
+    if (!user) {
+      await this.authThrottleService.recordFailure(ip, dto.email);
+      this.logger.warn(`Login failed: unknown email from IP ${ip}`);
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    if (!user.isVerified) {
+      await this.authThrottleService.recordFailure(ip, dto.email);
+      throw new UnauthorizedException('Please verify your email before logging in.');
+    }
+    if (!user.isActive) {
+      await this.authThrottleService.recordFailure(ip, dto.email);
+      this.logger.warn(`Login failed: inactive account ${dto.email}`);
+      throw new UnauthorizedException('Invalid email or password');
+    }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isPasswordValid) throw new UnauthorizedException('Invalid email or password');
+    if (!isPasswordValid) {
+      await this.authThrottleService.recordFailure(ip, dto.email);
+      this.logger.warn(
+        `Login failed: wrong password for ${dto.email} from IP ${ip}`,
+      );
+      throw new UnauthorizedException('Invalid email or password');
+    }
 
+    // Success — clear failure counters, update lastLoginAt
+    await this.authThrottleService.recordSuccess(ip, dto.email);
     user.lastLoginAt = new Date();
     await user.save();
+
+    this.logger.log(`Login successful for ${dto.email}`);
+
+    this.analyticsService.logSecurityEvent({
+      eventType: 'login_success',
+      ip,
+      email: dto.email,
+      userId: (user._id as any).toString(),
+      endpoint: '/auth/login',
+      tier: 'auth',
+    });
 
     const payload = {
       sub: user._id.toString(),

@@ -993,6 +993,24 @@ describe('"that date" resolution from offered slots', () => {
     expect(result.intent).toBe('NONE_SUITABLE');
   });
 
+  it('resolves bare day name "Friday" to the offered Friday slot date, not last week', () => {
+    const offeredSlots: OfferedSlotRef[] = [
+      { dateTime: '2028-09-26T14:00:00', displayText: 'Tuesday 26th September at 2pm' },
+      { dateTime: '2028-10-04T13:30:00', displayText: 'Wednesday 4th October at 1:30pm' },
+      { dateTime: '2028-10-06T12:50:00', displayText: 'Friday 6th October at 12:50pm' },
+    ];
+    const result = detectSlotSelection(
+      'Any other times available on Friday 6th October',
+      offeredSlots,
+    );
+    expect(result.intent).toBe('DIFFERENT_DATE');
+    expect(result.requestedStartDate).toBeDefined();
+    // Should resolve to October 6th, not a past Friday
+    const startDate = new Date(result.requestedStartDate!);
+    expect(startDate.getMonth()).toBe(9); // October = 9
+    expect(startDate.getDate()).toBe(6);
+  });
+
   it('resolves day+date+month "Friday Nth Month" to the offered Friday slot date', () => {
     const friday = nextWeekday(5, 12, 50);
     const dayNum = friday.getDate();

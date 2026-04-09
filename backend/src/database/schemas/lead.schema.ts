@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type LeadDocument = Lead & Document;
 
@@ -9,7 +9,7 @@ export class ConsentRecord {
   optedIn: boolean;
 
   @Prop({ required: true })
-  source: string; 
+  source: string;
 
   @Prop({ required: true })
   timestamp: Date;
@@ -20,7 +20,7 @@ export class ConsentRecord {
 
 @Schema({ timestamps: true })
 export class Lead {
-  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Clinic", required: true, index: true })
   clinicId: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
@@ -29,8 +29,8 @@ export class Lead {
   @Prop({ trim: true })
   lastName?: string;
 
-  @Prop({ required: true, trim: true })
-  phone: string;
+  @Prop({ trim: true, default: "unknown" })
+  phone?: string;
 
   @Prop({ lowercase: true, trim: true })
   email?: string;
@@ -38,30 +38,50 @@ export class Lead {
   @Prop({ trim: true, uppercase: true })
   postcode?: string;
 
-  @Prop({ type: String, enum: ['valid', 'invalid', 'not_checked'], default: 'not_checked' })
+  @Prop({
+    type: String,
+    enum: ["valid", "invalid", "not_checked"],
+    default: "not_checked",
+  })
   postcodeStatus: string;
 
   @Prop({ trim: true })
-  issue?: string; 
+  issue?: string;
 
-  @Prop({ type: String, enum: ['urgent', 'routine', 'unknown'], default: 'unknown' })
+  @Prop({
+    type: String,
+    enum: ["urgent", "routine", "unknown"],
+    default: "unknown",
+  })
   urgency: string;
 
-  @Prop({ type: String, enum: ['new', 'returning'], default: 'new' })
+  @Prop({ type: String, enum: ["new", "returning"], default: "new" })
   patientType: string;
 
   @Prop()
-  serviceType?: string; 
+  serviceType?: string;
 
   // Lead Source (for analytics)
-  @Prop({ 
-    type: String, 
-    enum: ['facebook', 'instagram', 'google_ads', 'website', 'referral', 'whatsapp_direct', 'other'],
-    required: true 
+  @Prop({
+    type: String,
+    enum: [
+      "facebook",
+      "instagram",
+      "google_ads",
+      "website",
+      "referral",
+      "whatsapp_direct",
+      "other",
+    ],
+    required: true,
   })
   leadSource: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website'], required: true })
+  @Prop({
+    type: String,
+    enum: ["sms", "whatsapp", "facebook", "instagram", "website", "email"],
+    required: true,
+  })
   preferredChannel: string;
 
   @Prop({ trim: true })
@@ -74,7 +94,7 @@ export class Lead {
   consent?: ConsentRecord;
 
   @Prop({ default: 0 })
-  totalAppointments: number; 
+  totalAppointments: number;
 
   @Prop({ default: 0 })
   cancelledAppointments: number;
@@ -94,9 +114,12 @@ export class Lead {
 export const LeadSchema = SchemaFactory.createForClass(Lead);
 
 // Indexes
-LeadSchema.index({ clinicId: 1, phone: 1 }, { unique: true });
-LeadSchema.index({ clinicId: 1, email: 1 });
+LeadSchema.index(
+  { clinicId: 1, phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $ne: "unknown" } } },
+);
+LeadSchema.index({ clinicId: 1, email: 1 }, { unique: true, sparse: true });
 LeadSchema.index({ ghlContactId: 1 });
 LeadSchema.index({ clinicId: 1, createdAt: -1 });
-LeadSchema.index({ clinicId: 1, leadSource: 1 }); 
+LeadSchema.index({ clinicId: 1, leadSource: 1 });
 LeadSchema.index({ postcode: 1 });

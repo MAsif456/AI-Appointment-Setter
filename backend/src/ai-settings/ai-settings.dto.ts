@@ -10,8 +10,8 @@ import {
   IsBoolean,
   MaxLength,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * Enum for the possible AI tones.
@@ -21,17 +21,17 @@ export enum AIToneEnum {
   /**
    * Friendly tone: Warm and casual, uses emojis sparingly.
    */
-  Friendly = 'friendly',
+  Friendly = "friendly",
 
   /**
    * Professional tone: Formal and businesslike.
    */
-  Professional = 'professional',
+  Professional = "professional",
 
   /**
    * Balanced tone: Mix of friendly and professional.
    */
-  Balanced = 'balanced',
+  Balanced = "balanced",
 }
 /**
  * DTO for a single qualification question.
@@ -60,7 +60,6 @@ export class QualificationQuestionDto {
   enabled: boolean;
 }
 
-
 /**
  * DTO for updating AI settings.
  * Contains optional fields for tone, greeting template, qualification questions, and custom instructions.
@@ -71,7 +70,9 @@ export class UpdateAiSettingsDto {
    * Must be one of 'friendly', 'professional', or 'balanced'.
    */
   @IsOptional()
-  @IsEnum(AIToneEnum, { message: 'Tone must be friendly, professional, or balanced' })
+  @IsEnum(AIToneEnum, {
+    message: "Tone must be friendly, professional, or balanced",
+  })
   tone?: AIToneEnum;
 
   /**
@@ -80,7 +81,9 @@ export class UpdateAiSettingsDto {
    */
   @IsOptional()
   @IsString()
-  @MaxLength(500, { message: 'Greeting template must not exceed 500 characters' })
+  @MaxLength(500, {
+    message: "Greeting template must not exceed 500 characters",
+  })
   greetingTemplate?: string;
 
   /**
@@ -99,7 +102,8 @@ export class UpdateAiSettingsDto {
    */
   @IsOptional()
   @IsString()
-  @MaxLength(1000, { message: 'Custom instructions must not exceed 1000 characters' })
+  @MaxLength(1000, {
+    message: "Custom instructions must not exceed 1000 characters",
+  })
   customInstructions?: string;
 }
-

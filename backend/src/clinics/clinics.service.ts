@@ -7,23 +7,23 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
-import { CreateClinicDto } from './dto/create-clinic.dto';
-import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+import { CreateClinicDto } from "./dto/create-clinic.dto";
+import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 
 const VALID_OBJECT_ID = /^[a-f0-9]{24}$/i;
 
 function assertValidObjectId(id: string): void {
   if (
     id == null ||
-    id === 'undefined' ||
-    typeof id !== 'string' ||
+    id === "undefined" ||
+    typeof id !== "string" ||
     !VALID_OBJECT_ID.test(id)
   ) {
-    throw new BadRequestException('Invalid clinic ID');
+    throw new BadRequestException("Invalid clinic ID");
   }
 }
 
@@ -34,7 +34,8 @@ function assertValidObjectId(id: string): void {
 @Injectable()
 export class ClinicsService {
   constructor(
-    @InjectModel(Clinic.name) private readonly clinicModel: Model<ClinicDocument>,
+    @InjectModel(Clinic.name)
+    private readonly clinicModel: Model<ClinicDocument>,
   ) {}
 
   /**
@@ -48,7 +49,7 @@ export class ClinicsService {
 
     if (existing) {
       throw new ConflictException(
-        'A clinic with this GHL Location ID already exists',
+        "A clinic with this GHL Location ID already exists",
       );
     }
 
@@ -60,9 +61,7 @@ export class ClinicsService {
    * @param search - partial clinic name to filter by (optional)
    */
   async findAll(search?: string): Promise<ClinicDocument[]> {
-    const filter = search
-      ? { name: { $regex: search, $options: 'i' } }
-      : {};
+    const filter = search ? { name: { $regex: search, $options: "i" } } : {};
 
     return this.clinicModel.find(filter).sort({ name: 1 }).exec();
   }
@@ -103,7 +102,6 @@ export class ClinicsService {
     return clinic;
   }
 
-
   /**
    * Sets a clinic's isActive flag to false.
    * @param id - the document identifier
@@ -136,21 +134,16 @@ export class ClinicsService {
     update: UpdateClinicSettingsDto,
   ): Promise<Clinic> {
     assertValidObjectId(id);
-    const {
-      name,
-      address,
-      phone,
-      ghlLocationId,
-      serviceAreas,
-      businessHours,
-    } = update;
+    const { name, address, phone, ghlLocationId, serviceAreas, businessHours } =
+      update;
 
     const updatePayload: Partial<Clinic> = {};
 
-    if (typeof name === 'string') updatePayload.name = name;
+    if (typeof name === "string") updatePayload.name = name;
     if (address !== undefined) updatePayload.address = address;
     if (phone !== undefined) updatePayload.phone = phone;
-    if (ghlLocationId !== undefined) updatePayload.ghlLocationId = ghlLocationId;
+    if (ghlLocationId !== undefined)
+      updatePayload.ghlLocationId = ghlLocationId;
     if (serviceAreas) updatePayload.serviceAreas = serviceAreas;
     if (businessHours) updatePayload.businessHours = businessHours;
 
@@ -159,7 +152,7 @@ export class ClinicsService {
       .exec();
 
     if (!clinic) {
-      throw new NotFoundException('Clinic not found');
+      throw new NotFoundException("Clinic not found");
     }
 
     return clinic;
