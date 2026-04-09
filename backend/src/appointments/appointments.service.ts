@@ -216,8 +216,13 @@ export class AppointmentsService {
     duration: number,
   ): Promise<AppointmentDocument> {
     const start = new Date(dto.startTime);
-    const hours = start.getUTCHours().toString().padStart(2, "0");
-    const mins = start.getUTCMinutes().toString().padStart(2, "0");
+    // Extract HH:MM in UK local time (handles BST/GMT automatically)
+    const appointmentTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(start);
 
     return this.appointmentModel.create({
       clinicId: new Types.ObjectId(dto.clinicId),
@@ -225,7 +230,7 @@ export class AppointmentsService {
       conversationId: new Types.ObjectId(dto.conversationId),
       ghlAppointmentId,
       appointmentDate: start,
-      appointmentTime: `${hours}:${mins}`,
+      appointmentTime,
       durationMinutes: duration,
       serviceType: dto.serviceType,
       status: "confirmed",

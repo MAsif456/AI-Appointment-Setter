@@ -92,59 +92,65 @@ export class ReminderService {
         return false;
       }
 
-      // Generate reminder message
-      const message = generateReminderMessage(
-        appointment,
-        clinic,
-        hoursBeforeAppointment,
-      );
-
-      // Resolve GHL message type — prefer lead's channel, fall back to SMS
       const lead = conversation.leadId as any;
-      const channel = lead?.preferredChannel ?? conversation.channel;
-      const ghlType = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      const message = generateReminderMessage(appointment, clinic, hoursBeforeAppointment);
+      let anySent = false;
 
-      // Send via GHL (SMS or WhatsApp)
-      await this.ghlApiService.sendMessageWithRetry({
-        type: ghlType,
-        contactId: conversation.ghlContactId,
-        message,
-      });
+      // Attempt primary channel send — treat as non-fatal so email fallback still runs
+      if (conversation.channel !== 'email') {
+        try {
+          await this.ghlApiService.sendMessageWithRetry({
+            type: this.channelToGhlType(conversation.channel),
+            contactId: conversation.ghlContactId,
+            conversationId: conversation.ghlConversationId,
+            message,
+          });
+          anySent = true;
+          this.logger.log(`${conversation.channel.toUpperCase()} reminder sent for appointment ${appointment._id}`);
+        } catch (channelError) {
+          const body = channelError?.response?.data;
+          this.logger.warn(
+            `Primary channel (${conversation.channel}) reminder failed for appointment ${appointment._id}: ${channelError.message}` +
+              (body ? ` | GHL: ${JSON.stringify(body)}` : ''),
+          );
+        }
+      }
 
-      // Also send email reminder if the lead has an email address
+      // Send email if the lead has an email address (always attempted — fallback if primary failed)
       if (lead?.email) {
         try {
           const emailHtml = generateReminderEmailHtml(appointment, clinic, hoursBeforeAppointment);
           await this.ghlApiService.sendMessageWithRetry({
             type: 'Email',
             contactId: conversation.ghlContactId,
+            conversationId: conversation.ghlConversationId,
             subject: `Appointment Reminder — ${clinic.name}`,
             message: emailHtml,
           });
+          anySent = true;
           this.logger.log(`Email reminder sent for appointment ${appointment._id}`);
         } catch (emailError) {
+          const body = emailError?.response?.data;
           this.logger.warn(
-            `Email reminder failed for appointment ${appointment._id}: ${emailError.message}`,
+            `Email reminder failed for appointment ${appointment._id}: ${emailError.message}` +
+              (body ? ` | GHL: ${JSON.stringify(body)}` : ''),
           );
         }
       }
 
-      // Track successful send
-      await this.reminderTrackerService.trackSent(
-        appointment,
-        conversation,
-        clinic,
-        reminderType,
-        message,
-      );
+      if (!anySent) {
+        this.logger.error(`All reminder channels failed for appointment ${appointment._id}`);
+        await this.reminderTrackerService.trackFailed(appointment, reminderType);
+        return false;
+      }
 
-      this.logger.log(
-        `Reminder sent for appointment ${appointment._id}, ${hoursBeforeAppointment}h before`,
-      );
+      await this.reminderTrackerService.trackSent(appointment, conversation, clinic, reminderType, message);
       return true;
     } catch (error) {
+      const body = error?.response?.data;
       this.logger.error(
-        `Failed to send reminder for appointment ${appointment._id}: ${error.message}`,
+        `Failed to send reminder for appointment ${appointment._id}: ${error.message}` +
+          (body ? ` | GHL response: ${JSON.stringify(body)}` : ''),
       );
       await this.reminderTrackerService.trackFailed(appointment, reminderType);
       return false;
@@ -189,5 +195,16 @@ export class ReminderService {
 
     this.logger.log(`Reminders processed: ${sent} sent, ${failed} failed`);
     return { sent, failed };
+  }
+
+  /** Maps a conversation channel to the GHL message type string. */
+  private channelToGhlType(channel: string): string {
+    switch (channel) {
+      case 'whatsapp': return 'WhatsApp';
+      case 'facebook': return 'FB';
+      case 'instagram': return 'IG';
+      case 'email': return 'Email';
+      default: return 'SMS'; // sms, website
+    }
   }
 }

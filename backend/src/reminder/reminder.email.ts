@@ -2,7 +2,6 @@
  * HTML email template for appointment reminders.
  * Extracted from reminder.handler to keep that file under 200 lines.
  */
-import { format } from 'date-fns';
 import { AppointmentDocument } from '../database/schemas/appointment.schema';
 import { ClinicDocument } from '../database/schemas/clinic.schema';
 
@@ -16,9 +15,21 @@ export function generateReminderEmailHtml(
   hoursBeforeAppointment: number,
 ): string {
   const appointmentDate = new Date(appointment.appointmentDate);
-  const dayName = format(appointmentDate, 'EEEE');
-  const dateFormatted = format(appointmentDate, 'do MMMM yyyy');
-  const timeFormatted = appointment.appointmentTime;
+
+  // Format date parts in UK timezone (handles BST/GMT regardless of server timezone)
+  const ukParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).formatToParts(appointmentDate);
+  const getPart = (type: string) => ukParts.find((p) => p.type === type)?.value ?? '';
+  const dayNum = parseInt(getPart('day'), 10);
+  const suffix = ['th','st','nd','rd'][dayNum % 10 > 3 || Math.floor(dayNum % 100 / 10) === 1 ? 0 : dayNum % 10] ?? 'th';
+  const dayName = getPart('weekday');
+  const dateFormatted = `${dayNum}${suffix} ${getPart('month')} ${getPart('year')}`;
+  const timeFormatted = appointment.appointmentTime; // stored in UK local time
   const clinicAddress = clinic.address || '';
   const clinicPhone = (clinic as any).phone || '';
 

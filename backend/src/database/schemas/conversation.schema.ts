@@ -32,6 +32,15 @@ export class OfferedSlot {
 }
 
 @Schema({ _id: false })
+export class ReminderSent {
+  @Prop({ required: true })
+  type: string; // e.g. '24_hour', '1_hour'
+
+  @Prop({ required: true })
+  sentAt: Date;
+}
+
+@Schema({ _id: false })
 export class PatientRating {
   @Prop({ required: true, min: 1, max: 5 })
   stars: number;
@@ -186,6 +195,10 @@ export class Conversation {
   // Conversation context/state
   @Prop({ type: Map, of: String, default: {} })
   context: Map<string, string>;
+
+  /** AC5/AC10: Track which reminders have been sent within this conversation. */
+  @Prop({ type: [ReminderSent], default: [] })
+  remindersSent: ReminderSent[];
 
   // Abuse tracking (US-19)
   // Incremented for each directed-hostile message to track escalation thresholds

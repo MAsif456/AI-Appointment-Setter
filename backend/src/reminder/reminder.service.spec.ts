@@ -38,9 +38,10 @@ describe('ReminderService', () => {
   });
 
   /** Reusable factory for a conversation */
-  const makeConversation = (channel: 'sms' | 'whatsapp' = 'sms') => ({
+  const makeConversation = (channel: 'sms' | 'whatsapp' | 'facebook' | 'instagram' | 'email' = 'sms') => ({
     _id: 'conv123',
     ghlContactId: 'contact123',
+    ghlConversationId: 'ghl_conv_123',
     channel,
   });
 
@@ -203,11 +204,14 @@ describe('ReminderService', () => {
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(result).toBe(true);
-      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith({
-        type: 'SMS',
-        contactId: 'contact123',
-        message: expect.stringContaining('Reminder:'),
-      });
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'SMS',
+          contactId: 'contact123',
+          conversationId: 'ghl_conv_123',
+          message: expect.stringContaining('Reminder:'),
+        }),
+      );
       expect(mockReminderTrackerService.trackSent).toHaveBeenCalled();
     });
 
@@ -220,7 +224,33 @@ describe('ReminderService', () => {
       await service.sendReminder(baseAppointment, '1_hour', 1);
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'WhatsApp' }),
+        expect.objectContaining({ type: 'WhatsApp', conversationId: 'ghl_conv_123' }),
+      );
+    });
+
+    it('should send FB when conversation channel is facebook', async () => {
+      mockConvFind(makeConversation('facebook'));
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'FB', conversationId: 'ghl_conv_123' }),
+      );
+    });
+
+    it('should send IG when conversation channel is instagram', async () => {
+      mockConvFind(makeConversation('instagram'));
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'IG', conversationId: 'ghl_conv_123' }),
       );
     });
 
@@ -255,25 +285,45 @@ describe('ReminderService', () => {
       expect(mockGhlApiService.sendMessageWithRetry).not.toHaveBeenCalled();
     });
 
-    it('should return false and track failure when GHL send throws', async () => {
-      mockConvFind(makeConversation('sms'));
+    it('should return false and track failure when all channels fail', async () => {
+      const convNoEmail = { ...makeConversation('sms'), leadId: { _id: 'lead123' } };
+      mockConvFind(convNoEmail);
       mockClinicFind(makeClinic());
-      mockGhlApiService.sendMessageWithRetry.mockRejectedValue(new Error('Network error'));
+      mockGhlApiService.sendMessageWithRetry.mockRejectedValue(new Error('422'));
       mockReminderTrackerService.trackFailed.mockResolvedValue(undefined);
 
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(result).toBe(false);
-      expect(mockReminderTrackerService.trackFailed).toHaveBeenCalledWith(
-        baseAppointment,
-        '24_hour',
-      );
+      expect(mockReminderTrackerService.trackFailed).toHaveBeenCalledWith(baseAppointment, '24_hour');
     });
 
-    it('should also send an email reminder when the lead has an email address', async () => {
+    it('should succeed via email when primary channel (SMS) fails', async () => {
+      const convWithEmail = {
+        ...makeConversation('sms'),
+        leadId: { _id: 'lead123', email: 'patient@example.com' },
+      };
+      mockConvFind(convWithEmail);
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry
+        .mockRejectedValueOnce(Object.assign(new Error('Missing phone number'), { response: { status: 422, data: { message: 'Missing phone number' } } }))
+        .mockResolvedValueOnce(undefined); // email succeeds
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      const result = await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(result).toBe(true);
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'Email', subject: expect.stringContaining('Test Clinic') }),
+      );
+      expect(mockReminderTrackerService.trackSent).toHaveBeenCalled();
+    });
+
+    it('should also send an email reminder when the lead has an email and primary channel succeeds', async () => {
       const convWithLeadEmail = {
         ...makeConversation('sms'),
-        leadId: { _id: 'lead123', email: 'patient@example.com', preferredChannel: 'sms' },
+        leadId: { _id: 'lead123', email: 'patient@example.com' },
       };
       mockConvFind(convWithLeadEmail);
       mockClinicFind(makeClinic());
@@ -285,20 +335,24 @@ describe('ReminderService', () => {
       expect(result).toBe(true);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'Email', subject: expect.stringContaining('Test Clinic') }),
+        expect.objectContaining({
+          type: 'Email',
+          conversationId: 'ghl_conv_123',
+          subject: expect.stringContaining('Test Clinic'),
+        }),
       );
     });
 
-    it('should still succeed and return true when email send fails', async () => {
+    it('should still succeed and return true when email send fails but SMS succeeded', async () => {
       const convWithLeadEmail = {
         ...makeConversation('sms'),
-        leadId: { _id: 'lead123', email: 'patient@example.com', preferredChannel: 'sms' },
+        leadId: { _id: 'lead123', email: 'patient@example.com' },
       };
       mockConvFind(convWithLeadEmail);
       mockClinicFind(makeClinic());
       mockGhlApiService.sendMessageWithRetry
-        .mockResolvedValueOnce(undefined)   // SMS succeeds
-        .mockRejectedValueOnce(new Error('Email 422')); // Email fails
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('Email 422'));
       mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
 
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
@@ -310,7 +364,7 @@ describe('ReminderService', () => {
     it('should not send email when lead has no email address', async () => {
       const convWithLeadNoEmail = {
         ...makeConversation('sms'),
-        leadId: { _id: 'lead123', preferredChannel: 'sms' },
+        leadId: { _id: 'lead123' },
       };
       mockConvFind(convWithLeadNoEmail);
       mockClinicFind(makeClinic());
@@ -321,6 +375,24 @@ describe('ReminderService', () => {
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
       expect(mockGhlApiService.sendMessageWithRetry).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'Email' }),
+      );
+    });
+
+    it('should only send email once when channel is email (no duplicate)', async () => {
+      const convEmailChannel = {
+        ...makeConversation('email'),
+        leadId: { _id: 'lead123', email: 'patient@example.com' },
+      };
+      mockConvFind(convEmailChannel);
+      mockClinicFind(makeClinic());
+      mockGhlApiService.sendMessageWithRetry.mockResolvedValue(undefined);
+      mockReminderTrackerService.trackSent.mockResolvedValue(undefined);
+
+      await service.sendReminder(baseAppointment, '24_hour', 24);
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'Email' }),
       );
     });

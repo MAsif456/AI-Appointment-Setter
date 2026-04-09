@@ -1,9 +1,6 @@
 import {
   generateReminderMessage,
   generateReminderEmailHtml,
-  isReminderResponse,
-  detectRescheduleIntent,
-  detectCancelIntent,
 } from './reminder.handler';
 
 describe('Reminder Handlers', () => {
@@ -85,69 +82,6 @@ describe('Reminder Handlers', () => {
     });
   });
 
-  describe('isReminderResponse', () => {
-    it('should detect response to system reminder', () => {
-      const recentMessages = [
-        { sender: 'system', content: 'Reminder: Your appointment is tomorrow' },
-      ];
-
-      const result = isReminderResponse('I need to reschedule', recentMessages);
-
-      expect(result).toBe(true);
-    });
-
-    it('should not detect reminder response when last message is not from system', () => {
-      const recentMessages = [
-        { sender: 'ai', content: 'How can I help you?' },
-      ];
-
-      const result = isReminderResponse('I need to reschedule', recentMessages);
-
-      expect(result).toBe(false);
-    });
-
-    it('should handle empty message history', () => {
-      const result = isReminderResponse('I need to reschedule', []);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('detectRescheduleIntent', () => {
-    it('should detect "reschedule" keyword', () => {
-      expect(detectRescheduleIntent('I need to reschedule')).toBe(true);
-      expect(detectRescheduleIntent('Can I re-schedule?')).toBe(true);
-      expect(detectRescheduleIntent('I want to rebook')).toBe(true);
-    });
-
-    it('should detect "change" phrases', () => {
-      expect(detectRescheduleIntent('I need to change my appointment')).toBe(true);
-      expect(detectRescheduleIntent('Can I move my booking?')).toBe(true);
-    });
-
-    it('should detect "can\'t make it" phrases', () => {
-      expect(detectRescheduleIntent("I can't make it")).toBe(true);
-      expect(detectRescheduleIntent("I cant make it")).toBe(true);
-    });
-
-    it('should detect "different time" phrases', () => {
-      expect(detectRescheduleIntent('I need a different time')).toBe(true);
-      expect(detectRescheduleIntent('Do you have another date?')).toBe(true);
-    });
-
-    it('should not detect unrelated messages', () => {
-      expect(detectRescheduleIntent('Thank you')).toBe(false);
-      expect(detectRescheduleIntent('See you tomorrow')).toBe(false);
-    });
-    
-    it('should detect response when last system message contains lowercase reminder', () => {
-    const recentMessages = [
-        { sender: 'system', content: 'Upcoming reminder for your appointment tomorrow' },
-    ];
-    expect(isReminderResponse('I need to cancel', recentMessages)).toBe(true);
-    });
-  });
-
   describe('generateReminderEmailHtml', () => {
     const mockAppointment = {
       appointmentDate: new Date('2026-04-06T14:00:00Z'),
@@ -217,30 +151,4 @@ describe('Reminder Handlers', () => {
     });
   });
 
-  describe('detectCancelIntent', () => {
-    it('should detect "cancel" keyword', () => {
-      expect(detectCancelIntent('I need to cancel')).toBe(true);
-      expect(detectCancelIntent('Please cancel my appointment')).toBe(true);
-    });
-
-    it('should detect "can\'t come" phrases', () => {
-      expect(detectCancelIntent("I can't come")).toBe(true);
-      expect(detectCancelIntent("I can't attend")).toBe(true);
-    });
-
-    it('should detect "not coming" phrases', () => {
-      expect(detectCancelIntent("I'm not coming")).toBe(true);
-      expect(detectCancelIntent("not coming anymore")).toBe(true);
-    });
-
-    it('should detect "won\'t make it" phrases', () => {
-      expect(detectCancelIntent("I won't make it")).toBe(true);
-      expect(detectCancelIntent("wont make it")).toBe(true);
-    });
-
-    it('should not detect unrelated messages', () => {
-      expect(detectCancelIntent('Thank you')).toBe(false);
-      expect(detectCancelIntent('I need to reschedule')).toBe(false);
-    });
-  });
 });

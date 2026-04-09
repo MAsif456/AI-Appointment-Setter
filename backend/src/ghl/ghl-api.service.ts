@@ -73,6 +73,10 @@ export class GhlApiService {
       payload.message = dto.message;
     }
 
+    this.logger.debug(
+      `GHL send — type: ${payload.type}, contactId: ${dto.contactId}, conversationId: ${payload.conversationId ?? 'none'}`,
+    );
+
     return this.messagingCircuitBreaker.execute(() =>
       retryWithBackoff(
         async () => {

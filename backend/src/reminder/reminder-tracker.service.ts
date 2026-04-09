@@ -15,6 +15,7 @@ export class ReminderTrackerService {
 
   constructor(
     @InjectModel(Appointment.name) private appointmentModel: Model<AppointmentDocument>,
+    @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
     private messagesService: MessagesService,
   ) {}
 
@@ -34,9 +35,14 @@ export class ReminderTrackerService {
     reminderType: string,
     messageContent: string,
   ): Promise<void> {
+    const sentAt = new Date();
     await this.appointmentModel.updateOne(
       { _id: appointment._id },
-      { $push: { reminders: { sentAt: new Date(), type: reminderType, status: 'sent' } } },
+      { $push: { reminders: { sentAt, type: reminderType, status: 'sent' } } },
+    );
+    await this.conversationModel.updateOne(
+      { _id: conversation._id },
+      { $push: { remindersSent: { type: reminderType, sentAt } } },
     );
     await this.messagesService.addMessage(
       conversation._id as Types.ObjectId,

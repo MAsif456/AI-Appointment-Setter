@@ -3,12 +3,14 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { ReminderTrackerService } from './reminder-tracker.service';
 import { Appointment } from '../database/schemas/appointment.schema';
+import { Conversation } from '../database/schemas/conversation.schema';
 import { MessagesService } from '../ghl/messages.service';
 
 describe('ReminderTrackerService', () => {
   let service: ReminderTrackerService;
 
   const mockAppointmentModel = { updateOne: jest.fn() };
+  const mockConversationModel = { updateOne: jest.fn() };
   const mockMessagesService = { addMessage: jest.fn() };
 
   const conversationId = new Types.ObjectId();
@@ -35,6 +37,7 @@ describe('ReminderTrackerService', () => {
       providers: [
         ReminderTrackerService,
         { provide: getModelToken(Appointment.name), useValue: mockAppointmentModel },
+        { provide: getModelToken(Conversation.name), useValue: mockConversationModel },
         { provide: MessagesService, useValue: mockMessagesService },
       ],
     }).compile();
@@ -50,6 +53,7 @@ describe('ReminderTrackerService', () => {
   describe('trackSent', () => {
     it('should push a sent reminder entry to the appointment', async () => {
       mockAppointmentModel.updateOne.mockResolvedValue(undefined);
+      mockConversationModel.updateOne.mockResolvedValue(undefined);
       mockMessagesService.addMessage.mockResolvedValue(undefined);
 
       const appointment = makeAppointment();
@@ -72,8 +76,33 @@ describe('ReminderTrackerService', () => {
       );
     });
 
+    it('should push a remindersSent entry to the conversation', async () => {
+      mockAppointmentModel.updateOne.mockResolvedValue(undefined);
+      mockConversationModel.updateOne.mockResolvedValue(undefined);
+      mockMessagesService.addMessage.mockResolvedValue(undefined);
+
+      const appointment = makeAppointment();
+      const conversation = makeConversation('sms');
+      const clinic = makeClinic();
+
+      await service.trackSent(appointment, conversation, clinic, '24_hour', 'Reminder: your appointment is tomorrow.');
+
+      expect(mockConversationModel.updateOne).toHaveBeenCalledWith(
+        { _id: conversation._id },
+        {
+          $push: {
+            remindersSent: {
+              type: '24_hour',
+              sentAt: expect.any(Date),
+            },
+          },
+        },
+      );
+    });
+
     it('should log the message via MessagesService with correct args', async () => {
       mockAppointmentModel.updateOne.mockResolvedValue(undefined);
+      mockConversationModel.updateOne.mockResolvedValue(undefined);
       mockMessagesService.addMessage.mockResolvedValue(undefined);
 
       const appointment = makeAppointment();
@@ -93,10 +122,14 @@ describe('ReminderTrackerService', () => {
       );
     });
 
-    it('should call updateOne before addMessage', async () => {
+    it('should call appointment updateOne before conversation updateOne before addMessage', async () => {
       const callOrder: string[] = [];
       mockAppointmentModel.updateOne.mockImplementation(() => {
-        callOrder.push('updateOne');
+        callOrder.push('appointmentUpdateOne');
+        return Promise.resolve(undefined);
+      });
+      mockConversationModel.updateOne.mockImplementation(() => {
+        callOrder.push('conversationUpdateOne');
         return Promise.resolve(undefined);
       });
       mockMessagesService.addMessage.mockImplementation(() => {
@@ -107,10 +140,10 @@ describe('ReminderTrackerService', () => {
       const appointment = makeAppointment();
       await service.trackSent(appointment, makeConversation(), makeClinic(), '24_hour', 'msg');
 
-      expect(callOrder).toEqual(['updateOne', 'addMessage']);
+      expect(callOrder).toEqual(['appointmentUpdateOne', 'conversationUpdateOne', 'addMessage']);
     });
 
-    it('should propagate errors thrown by updateOne', async () => {
+    it('should propagate errors thrown by appointmentModel.updateOne', async () => {
       mockAppointmentModel.updateOne.mockRejectedValue(new Error('DB write failed'));
 
       await expect(
@@ -122,6 +155,7 @@ describe('ReminderTrackerService', () => {
 
     it('should propagate errors thrown by addMessage', async () => {
       mockAppointmentModel.updateOne.mockResolvedValue(undefined);
+      mockConversationModel.updateOne.mockResolvedValue(undefined);
       mockMessagesService.addMessage.mockRejectedValue(new Error('Message service error'));
 
       await expect(
@@ -131,6 +165,7 @@ describe('ReminderTrackerService', () => {
 
     it('should use the sms channel from the conversation', async () => {
       mockAppointmentModel.updateOne.mockResolvedValue(undefined);
+      mockConversationModel.updateOne.mockResolvedValue(undefined);
       mockMessagesService.addMessage.mockResolvedValue(undefined);
 
       await service.trackSent(makeAppointment(), makeConversation('sms'), makeClinic(), '24_hour', 'msg');
