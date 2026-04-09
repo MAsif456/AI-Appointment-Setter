@@ -7,7 +7,6 @@ import {
 import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import { GhlModule } from '../ghl/ghl.module';
 import { FollowUpService } from './follow-up.service';
-import { FollowUpController } from './follow-up.controller';
 
 @Module({
   imports: [
@@ -17,7 +16,6 @@ import { FollowUpController } from './follow-up.controller';
     ]),
     GhlModule,
   ],
-  controllers: [FollowUpController],
   providers: [FollowUpService],
   exports: [FollowUpService],
 })
