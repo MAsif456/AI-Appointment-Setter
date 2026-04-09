@@ -63,7 +63,8 @@ export function formatDateBritish(datetime: string): {
   const monthName = get('month');
   const suffix = getDaySuffix(dayNum);
 
-  const hour = get('hour');
+  // Some ICU versions return "0" instead of "12" for midnight/noon — normalise it
+  const hour = get('hour') === '0' ? '12' : get('hour');
   const minute = get('minute');
   const dayPeriod = get('dayPeriod').toUpperCase(); // 'am'→'AM'
   const timeStr =
