@@ -38,9 +38,11 @@ export interface SecurityHeader {
  * dependencies discovered in the codebase:
  *
  *   - default-src 'self': fall-through for any directive not listed.
- *   - script-src 'self': no third-party JavaScript is loaded by the
- *     dashboard. Sentry, Google Analytics, Vercel Analytics and any
- *     other CDN scripts are all absent from package.json.
+ *   - script-src 'self' 'unsafe-inline': no third-party JavaScript is
+ *     loaded by the dashboard. 'unsafe-inline' is required because
+ *     Next.js injects small inline scripts for hydration bootstrapping
+ *     and hot-module reloading. A nonce-based approach would require
+ *     custom server middleware which is out of scope for this story.
  *   - style-src 'self' 'unsafe-inline': Next.js App Router inlines
  *     critical CSS into <style> tags during SSR for above-the-fold
  *     content. Without 'unsafe-inline' the dashboard would render
@@ -67,10 +69,20 @@ export interface SecurityHeader {
  * @param apiUrl - Backend API origin (from NEXT_PUBLIC_API_URL).
  * @returns The serialised CSP value, ready to use as an HTTP header.
  */
-export function buildContentSecurityPolicy(apiUrl: string): string {
+export function buildContentSecurityPolicy(
+  apiUrl: string,
+  isProduction = true,
+): string {
+  // Next.js dev mode uses eval() for fast refresh / hot-module reloading.
+  // In production the bundled output does not rely on eval, so we only
+  // permit 'unsafe-eval' during development to keep the console clean.
+  const scriptSrc = isProduction
+    ? "'self' 'unsafe-inline'"
+    : "'self' 'unsafe-inline' 'unsafe-eval'";
+
   const directives: Array<[string, string]> = [
     ["default-src", "'self'"],
-    ["script-src", "'self'"],
+    ["script-src", scriptSrc],
     ["style-src", "'self' 'unsafe-inline'"],
     ["img-src", "'self' data:"],
     ["font-src", "'self'"],
@@ -102,7 +114,7 @@ export function buildSecurityHeaders(
   apiUrl: string,
 ): SecurityHeader[] {
   const resolvedApiUrl = apiUrl || DEFAULT_API_URL;
-  const csp = buildContentSecurityPolicy(resolvedApiUrl);
+  const csp = buildContentSecurityPolicy(resolvedApiUrl, isProduction);
 
   // CSP header name flips between enforcing and report-only depending on
   // environment. The directive contents are identical so dev violations

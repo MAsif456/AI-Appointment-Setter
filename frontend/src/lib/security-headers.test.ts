@@ -26,8 +26,14 @@ describe("buildContentSecurityPolicy", () => {
     expect(csp).toContain("default-src 'self'");
   });
 
-  it("locks script-src to 'self' with no third-party CDNs", () => {
-    expect(csp).toContain("script-src 'self'");
+  it("locks script-src to 'self' 'unsafe-inline' in production (no unsafe-eval)", () => {
+    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(csp).not.toContain("unsafe-eval");
+  });
+
+  it("adds 'unsafe-eval' to script-src in development for Next.js fast refresh", () => {
+    const devCsp = buildContentSecurityPolicy("https://api.example.com", false);
+    expect(devCsp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
   });
 
   it("allows 'unsafe-inline' in style-src so Next.js SSR critical CSS works", () => {

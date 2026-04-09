@@ -27,7 +27,7 @@ const PUBLIC_ROUTES = ['/login', '/forgot-password'];
 const TOKEN_ROUTES = ['/verify-email', '/reset-password'];
 
 /** How often to validate the token against the backend (ms) */
-const TOKEN_POLL_MS = 1_000;
+const TOKEN_POLL_MS = 60_000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

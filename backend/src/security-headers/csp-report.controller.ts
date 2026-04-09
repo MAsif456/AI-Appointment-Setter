@@ -6,10 +6,8 @@ import {
   HttpStatus,
   Post,
 } from "@nestjs/common";
-import {
-  CspReportService,
-  RawCspReportEnvelope,
-} from "./csp-report.service";
+import { CspReportService } from "./csp-report.service";
+import type { RawCspReportEnvelope } from "./csp-report.service";
 
 /**
  * Public endpoint that receives Content-Security-Policy violation
