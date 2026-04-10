@@ -251,6 +251,85 @@ describe("GhlApiService", () => {
     });
   });
 
+  describe("sendMessageWithRetry — Email type", () => {
+    it("should send html and subject fields for Email type", async () => {
+      const emailDto: SendMessageDto = {
+        type: "Email",
+        contactId: "contact_123",
+        message: "<p>Reminder</p>",
+        subject: "Appointment Reminder",
+      };
+      const responseData = { messageId: "msg_email_001" };
+      httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
+
+      const result = await service.sendMessageWithRetry(emailDto);
+
+      expect(result).toEqual(responseData);
+      expect(httpService.post).toHaveBeenCalledWith(
+        "/conversations/messages",
+        expect.objectContaining({
+          type: "Email",
+          html: "<p>Reminder</p>",
+          subject: "Appointment Reminder",
+        }),
+        expect.any(Object),
+      );
+      expect(httpService.post).not.toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ message: expect.anything() }),
+        expect.any(Object),
+      );
+    });
+
+    it("should send html without subject when subject is not provided", async () => {
+      const emailDto: SendMessageDto = {
+        type: "Email",
+        contactId: "contact_123",
+        message: "<p>Reminder</p>",
+      };
+      httpService.post.mockReturnValue(of(mockAxiosResponse({ messageId: "msg_002" })));
+
+      await service.sendMessageWithRetry(emailDto);
+
+      const calledPayload = httpService.post.mock.calls[0][1];
+      expect(calledPayload.html).toBe("<p>Reminder</p>");
+      expect(calledPayload.subject).toBeUndefined();
+    });
+  });
+
+  describe("updateContactCustomField", () => {
+    it("should PUT custom field update to GHL contacts API", async () => {
+      httpService.put.mockReturnValue(of(mockAxiosResponse({ updated: true })));
+
+      await service.updateContactCustomField("contact_123", "last_postcode", "CF10 2BX");
+
+      expect(httpService.put).toHaveBeenCalledWith(
+        "/contacts/contact_123",
+        { customFields: [{ key: "last_postcode", value: "CF10 2BX" }] },
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: "Bearer test-private-token" }),
+        }),
+      );
+    });
+
+    it("should log and rethrow when the PUT fails", async () => {
+      httpService.put.mockReturnValue(throwError(() => new Error("GHL field error")));
+
+      await expect(
+        service.updateContactCustomField("contact_123", "last_postcode", "CF10 2BX"),
+      ).rejects.toThrow("GHL field error");
+    });
+  });
+
+  describe("getCircuitBreakerStates", () => {
+    it("should return messaging and appointments circuit breaker states", () => {
+      const states = service.getCircuitBreakerStates();
+
+      expect(states).toHaveProperty("messaging");
+      expect(states).toHaveProperty("appointments");
+    });
+  });
+
   describe("removeContactTag", () => {
     it("should remove a tag from a contact via GHL API", async () => {
       const responseData = { tags: [] };

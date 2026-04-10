@@ -1,0 +1,119 @@
+/**
+ * Reminder message generation, intent detection, and send-window calculation handlers.
+ * Extracted to keep reminder.service.ts under 200 lines.
+ */
+import { AppointmentDocument } from '../database/schemas/appointment.schema';
+import { ClinicDocument } from '../database/schemas/clinic.schema';
+
+export { generateReminderEmailHtml } from './reminder.email';
+
+/**
+ * Determine if a reminder should be sent for this appointment.
+ * AC: Check timing window (15min tolerance) and prevent duplicate sends.
+ * @param appointment - The appointment to check
+ * @param reminderTimes - Array of hours-before-appointment intervals (e.g. [24, 1])
+ * @returns Object indicating whether to send, the reminder type, and hours before
+ */
+export function shouldSendReminder(
+  appointment: AppointmentDocument,
+  reminderTimes: number[],
+): { send: boolean; type?: string; hoursBeforeAppointment?: number } {
+  const now = new Date();
+  const appointmentTime = new Date(appointment.appointmentDate);
+  // Use fractional hours so the 15-min window check works correctly
+  const hoursUntilAppointment =
+    (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  for (const interval of reminderTimes) {
+    // Check if we're within the send window (15min tolerance for cron)
+    const isWithinWindow =
+      hoursUntilAppointment <= interval &&
+      hoursUntilAppointment >= interval - 0.25;
+
+    if (!isWithinWindow) {
+      continue;
+    }
+
+    // AC: Don't send duplicate reminders
+    const alreadySent = appointment.reminders?.some(
+      (reminder) =>
+        reminder.type === `${interval}_hour` && reminder.status === 'sent',
+    );
+
+    if (alreadySent) {
+      continue;
+    }
+
+    return {
+      send: true,
+      type: `${interval}_hour`,
+      hoursBeforeAppointment: interval,
+    };
+  }
+
+  return { send: false };
+}
+
+/**
+ * Generate reminder message based on hours until appointment.
+ * AC: British English formatting, includes date/time/address/reschedule option.
+ * @param appointment - The appointment to generate a message for
+ * @param clinic - The clinic config for name and address
+ * @param hoursBeforeAppointment - How many hours before the appointment
+ */
+export function generateReminderMessage(
+  appointment: AppointmentDocument,
+  clinic: ClinicDocument,
+  hoursBeforeAppointment: number,
+): string {
+  const appointmentDate = new Date(appointment.appointmentDate);
+  const clinicAddress = clinic.address || 'the clinic';
+
+  // Format date parts in UK timezone (handles BST/GMT regardless of server timezone)
+  const ukParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).formatToParts(appointmentDate);
+  const getPart = (type: string) => ukParts.find((p) => p.type === type)?.value ?? '';
+  const dayNum = parseInt(getPart('day'), 10);
+  const suffix = ['th','st','nd','rd'][dayNum % 10 > 3 || Math.floor(dayNum % 100 / 10) === 1 ? 0 : dayNum % 10] ?? 'th';
+  const dayName = getPart('weekday');
+  const dateFormatted = `${dayNum}${suffix} ${getPart('month')}`;
+  const timeFormatted = appointment.appointmentTime; // stored in UK local time
+
+  if (hoursBeforeAppointment === 1) {
+    return `Just a reminder - your appointment is in 1 hour! ${clinic.name}, ${clinicAddress}.`;
+  }
+
+  if (hoursBeforeAppointment === 24) {
+    return (
+      `Reminder: Your appointment at ${clinic.name} is tomorrow ` +
+      `(${dayName} ${dateFormatted}) at ${timeFormatted}. ` +
+      `Address: ${clinicAddress}. ` +
+      `Reply if you need to reschedule or cancel.`
+    );
+  }
+
+  if (hoursBeforeAppointment === 48) {
+    return (
+      `Upcoming appointment: ${clinic.name} on ${dayName} ${dateFormatted} ` +
+      `at ${timeFormatted}. Address: ${clinicAddress}. ` +
+      `Reply if you need to reschedule or cancel.`
+    );
+  }
+
+  const daysUntil = Math.floor(hoursBeforeAppointment / 24);
+  const timeReference =
+    daysUntil > 0
+      ? `in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`
+      : 'soon';
+
+  return (
+    `Reminder: Your appointment at ${clinic.name} is ${timeReference} ` +
+    `on ${dayName} ${dateFormatted} at ${timeFormatted}. ` +
+    `Address: ${clinicAddress}. Reply to reschedule or cancel.`
+  );
+}
+

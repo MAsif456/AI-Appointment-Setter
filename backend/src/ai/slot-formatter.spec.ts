@@ -347,6 +347,15 @@ describe("buildDayAvailabilitySection", () => {
   const thursdayLabel = label(thursday, "Thursday");
   const fridayLabel = label(friday, "Friday");
 
+  beforeAll(() => {
+    // Pin "today" to Sunday 5th April so the whole Mon–Fri range is in the future
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-05T12:00:00'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   const weekSlots: Slot[] = [
     { date: toDateStr(monday), startTime: "09:00", endTime: "09:30" },
     { date: toDateStr(tuesday), startTime: "10:00", endTime: "10:30" },

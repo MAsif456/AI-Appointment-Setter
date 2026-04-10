@@ -3,6 +3,7 @@ export async function seedAppointments(
   clinics: any[],
   leads: any[],
   conversations: any[],
+  ConversationModel?: any,
 ) {
   console.log("Creating appointments...");
 
@@ -20,6 +21,14 @@ export async function seedAppointments(
       status: "confirmed",
     },
   ]);
+
+  // Back-fill appointmentId on the conversation so the reminder service can
+  // look up the conversation via { appointmentId: appointment._id }.
+  if (ConversationModel) {
+    await ConversationModel.findByIdAndUpdate(conversations[0]._id, {
+      appointmentId: appointments[0]._id,
+    });
+  }
 
   console.log(`Created ${appointments.length} appointments\n`);
 

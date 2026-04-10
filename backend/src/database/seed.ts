@@ -65,7 +65,7 @@ async function seedDatabase() {
     );
 
     await seedMessages(MessageModel, clinics, leads, conversations);
-    await seedAppointments(AppointmentModel, clinics, leads, conversations);
+    await seedAppointments(AppointmentModel, clinics, leads, conversations, ConversationModel);
     await seedAuditLogs(AuditLogModel, clinics, adminUser);
     await seedPatientHistory(
       PatientHistoryModel,

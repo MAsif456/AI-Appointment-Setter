@@ -68,10 +68,14 @@ export class GhlApiService {
     }
     if (dto.type === "Email") {
       payload.html = dto.html ?? dto.message;
-      payload.subject = dto.subject ?? "AppointHealth";
+      if (dto.subject) payload.subject = dto.subject;
     } else {
       payload.message = dto.message;
     }
+
+    this.logger.debug(
+      `GHL send — type: ${payload.type}, contactId: ${dto.contactId}, conversationId: ${payload.conversationId ?? 'none'}`,
+    );
 
     return this.messagingCircuitBreaker.execute(() =>
       retryWithBackoff(
@@ -215,18 +219,20 @@ export class GhlApiService {
     startTime: string,
     endTime: string,
   ): Promise<any> {
+    const payload = {
+      calendarId,
+      locationId,
+      contactId,
+      startTime,
+      endTime,
+      appointmentStatus: "confirmed",
+    };
+    this.logger.debug(`Creating GHL appointment: ${JSON.stringify(payload)}`);
     return this.appointmentCircuitBreaker.execute(async () => {
       const { data } = await lastValueFrom(
         this.httpService.post(
           "/calendars/events/appointments",
-          {
-            calendarId,
-            locationId,
-            contactId,
-            startTime,
-            endTime,
-            appointmentStatus: "confirmed",
-          },
+          payload,
           { headers: this.getHeaders() },
         ),
       );
