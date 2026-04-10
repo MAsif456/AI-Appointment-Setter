@@ -72,7 +72,7 @@ export class AppointmentsService {
     const duration = this.resolveDuration(clinic, dto.serviceType);
     const endTime = this.calculateEndTime(dto.startTime, duration);
 
-    let ghlResponse;
+    let ghlResponse: any;
     try {
       ghlResponse = await this.ghlApiService.createAppointment(
         clinic.ghlCalendarId,
@@ -96,6 +96,7 @@ export class AppointmentsService {
     await this.conversationModel.findByIdAndUpdate(dto.conversationId, {
       phase: "booked",
       appointmentId: appointment._id,
+      ghlContactId: dto.contactId,
       $set: {
         'context.ghlAppointmentId': ghlResponse.id,
         'context.appointmentDate': date,
@@ -181,7 +182,12 @@ export class AppointmentsService {
    */
   private handleGhlError(error: any, contactId: string): BookingResult {
     const status = error?.response?.status;
-    if (status === 409 || status === 422) {
+    const responseMessage: string = error?.response?.data?.message ?? '';
+    const isSlotUnavailable =
+      status === 409 ||
+      status === 422 ||
+      (status === 400 && responseMessage.toLowerCase().includes('no longer available'));
+    if (isSlotUnavailable) {
       this.logger.warn(`Slot no longer available for contact ${contactId}`);
       return {
         success: false,
@@ -189,7 +195,11 @@ export class AppointmentsService {
         slotTaken: true,
       };
     }
-    this.logger.error(`GHL appointment creation failed: ${error.message}`);
+    const responseData = error?.response?.data;
+    this.logger.error(
+      `GHL appointment creation failed: ${error.message}` +
+      (responseData ? ` — GHL response: ${JSON.stringify(responseData)}` : ''),
+    );
     return { success: false, error: "Failed to create appointment" };
   }
 
@@ -206,8 +216,13 @@ export class AppointmentsService {
     duration: number,
   ): Promise<AppointmentDocument> {
     const start = new Date(dto.startTime);
-    const hours = start.getUTCHours().toString().padStart(2, "0");
-    const mins = start.getUTCMinutes().toString().padStart(2, "0");
+    // Extract HH:MM in UK local time (handles BST/GMT automatically)
+    const appointmentTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(start);
 
     return this.appointmentModel.create({
       clinicId: new Types.ObjectId(dto.clinicId),
@@ -215,7 +230,7 @@ export class AppointmentsService {
       conversationId: new Types.ObjectId(dto.conversationId),
       ghlAppointmentId,
       appointmentDate: start,
-      appointmentTime: `${hours}:${mins}`,
+      appointmentTime,
       durationMinutes: duration,
       serviceType: dto.serviceType,
       status: "confirmed",

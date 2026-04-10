@@ -8,6 +8,7 @@ export async function seedConversations(
   clinics: any[],
   leads: any[],
   adminUser: any,
+  appointments?: any[],
 ) {
   console.log("Creating conversations...");
 
@@ -16,6 +17,7 @@ export async function seedConversations(
     {
       clinicId: clinics[0]._id,
       leadId: leads[0]._id,
+      ghlContactId: leads[0].ghlContactId,
       phase: "confirmed",
       channel: "whatsapp",
       messageCount: 8,
@@ -29,6 +31,7 @@ export async function seedConversations(
     {
       clinicId: clinics[1]._id,
       leadId: leads[1]._id,
+      ghlContactId: leads[1].ghlContactId,
       phase: "qualified",
       channel: "sms",
       messageCount: 5,
@@ -42,6 +45,7 @@ export async function seedConversations(
     {
       clinicId: clinics[0]._id,
       leadId: leads[2]._id,
+      ghlContactId: leads[2].ghlContactId,
       phase: "greeting",
       channel: "website",
       messageCount: 0,
@@ -53,6 +57,7 @@ export async function seedConversations(
     {
       clinicId: clinics[2]._id,
       leadId: leads[3]._id,
+      ghlContactId: leads[3].ghlContactId,
       phase: "declined",
       channel: "sms",
       messageCount: 3,

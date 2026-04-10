@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, Logger, UseGuards, Request, Forbidd
 import { ConversationsService } from './conversations.service';
 import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SensitiveData } from '../security-headers/sensitive-data.decorator';
 
 /**
  * DTO for sending a message in an ongoing conversation.
@@ -15,8 +16,16 @@ export interface SendMessageDto {
 }
 
 
+/*
+ * Every handler on this controller returns lead PII (names, phone, email,
+ * postcode, message history) or triggers AI responses tied to a specific
+ * lead. Marking the whole class with @SensitiveData() guarantees the
+ * CacheControlInterceptor stamps no-store headers on every response,
+ * including new handlers added later.
+ */
+@SensitiveData()
 @Controller('conversations')
-@UseGuards(JwtAuthGuard) 
+@UseGuards(JwtAuthGuard)
 export class ConversationsController {
   private readonly logger = new Logger(ConversationsController.name);
 

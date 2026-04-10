@@ -107,7 +107,7 @@ export class GroqService implements OnModuleInit {
       model: GROQ_MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 256,
+      max_tokens: 512,
     });
 
     const content = response.choices?.[0]?.message?.content ?? null;
@@ -126,7 +126,7 @@ export class GroqService implements OnModuleInit {
       model: GROQ_MODEL,
       messages,
       temperature: 0.7,
-      max_tokens: 256,
+      max_tokens: 512,
     });
 
     const content = response.choices?.[0]?.message?.content ?? null;

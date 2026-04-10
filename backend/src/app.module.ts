@@ -1,10 +1,12 @@
 import { Module } from "@nestjs/common";
-import { APP_FILTER } from "@nestjs/core";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
+import { CacheControlInterceptor } from "./security-headers/cache-control.interceptor";
+import { SecurityHeadersModule } from "./security-headers/security-headers.module";
 import { AiSettingsModule } from "./ai-settings/ai-settings.module";
 import { ClinicsModule } from "./clinics/clinics.module";
 import { GhlModule } from "./ghl/ghl.module";
@@ -20,6 +22,7 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { ReminderModule } from "./reminder/reminder.module";
 
 @Module({
   imports: [
@@ -39,6 +42,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
       inject: [ConfigService],
     }),
     RateLimitingModule,
+    SecurityHeadersModule,
     AuthModule,
     AnalyticsModule,
     AiSettingsModule,
@@ -51,6 +55,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     AppointmentsModule,
     CancellationModule,
     HealthModule,
+    ReminderModule,
     ScheduleModule.forRoot(),
     FollowUpModule,
   ],
@@ -58,6 +63,15 @@ import { AnalyticsModule } from "./analytics/analytics.module";
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: DatabaseExceptionFilter },
+    /*
+     * Global cache-control interceptor. Reads the @SensitiveData() metadata
+     * and stamps strict no-store headers onto any response from a marked
+     * handler. Registering it here means the "patient data" list lives at
+     * the call site (the controller) rather than in a central hardcoded
+     * registry, so new sensitive routes get the correct headers as long
+     * as the developer remembers the decorator.
+     */
+    { provide: APP_INTERCEPTOR, useClass: CacheControlInterceptor },
   ],
 })
 export class AppModule {}
