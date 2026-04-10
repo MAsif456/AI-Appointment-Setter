@@ -1,10 +1,16 @@
 import { Controller, Get, Query, Logger } from "@nestjs/common";
 import { AnalyticsService, SecurityEventFilters } from "./analytics.service";
+import { SensitiveData } from "../security-headers/sensitive-data.decorator";
 
 /**
  * Analytics controller.
  * Exposes security event data for the Lunax staff dashboard.
+ *
+ * Marked with @SensitiveData() because the security-events feed can
+ * include lead email addresses, IP addresses and per-clinic usage
+ * patterns that we never want cached by browsers, proxies or CDNs.
  */
+@SensitiveData()
 @Controller("analytics")
 export class AnalyticsController {
   private readonly logger = new Logger(AnalyticsController.name);
