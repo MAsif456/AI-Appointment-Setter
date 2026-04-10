@@ -4,7 +4,7 @@ import {
   CspReportService,
   RawCspReportEnvelope,
 } from "./csp-report.service";
-import { EXCLUDED_PATH_PREFIXES } from "../rate-limiting/rate-limiting.constants";
+import { DEFAULT_CSP_REPORT_TIER } from "../rate-limiting/rate-limiting.constants";
 
 /**
  * Unit tests for CspReportController.
@@ -54,16 +54,15 @@ describe("CspReportController", () => {
     ).resolves.toBeUndefined();
   });
 
-  describe("rate limiter exclusion", () => {
-    it("/security/csp-report is listed in the global rate limiter exclusions", () => {
-      // This test pins the exclusion contract: the rate-limiting guard reads
-      // EXCLUDED_PATH_PREFIXES at startup and skips any request whose path
-      // starts with one of the listed prefixes. If a future refactor drops
-      // /security/csp-report from this list, browser violation reports
-      // would start getting throttled and the feedback loop would silently
-      // break. Failing this test forces the refactor to make a deliberate
-      // decision instead.
-      expect(EXCLUDED_PATH_PREFIXES).toContain("/security/csp-report");
+  describe("rate limiting", () => {
+    it("has a dedicated csp-report rate limit tier with a generous limit", () => {
+      // The CSP report endpoint uses its own rate limit tier rather than
+      // being excluded from rate limiting entirely. The tier is generous
+      // enough to capture all legitimate browser violations but prevents
+      // abuse of the public unauthenticated endpoint.
+      expect(DEFAULT_CSP_REPORT_TIER.tier).toBe("csp-report");
+      expect(DEFAULT_CSP_REPORT_TIER.limit).toBe(100);
+      expect(DEFAULT_CSP_REPORT_TIER.windowSeconds).toBe(60);
     });
   });
 });

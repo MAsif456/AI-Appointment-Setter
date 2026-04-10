@@ -28,22 +28,26 @@ export const DEFAULT_WRITE_TIER: RateLimitConfig = {
   windowSeconds: 60,
 };
 
+/**
+ * CSP report tier: generous limit for browser-generated CSP violation
+ * reports. 100 req/min per IP is high enough to capture every legitimate
+ * violation (even a badly misconfigured page producing dozens of reports
+ * per load) while preventing abuse of the public, unauthenticated endpoint.
+ */
+export const DEFAULT_CSP_REPORT_TIER: RateLimitConfig = {
+  tier: "csp-report",
+  limit: 100,
+  windowSeconds: 60,
+};
+
 // --- Route exclusions ---
 
 /**
  * Path prefixes excluded from the global rate limiter.
  * - /webhooks and /ghl/webhook have their own signature-based protection
  *   in the peer's webhook implementation.
- * - /security/csp-report receives unauthenticated, browser-generated
- *   Content-Security-Policy violation reports. A page with a misconfigured
- *   CSP can produce dozens of reports per load and throttling them would
- *   hide the very policy errors we want visibility into.
  */
-export const EXCLUDED_PATH_PREFIXES = [
-  "/webhooks",
-  "/ghl/webhook",
-  "/security/csp-report",
-];
+export const EXCLUDED_PATH_PREFIXES = ["/webhooks", "/ghl/webhook"];
 
 // --- Internal service bypass ---
 
@@ -58,6 +62,8 @@ export const ENV_READ_LIMIT = "RATE_LIMIT_READ_LIMIT";
 export const ENV_READ_WINDOW = "RATE_LIMIT_READ_WINDOW_SECONDS";
 export const ENV_WRITE_LIMIT = "RATE_LIMIT_WRITE_LIMIT";
 export const ENV_WRITE_WINDOW = "RATE_LIMIT_WRITE_WINDOW_SECONDS";
+export const ENV_CSP_REPORT_LIMIT = "RATE_LIMIT_CSP_REPORT_LIMIT";
+export const ENV_CSP_REPORT_WINDOW = "RATE_LIMIT_CSP_REPORT_WINDOW_SECONDS";
 export const ENV_INTERNAL_KEY = "INTERNAL_SERVICE_KEY";
 
 // --- Response header names ---

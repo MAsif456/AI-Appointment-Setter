@@ -21,11 +21,11 @@ import type { RawCspReportEnvelope } from "./csp-report.service";
  *   not (and cannot) attach a session cookie or bearer token. Adding
  *   auth here would silently break the entire feedback loop.
  *
- * - The endpoint is excluded from the global rate limiter (see
- *   `EXCLUDED_PATH_PREFIXES` in rate-limiting.constants.ts). A page
- *   with a misconfigured CSP can produce dozens of reports per load,
- *   and throttling them would hide the very policy errors we want
- *   visibility into.
+ * - The endpoint uses a dedicated "csp-report" rate limit tier
+ *   (default: 100 req/min per IP). This is generous enough to
+ *   capture every legitimate browser violation report — even from a
+ *   badly misconfigured page — while preventing abuse of the public
+ *   unauthenticated endpoint.
  *
  * - We always return 204 No Content. Browsers do not display the
  *   response body and will retry on 5xx, so a 204 keeps the network

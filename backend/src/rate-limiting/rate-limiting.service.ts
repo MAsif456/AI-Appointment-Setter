@@ -11,12 +11,15 @@ import {
   DEFAULT_AUTH_TIER,
   DEFAULT_READ_TIER,
   DEFAULT_WRITE_TIER,
+  DEFAULT_CSP_REPORT_TIER,
   ENV_AUTH_LIMIT,
   ENV_AUTH_WINDOW,
   ENV_READ_LIMIT,
   ENV_READ_WINDOW,
   ENV_WRITE_LIMIT,
   ENV_WRITE_WINDOW,
+  ENV_CSP_REPORT_LIMIT,
+  ENV_CSP_REPORT_WINDOW,
 } from "./rate-limiting.constants";
 
 @Injectable()
@@ -25,6 +28,7 @@ export class RateLimitingService {
   private readonly authTier: RateLimitConfig;
   private readonly readTier: RateLimitConfig;
   private readonly writeTier: RateLimitConfig;
+  private readonly cspReportTier: RateLimitConfig;
 
   constructor(
     @InjectModel(RateLimitCounter.name)
@@ -54,6 +58,17 @@ export class RateLimitingService {
       windowSeconds: this.readNumericEnv(
         ENV_WRITE_WINDOW,
         DEFAULT_WRITE_TIER.windowSeconds,
+      ),
+    };
+    this.cspReportTier = {
+      tier: "csp-report",
+      limit: this.readNumericEnv(
+        ENV_CSP_REPORT_LIMIT,
+        DEFAULT_CSP_REPORT_TIER.limit,
+      ),
+      windowSeconds: this.readNumericEnv(
+        ENV_CSP_REPORT_WINDOW,
+        DEFAULT_CSP_REPORT_TIER.windowSeconds,
       ),
     };
   }
@@ -86,6 +101,10 @@ export class RateLimitingService {
   determineTier(path: string, method: string): RateLimitConfig {
     if (path.startsWith("/auth")) {
       return this.authTier;
+    }
+
+    if (path.startsWith("/security/csp-report")) {
+      return this.cspReportTier;
     }
 
     const upper = method.toUpperCase();
