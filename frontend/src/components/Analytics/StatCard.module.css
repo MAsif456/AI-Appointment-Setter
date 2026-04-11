@@ -34,12 +34,8 @@
   margin-left: 2px;
 }
 
-.trendUp {
-  font-size: 22px;
-  color: #6b7280;
-}
-
-.trendDown {
-  font-size: 22px;
-  color: #6b7280;
+.icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }

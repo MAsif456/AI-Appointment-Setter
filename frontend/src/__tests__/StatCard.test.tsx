@@ -1,6 +1,6 @@
 /**
  * Unit tests for the StatCard component.
- * Verifies rendering of title, value, suffix, and trend indicators.
+ * Verifies rendering of title, value, suffix, trend icons, and clock icon.
  */
 import { render, screen } from '@testing-library/react';
 import StatCard from '@/components/Analytics/StatCard';
@@ -28,36 +28,42 @@ describe('StatCard', () => {
     expect(screen.getByText('45%')).toBeInTheDocument();
   });
 
-  it('should show upward trend icon for positive change', () => {
+  it('should show SVG icon for positive change', () => {
     const { container } = render(<StatCard title="Leads" value={100} change={10} />);
 
-    // Check that an upward trend element is rendered
-    const trendUp = container.querySelector('[class*="trendUp"]');
-    expect(trendUp).toBeInTheDocument();
+    // SVG icon is rendered for trend indication
+    const svg = container.querySelector('svg');
+    expect(svg).toBeInTheDocument();
   });
 
-  it('should show downward trend icon for negative change', () => {
+  it('should show SVG icon for negative change', () => {
     const { container } = render(<StatCard title="Leads" value={100} change={-5} />);
 
-    const trendDown = container.querySelector('[class*="trendDown"]');
-    expect(trendDown).toBeInTheDocument();
+    const svg = container.querySelector('svg');
+    expect(svg).toBeInTheDocument();
   });
 
-  it('should not show trend icon when change is zero', () => {
+  it('should not show any icon when change is zero', () => {
     const { container } = render(<StatCard title="Leads" value={100} change={0} />);
 
-    const trendUp = container.querySelector('[class*="trendUp"]');
-    const trendDown = container.querySelector('[class*="trendDown"]');
-    expect(trendUp).not.toBeInTheDocument();
-    expect(trendDown).not.toBeInTheDocument();
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeInTheDocument();
   });
 
-  it('should not show trend icon when change is undefined', () => {
+  it('should not show any icon when change is undefined and no icon prop', () => {
     const { container } = render(<StatCard title="Leads" value={100} />);
 
-    const trendUp = container.querySelector('[class*="trendUp"]');
-    const trendDown = container.querySelector('[class*="trendDown"]');
-    expect(trendUp).not.toBeInTheDocument();
-    expect(trendDown).not.toBeInTheDocument();
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeInTheDocument();
+  });
+
+  it('should show clock icon when icon prop is set to clock', () => {
+    const { container } = render(<StatCard title="Response Time" value="8 sec" icon="clock" />);
+
+    const svg = container.querySelector('svg');
+    expect(svg).toBeInTheDocument();
+    // Clock icon has a circle element
+    const circle = container.querySelector('circle');
+    expect(circle).toBeInTheDocument();
   });
 });

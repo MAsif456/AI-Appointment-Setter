@@ -1,19 +1,17 @@
 /**
  * Service for platform-wide analytics aggregations.
  * Handles the overview endpoint and clinic comparison table.
+ * Uses conversations as the single source of truth for consistency.
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Conversation } from '../database/schemas/conversation.schema';
-import { Lead } from '../database/schemas/lead.schema';
-import { Appointment } from '../database/schemas/appointment.schema';
 import { Message } from '../database/schemas/message.schema';
 import {
   QUALIFIED_PHASES,
   BOOKING_STARTED_PHASES,
   BOOKED_PHASES,
-  VALID_BOOKING_STATUSES,
   getDateRange,
   getPreviousPeriodRange,
   calcPercentageChange,
@@ -25,8 +23,6 @@ import { ClinicComparisonRow } from './dto/overview-response.dto';
 export class OverviewAnalyticsService {
   constructor(
     @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
-    @InjectModel(Lead.name) private leadModel: Model<Lead>,
-    @InjectModel(Appointment.name) private appointmentModel: Model<Appointment>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
 
@@ -120,11 +116,12 @@ export class OverviewAnalyticsService {
   private async getPeriodMetrics(startDate: Date, endDate: Date) {
     const dateFilter = { createdAt: { $gte: startDate, $lte: endDate } };
 
+    // Use conversations as single source of truth for leads and bookings
     const [leads, bookings, avgResp] = await Promise.all([
-      this.leadModel.countDocuments(dateFilter),
-      this.appointmentModel.countDocuments({
+      this.conversationModel.countDocuments(dateFilter),
+      this.conversationModel.countDocuments({
         ...dateFilter,
-        status: { $in: VALID_BOOKING_STATUSES },
+        phase: { $in: BOOKED_PHASES },
       }),
       this.messageModel.aggregate([
         { $match: { ...dateFilter, sender: 'ai', responseTimeSeconds: { $gt: 0 } } },
@@ -138,13 +135,13 @@ export class OverviewAnalyticsService {
     return { leads, bookings, conversionRate, avgResponseTime };
   }
 
-  /** Aggregates daily booking counts for the time-series chart. */
+  /** Aggregates daily booking counts from conversations that reached booked phase. */
   private async getBookingsOverTime(startDate: Date, endDate: Date) {
-    const results = await this.appointmentModel.aggregate([
+    const results = await this.conversationModel.aggregate([
       {
         $match: {
           createdAt: { $gte: startDate, $lte: endDate },
-          status: { $in: VALID_BOOKING_STATUSES },
+          phase: { $in: BOOKED_PHASES },
         },
       },
       {

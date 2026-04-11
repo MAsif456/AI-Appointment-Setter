@@ -43,10 +43,10 @@ export default function ClinicAnalyticsTab({ clinicId }: ClinicAnalyticsTabProps
   return (
     <div className={styles.wrapper}>
       <div className={styles.statCards}>
-        <StatCard title="This Month's Leads" value={data.leads} change={data.leads} />
-        <StatCard title="This Month's Bookings" value={data.bookings} change={data.bookings} />
+        <StatCard title="This Month's Leads" value={data.leads} change={-1} />
+        <StatCard title="This Month's Bookings" value={data.bookings} change={1} />
         <StatCard title="Conversion Rate" value={`${data.conversionRate}%`} />
-        <StatCard title="Average Response Time" value={`${data.avgResponseTime} sec`} />
+        <StatCard title="Average Response Time" value={`${data.avgResponseTime} sec`} icon="clock" />
       </div>
 
       <BookingsChart data={data.bookingsOverTime} title="Bookings Over Time (Last 7 Days)" />

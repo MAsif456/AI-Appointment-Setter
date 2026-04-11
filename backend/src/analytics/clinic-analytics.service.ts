@@ -1,19 +1,18 @@
 /**
  * Service for per-clinic analytics aggregations.
  * Handles the individual clinic analytics endpoint.
+ * Uses conversations as single source of truth for consistency with overview.
  */
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Lead } from '../database/schemas/lead.schema';
-import { Appointment } from '../database/schemas/appointment.schema';
 import { Message } from '../database/schemas/message.schema';
 import {
   QUALIFIED_PHASES,
   BOOKING_STARTED_PHASES,
   BOOKED_PHASES,
-  VALID_BOOKING_STATUSES,
   getDateRange,
 } from './analytics.constants';
 import { ClinicAnalyticsResponse } from './dto/clinic-response.dto';
@@ -23,7 +22,6 @@ export class ClinicAnalyticsService {
   constructor(
     @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
     @InjectModel(Lead.name) private leadModel: Model<Lead>,
-    @InjectModel(Appointment.name) private appointmentModel: Model<Appointment>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
 
@@ -91,16 +89,18 @@ export class ClinicAnalyticsService {
     return getDateRange('month');
   }
 
+  /** Counts leads as total conversations for this clinic in the date range. */
   private async countLeads(clinicId: Types.ObjectId, start: Date, end: Date) {
-    return this.leadModel.countDocuments({
+    return this.conversationModel.countDocuments({
       clinicId, createdAt: { $gte: start, $lte: end },
     });
   }
 
+  /** Counts bookings as conversations that reached booked/confirmed phase. */
   private async countBookings(clinicId: Types.ObjectId, start: Date, end: Date) {
-    return this.appointmentModel.countDocuments({
+    return this.conversationModel.countDocuments({
       clinicId, createdAt: { $gte: start, $lte: end },
-      status: { $in: VALID_BOOKING_STATUSES },
+      phase: { $in: BOOKED_PHASES },
     });
   }
 
@@ -112,9 +112,10 @@ export class ClinicAnalyticsService {
     return result.length > 0 ? Math.round(result[0].avg) : 0;
   }
 
+  /** Aggregates daily booking counts from conversations that reached booked phase. */
   private async getBookingsOverTime(clinicId: Types.ObjectId, start: Date, end: Date) {
-    return this.appointmentModel.aggregate([
-      { $match: { clinicId, createdAt: { $gte: start, $lte: end }, status: { $in: VALID_BOOKING_STATUSES } } },
+    return this.conversationModel.aggregate([
+      { $match: { clinicId, createdAt: { $gte: start, $lte: end }, phase: { $in: BOOKED_PHASES } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
       { $project: { _id: 0, date: '$_id', count: 1 } },
