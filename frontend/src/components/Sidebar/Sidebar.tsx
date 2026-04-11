@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import NotificationBell from '@/components/Notifications/NotificationBell';
 import styles from './Sidebar.module.css';
 import {
   DashboardIcon, ClinicsIcon, ConversationsIcon,
@@ -14,6 +15,9 @@ const navItems = [
   { label: 'Dashboard', href: '/', icon: DashboardIcon },
   { label: 'Clinics', href: '/clinics', icon: ClinicsIcon },
   { label: 'Conversations', href: '/conversations', icon: ConversationsIcon },
+  // Staff-only in effect — admins never see notifications on this
+  // page, but the link itself is harmless if clicked.
+  { label: 'Escalations', href: '/escalations', icon: ConversationsIcon },
   { label: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
 ];
 
@@ -37,8 +41,16 @@ export default function Sidebar() {
   return (
     <>
       <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          AppointHealth <span className={styles.brandAi}>AI</span>
+        <div
+          className={styles.brand}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <span>
+            AppointHealth <span className={styles.brandAi}>AI</span>
+          </span>
+          {/* Bell renders nothing for admins, so the spacer slot
+              is effectively invisible on non-staff accounts. */}
+          <NotificationBell />
         </div>
 
         <nav className={styles.nav}>

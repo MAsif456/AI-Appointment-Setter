@@ -1,0 +1,212 @@
+/* Styles for the staff escalation notification UI. */
+/* Kept deliberately simple — matches the monochrome admin surface. */
+
+.bellButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.bellButton:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bellBadge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #d92d20;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panelOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 100vw;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+}
+
+.panelHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panelTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.panelBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+.emptyState {
+  padding: 40px 0;
+  text-align: center;
+  color: #6b7280;
+}
+
+.card {
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #d92d20;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.cardDim {
+  opacity: 0.55;
+}
+
+.cardTriggerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.triggerBadge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.cardName {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.cardReason {
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.phoneRow {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.phoneMissing {
+  font-size: 13px;
+  color: #b91c1c;
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+}
+
+.primaryCta {
+  flex: 1;
+  background: #d92d20;
+  color: #fff;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primaryCta:hover {
+  background: #b91c1c;
+}
+
+.primaryCtaDisabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.secondaryBtn:hover {
+  background: #f3f4f6;
+}
+
+.readOnlyBanner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
