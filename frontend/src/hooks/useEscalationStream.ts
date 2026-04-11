@@ -23,10 +23,6 @@ import {
   fetchStreamToken,
   listUnresolvedEscalations,
 } from '@/lib/escalationApi';
-import {
-  MOCKS_ENABLED,
-  subscribeMockStream,
-} from '@/mocks/escalationHandlers';
 import type { EscalationNotification } from '@/types/escalation';
 
 interface Options {
@@ -51,7 +47,6 @@ export function useEscalationStream({
 
     let cancelled = false;
     let eventSource: EventSource | null = null;
-    let unsubscribeMock: (() => void) | null = null;
 
     // Seed the queue first so the bell has a count even before any
     // fresh event arrives.
@@ -68,15 +63,6 @@ export function useEscalationStream({
     const openStream = async () => {
       await reconcile();
       if (cancelled) return;
-
-      if (MOCKS_ENABLED) {
-        // Mock pub/sub — no real network. Matches the "escalation"
-        // event contract from the plan.
-        unsubscribeMock = subscribeMockStream((e) => {
-          if (!cancelled) onEvent(e);
-        });
-        return;
-      }
 
       // Real SSE: fetch a short-lived token first because EventSource
       // cannot carry the Authorization header.
@@ -108,7 +94,6 @@ export function useEscalationStream({
     return () => {
       cancelled = true;
       eventSource?.close();
-      unsubscribeMock?.();
     };
   }, [enabled, onEvent, onReconcile]);
 }

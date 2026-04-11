@@ -21,6 +21,8 @@ import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReminderModule } from "./reminder/reminder.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { EscalationsModule } from "./escalations/escalations.module";
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { ReminderModule } from "./reminder/reminder.module";
     CancellationModule,
     HealthModule,
     ReminderModule,
+    NotificationsModule,
+    EscalationsModule,
   ],
   controllers: [AppController],
   providers: [
