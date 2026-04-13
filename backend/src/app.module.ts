@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { CacheControlInterceptor } from "./security-headers/cache-control.interceptor";
@@ -16,6 +17,7 @@ import { OrchestratorModule } from "./orchestrator/orchestrator.module";
 import { AppointmentsModule } from "./appointments/appointments.module";
 import { CancellationModule } from "./cancellation/cancellation.module";
 import { HealthModule } from "./health/health.module";
+import { FollowUpModule } from "./follow-up/follow-up.module";
 import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
@@ -58,6 +60,8 @@ import { EscalationsModule } from "./escalations/escalations.module";
     ReminderModule,
     NotificationsModule,
     EscalationsModule,
+    ScheduleModule.forRoot(),
+    FollowUpModule,
   ],
   controllers: [AppController],
   providers: [

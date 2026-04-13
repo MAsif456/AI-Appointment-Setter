@@ -66,6 +66,16 @@ export async function handleInboundMessageFlow(
     }
   }
 
+  // If the GHL conversation ID has changed (e.g. a new thread opened for a returning patient),
+  // update it so AI replies are sent to the correct GHL conversation.
+  if (ghlConversationId && conversation.ghlConversationId !== ghlConversationId) {
+    await conversationsService.updateGhlConversationId(
+      conversation._id as Types.ObjectId,
+      ghlConversationId,
+    );
+    conversation.ghlConversationId = ghlConversationId;
+  }
+
   // Fall back to the existing conversation's channel if the webhook didn't specify one
   if (!channel && conversation.channel) {
     channel = conversation.channel;
