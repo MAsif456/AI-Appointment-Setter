@@ -94,10 +94,7 @@ async function seedDatabase() {
       `   Rachel Green (Booking/Live):         ${conversations[2]._id}`,
     );
     console.log(
-      `   Lisa Evans (Declined):               ${conversations[3]._id}`,
-    );
-    console.log(
-      `   James Morgan (Returning patient):    ${conversations[4]._id}\n`,
+      `   Lisa Evans (Declined):               ${conversations[3]._id}\n`,
     );
   } catch (error) {
     console.error("Seed failed:", error);
