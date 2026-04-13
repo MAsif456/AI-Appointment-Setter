@@ -4,10 +4,9 @@
  * Single escalation tile rendered inside the bell panel and the
  * persistent `/escalations` queue page.
  *
- * Shows the trigger type, reason, patient name, and — most
- * importantly — the phone number as a giant `tel:` link with
- * "Call ASAP" as the sole primary action. Staff are explicitly
- * not given any in-app reply affordance here.
+ * Shows the trigger type, reason, patient name and phone, with
+ * "View chat" as the primary action and acknowledge/resolve
+ * controls on the right.
  */
 
 import Link from 'next/link';
@@ -17,17 +16,15 @@ import styles from './Notifications.module.css';
 interface Props {
   item: EscalationNotification;
   onAcknowledge: (id: string) => void;
+  onResolve?: (id: string) => void;
 }
 
-// Human-readable labels for the trigger badge. Defined as a map
-// so new triggers are a one-line change and typos are impossible.
 const TRIGGER_LABELS: Record<EscalationTrigger, string> = {
   failed_understanding: 'AI STUCK',
   emergency: 'EMERGENCY',
   abuse: 'ABUSE FLAG',
 };
 
-/** Short relative-time label — full timestamp lives in the tooltip. */
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60_000);
@@ -38,7 +35,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function EscalationCard({ item, onAcknowledge }: Props) {
+export default function EscalationCard({ item, onAcknowledge, onResolve }: Props) {
   const hasPhone = item.leadPhone && item.leadPhone.trim().length > 0;
   const cardClass = item.acknowledgedByMe
     ? `${styles.card} ${styles.cardDim}`
@@ -46,54 +43,58 @@ export default function EscalationCard({ item, onAcknowledge }: Props) {
 
   return (
     <div className={cardClass} data-testid="escalation-card">
-      <div className={styles.cardTriggerRow}>
-        <span className={styles.triggerBadge}>
-          {TRIGGER_LABELS[item.trigger]}
-        </span>
-        <span className={styles.timestamp} title={item.createdAt}>
-          {relativeTime(item.createdAt)}
-        </span>
-      </div>
+      <div className={styles.cardBody}>
+        <div className={styles.cardLeft}>
+          <div className={styles.cardTriggerRow}>
+            <span className={styles.triggerBadge}>
+              {TRIGGER_LABELS[item.trigger]}
+            </span>
+            <span className={styles.timestamp} title={item.createdAt}>
+              {relativeTime(item.createdAt)}
+            </span>
+          </div>
 
-      <div className={styles.cardName}>{item.leadName}</div>
-      <div className={styles.cardReason}>
-        {item.reason} — {item.clinicName}
-      </div>
+          <div className={styles.cardName}>{item.leadName}</div>
+          {hasPhone && (
+            <div className={styles.cardPhone}>
+              <a href={`tel:${item.leadPhone}`}>{item.leadPhone}</a>
+            </div>
+          )}
+          <div className={styles.cardReason}>
+            {item.reason} — {item.clinicName}
+          </div>
 
-      {hasPhone ? (
-        <div className={styles.phoneRow} aria-label="Lead phone number">
-          {item.leadPhone}
-        </div>
-      ) : (
-        <div className={styles.phoneMissing}>
-          No phone on file — check GHL
-        </div>
-      )}
-
-      <div className={styles.cardActions}>
-        {hasPhone ? (
-          <a
-            className={styles.primaryCta}
-            href={`tel:${item.leadPhone}`}
-            onClick={() => onAcknowledge(item.id)}
+          <Link
+            className={styles.viewChatBtn}
+            href={`/conversations/${item.conversationId}/escalated`}
           >
-            Call ASAP
-          </a>
-        ) : (
-          <span
-            className={`${styles.primaryCta} ${styles.primaryCtaDisabled}`}
-            aria-disabled="true"
-          >
-            Call ASAP
-          </span>
-        )}
+            View chat
+          </Link>
+        </div>
 
-        <Link
-          className={styles.secondaryBtn}
-          href={`/conversations/${item.conversationId}/escalated`}
-        >
-          View chat
-        </Link>
+        <div className={styles.cardRight}>
+          {!item.acknowledgedByMe && (
+            <button
+              type="button"
+              className={styles.ackBtn}
+              onClick={() => onAcknowledge(item.id)}
+            >
+              Acknowledge
+            </button>
+          )}
+          {item.acknowledgedByMe && (
+            <span className={styles.ackDone}>Acknowledged</span>
+          )}
+          {onResolve && (
+            <button
+              type="button"
+              className={styles.resolveBtn}
+              onClick={() => onResolve(item.id)}
+            >
+              Mark resolved
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

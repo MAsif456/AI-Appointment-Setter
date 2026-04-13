@@ -43,6 +43,8 @@ export const EMERGENCY_KEYWORDS: WeightedKeyword[] = [
   "can't move",
   "can't breathe",
   "can't breath",
+  "cannot breathe",
+  "cannot breath",
   "can't walk",
   "can't feel my",
   "not breathing",

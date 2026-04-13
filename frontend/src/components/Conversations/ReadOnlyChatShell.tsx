@@ -51,7 +51,7 @@ export default function ReadOnlyChatShell({
           border: '1px solid #e5e7eb',
           borderRadius: 8,
           padding: 16,
-          background: '#fafafa',
+          background: '#f9fafb',
           maxHeight: 600,
           overflowY: 'auto',
         }}
@@ -69,7 +69,9 @@ export default function ReadOnlyChatShell({
               padding: '10px 14px',
               borderRadius: 8,
               maxWidth: '75%',
-              background: msg.sender === 'ai' ? '#e0e7ff' : '#fef3c7',
+              background: msg.sender === 'ai' ? '#ffffff' : '#4361ee',
+              color: msg.sender === 'ai' ? '#1a1a2e' : '#ffffff',
+              border: msg.sender === 'ai' ? '1px solid #e5e7eb' : 'none',
               marginLeft: msg.sender === 'ai' ? 0 : 'auto',
             }}
           >
@@ -77,7 +79,7 @@ export default function ReadOnlyChatShell({
             <div
               style={{
                 fontSize: 11,
-                color: '#6b7280',
+                color: msg.sender === 'ai' ? '#6b7280' : 'rgba(255,255,255,0.7)',
                 marginTop: 4,
               }}
             >

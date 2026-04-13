@@ -501,6 +501,7 @@ export class ConversationsService {
       clinic,
       lead,
       userMessage,
+      resolvedUrgency,
       result,
     );
   }
@@ -509,21 +510,27 @@ export class ConversationsService {
    * US-20: run the comprehension classifier on the AI's draft reply and
    * either escalate (3 consecutive failures) or reset the counter.
    *
-   * Inputs intentionally avoid the `FALLBACK_AI_UNAVAILABLE` path — a
-   * Groq outage is not the same as the AI failing to understand, and
-   * counting it would escalate every lead during an infra blip.
+   * Skipped when the urgency pipeline flagged the message as urgent or
+   * emergency — the AI's standard booking-flow reply (e.g. asking for
+   * a postcode) is not a comprehension failure in a medical context.
+   * Also skipped on FALLBACK_AI_UNAVAILABLE — a Groq outage is not
+   * a comprehension failure either.
    */
   private async handleComprehensionOutcome(
     conversation: ConversationDocument,
     clinic: ClinicDocument,
     lead: LeadDocument,
     userMessage: string,
+    resolvedUrgency: string,
     result: any,
   ) {
     if (!result?.reply) return result;
-    // Skip fallback responses — infrastructure failures do not count as
-    // AI comprehension failures (AC13).
     if (result.reply === FALLBACK_AI_UNAVAILABLE) return result;
+    // Medical urgency — the AI's booking-flow reply is intentional,
+    // not a sign that it failed to understand the lead.
+    if (resolvedUrgency === "urgent" || resolvedUrgency === "emergency") {
+      return result;
+    }
 
     const outcome = await this.comprehensionClassifier.classify(
       userMessage,

@@ -11,15 +11,16 @@ import {
   AnalyticsIcon, SettingsIcon, UserIcon, LogoutIcon,
 } from '../Icons';
 
-const navItems = [
+const baseNavItems = [
   { label: 'Dashboard', href: '/', icon: DashboardIcon },
   { label: 'Clinics', href: '/clinics', icon: ClinicsIcon },
   { label: 'Conversations', href: '/conversations', icon: ConversationsIcon },
-  // Staff-only in effect — admins never see notifications on this
-  // page, but the link itself is harmless if clicked.
-  { label: 'Escalations', href: '/escalations', icon: ConversationsIcon },
   { label: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
 ];
+
+// Staff-only — admins never action escalations so they should not
+// see the link at all.
+const escalationItem = { label: 'Escalations', href: '/escalations', icon: ConversationsIcon };
 
 const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon };
 
@@ -32,6 +33,11 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [showLogout, setShowLogout] = useState(false);
+
+  const isStaff = user?.role === 'staff';
+  const navItems = isStaff
+    ? [...baseNavItems.slice(0, 3), escalationItem, ...baseNavItems.slice(3)]
+    : baseNavItems;
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -48,8 +54,6 @@ export default function Sidebar() {
           <span>
             AppointHealth <span className={styles.brandAi}>AI</span>
           </span>
-          {/* Bell renders nothing for admins, so the spacer slot
-              is effectively invisible on non-staff accounts. */}
           <NotificationBell />
         </div>
 

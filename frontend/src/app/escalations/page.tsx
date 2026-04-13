@@ -13,7 +13,7 @@ import { useEscalationNotifications } from '@/contexts/EscalationNotificationCon
 import EscalationCard from '@/components/Notifications/EscalationCard';
 
 export default function EscalationsPage() {
-  const { items, acknowledge } = useEscalationNotifications();
+  const { items, acknowledge, resolve } = useEscalationNotifications();
 
   // Newest first so the freshest escalation is always on top.
   const sorted = [...items]
@@ -50,6 +50,7 @@ export default function EscalationsPage() {
             key={item.id}
             item={item}
             onAcknowledge={acknowledge}
+            onResolve={resolve}
           />
         ))
       )}

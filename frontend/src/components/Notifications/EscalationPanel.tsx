@@ -19,7 +19,7 @@ interface Props {
 }
 
 export default function EscalationPanel({ open, onClose }: Props) {
-  const { items, acknowledge } = useEscalationNotifications();
+  const { items, acknowledge, resolve } = useEscalationNotifications();
 
   if (!open) return null;
 
@@ -66,6 +66,7 @@ export default function EscalationPanel({ open, onClose }: Props) {
                 key={item.id}
                 item={item}
                 onAcknowledge={acknowledge}
+                onResolve={resolve}
               />
             ))
           )}

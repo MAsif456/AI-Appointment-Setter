@@ -139,72 +139,101 @@
   margin-bottom: 12px;
 }
 
-.phoneRow {
-  font-size: 22px;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 12px;
-}
-
-.phoneMissing {
-  font-size: 13px;
-  color: #b91c1c;
-  font-style: italic;
-  margin-bottom: 12px;
-}
-
-.cardActions {
+.cardBody {
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.primaryCta {
+.cardLeft {
   flex: 1;
-  background: #d92d20;
+  min-width: 0;
+}
+
+.cardRight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.cardPhone {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.cardPhone a {
+  color: #4361ee;
+  text-decoration: none;
+}
+
+.cardPhone a:hover {
+  text-decoration: underline;
+}
+
+.viewChatBtn {
+  display: inline-block;
+  background: #4361ee;
   color: #fff;
   border: none;
-  padding: 10px 12px;
+  padding: 8px 16px;
   border-radius: 6px;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
-  text-align: center;
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  margin-top: 8px;
 }
 
-.primaryCta:hover {
-  background: #b91c1c;
+.viewChatBtn:hover {
+  background: #3a56d4;
 }
 
-.primaryCtaDisabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-
-.secondaryBtn {
+.ackBtn {
   background: #fff;
   color: #374151;
   border: 1px solid #d1d5db;
-  padding: 10px 12px;
+  padding: 8px 14px;
   border-radius: 6px;
   font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  white-space: nowrap;
 }
 
-.secondaryBtn:hover {
+.ackBtn:hover {
   background: #f3f4f6;
 }
 
+.ackDone {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 600;
+  padding: 8px 0;
+}
+
+.resolveBtn {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resolveBtn:hover {
+  background: #15803d;
+}
+
 .readOnlyBanner {
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
-  color: #92400e;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
   padding: 12px 16px;
   border-radius: 6px;
   font-weight: 600;
