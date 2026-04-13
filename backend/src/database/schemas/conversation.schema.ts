@@ -144,6 +144,9 @@ export class Conversation {
   followUpCount: number;
 
   @Prop()
+  lastFollowUpAt?: Date;
+
+  @Prop()
   nextFollowUpAt?: Date;
 
   // Slot offering
