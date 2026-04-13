@@ -85,6 +85,95 @@ describe('UsersService', () => {
     });
   });
 
+  // ─── getNotificationPreferences ─────────────────────────────────────────────
+
+  describe('getNotificationPreferences', () => {
+    it('returns stored preferences when the user exists', async () => {
+      const prefs = { generalNotifications: true, emailNotifications: false, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
+      expect(await service.getNotificationPreferences('uid')).toEqual(prefs);
+    });
+
+    it('returns all-true defaults when notificationPreferences is undefined', async () => {
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: undefined }) });
+      const result = await service.getNotificationPreferences('uid');
+      expect(result).toEqual({ generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: true });
+    });
+
+    it('throws NotFoundException when user does not exist', async () => {
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
+      await expect(service.getNotificationPreferences('bad')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── updateNotificationPreferences ──────────────────────────────────────────
+
+  describe('updateNotificationPreferences', () => {
+    it('merges partial DTO over existing preferences and returns updated values', async () => {
+      const existing = { generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: existing }) });
+      model.findByIdAndUpdate.mockResolvedValue({});
+
+      const result = await service.updateNotificationPreferences('uid', { emailNotifications: false });
+
+      expect(result.emailNotifications).toBe(false);
+      expect(result.generalNotifications).toBe(true);
+      expect(result.stalledConversations).toBe(true);
+      expect(result.escalatedConversations).toBe(true);
+      expect(result.appointmentReminders).toBe(true);
+      expect(model.findByIdAndUpdate).toHaveBeenCalledWith('uid', { $set: { notificationPreferences: result } });
+    });
+
+    it('saves all fields when full DTO is provided', async () => {
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: undefined }) });
+      model.findByIdAndUpdate.mockResolvedValue({});
+
+      const dto = { generalNotifications: false, emailNotifications: false, stalledConversations: false, escalatedConversations: false, appointmentReminders: false };
+      const result = await service.updateNotificationPreferences('uid', dto);
+
+      expect(result).toEqual(dto);
+    });
+
+    it('throws NotFoundException when user does not exist', async () => {
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
+      await expect(service.updateNotificationPreferences('bad', {})).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── isNotificationEnabled ──────────────────────────────────────────────────
+
+  describe('isNotificationEnabled', () => {
+    it('returns false when generalNotifications is off, regardless of individual toggle', async () => {
+      const prefs = { generalNotifications: false, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
+      expect(await service.isNotificationEnabled('uid', 'emailNotifications')).toBe(false);
+    });
+
+    it('returns false when the specific toggle is off and general is on', async () => {
+      const prefs = { generalNotifications: true, emailNotifications: false, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
+      expect(await service.isNotificationEnabled('uid', 'emailNotifications')).toBe(false);
+    });
+
+    it('returns true when general is on and the specific toggle is on', async () => {
+      const prefs = { generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
+      expect(await service.isNotificationEnabled('uid', 'stalledConversations')).toBe(true);
+    });
+
+    it('returns false when escalatedConversations is off', async () => {
+      const prefs = { generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: false, appointmentReminders: true };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
+      expect(await service.isNotificationEnabled('uid', 'escalatedConversations')).toBe(false);
+    });
+
+    it('returns false when appointmentReminders is off', async () => {
+      const prefs = { generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: false };
+      model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
+      expect(await service.isNotificationEnabled('uid', 'appointmentReminders')).toBe(false);
+    });
+  });
+
   // ─── update — happy paths ───────────────────────────────────────────────────
 
   describe('update', () => {
