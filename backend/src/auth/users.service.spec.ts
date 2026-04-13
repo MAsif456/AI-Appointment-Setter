@@ -89,7 +89,7 @@ describe('UsersService', () => {
 
   describe('getNotificationPreferences', () => {
     it('returns stored preferences when the user exists', async () => {
-      const prefs = { generalNotifications: true, emailNotifications: false, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      const prefs = { generalNotifications: true, emailNotifications: false, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true };
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
       expect(await service.getNotificationPreferences('uid')).toEqual(prefs);
     });
@@ -97,7 +97,7 @@ describe('UsersService', () => {
     it('returns all-true defaults when notificationPreferences is undefined', async () => {
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: undefined }) });
       const result = await service.getNotificationPreferences('uid');
-      expect(result).toEqual({ generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: true });
+      expect(result).toEqual({ generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true });
     });
 
     it('throws NotFoundException when user does not exist', async () => {
@@ -110,7 +110,7 @@ describe('UsersService', () => {
 
   describe('updateNotificationPreferences', () => {
     it('merges partial DTO over existing preferences and returns updated values', async () => {
-      const existing = { generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, appointmentReminders: true };
+      const existing = { generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true };
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: existing }) });
       model.findByIdAndUpdate.mockResolvedValue({});
 
@@ -120,6 +120,8 @@ describe('UsersService', () => {
       expect(result.generalNotifications).toBe(true);
       expect(result.stalledConversations).toBe(true);
       expect(result.escalatedConversations).toBe(true);
+      expect(result.bookingCancelled).toBe(true);
+      expect(result.newUserJoined).toBe(true);
       expect(result.appointmentReminders).toBe(true);
       expect(model.findByIdAndUpdate).toHaveBeenCalledWith('uid', { $set: { notificationPreferences: result } });
     });
@@ -128,7 +130,7 @@ describe('UsersService', () => {
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: undefined }) });
       model.findByIdAndUpdate.mockResolvedValue({});
 
-      const dto = { generalNotifications: false, emailNotifications: false, stalledConversations: false, escalatedConversations: false, appointmentReminders: false };
+      const dto = { generalNotifications: false, emailNotifications: false, stalledConversations: false, escalatedConversations: false, bookingCancelled: false, newUserJoined: false, appointmentReminders: false };
       const result = await service.updateNotificationPreferences('uid', dto);
 
       expect(result).toEqual(dto);
