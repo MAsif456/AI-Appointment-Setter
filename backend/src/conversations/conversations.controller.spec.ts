@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
@@ -158,6 +159,42 @@ describe('ConversationsController', () => {
       expect(result.reply).toBe('Thanks for your message! Someone from the clinic will be in touch shortly.');
       expect(result.offeredSlots).toEqual([]);
       expect(result.bookingResult).toBeNull();
+    });
+
+    it('throws 409 ConflictException when conversation phase is escalated', async () => {
+      mockService.getConversation.mockResolvedValueOnce({
+        conversation: { _id: 'conv1', phase: 'escalated', clinicId: 'clinic1' },
+        messages: [],
+        clinic: { _id: 'clinic1', name: 'Test Clinic' },
+        lead: { _id: 'lead1', firstName: 'Sarah' },
+      });
+
+      await expect(
+        controller.sendMessage('conv1', { message: 'Hello' }, mockRequest),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('re-throws ForbiddenException instead of swallowing it', async () => {
+      const staffReq = {
+        user: {
+          _id: 'user1',
+          email: 'staff@example.com',
+          role: 'staff',
+          assignedClinics: ['other_clinic'],
+        },
+      };
+      mockService.getConversation.mockResolvedValueOnce({
+        conversation: { _id: 'conv1', phase: 'greeting', clinicId: 'clinic1' },
+        messages: [],
+        clinic: { _id: 'clinic1', name: 'Test Clinic' },
+        lead: { _id: 'lead1', firstName: 'Sarah' },
+      });
+
+      await expect(
+        controller.sendMessage('conv1', { message: 'Hello' }, staffReq),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

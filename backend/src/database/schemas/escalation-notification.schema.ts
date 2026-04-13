@@ -61,7 +61,7 @@ export class EscalationNotification {
 
   // When any staff member marks this resolved the value is set and
   // the record drops off every staff member's queue.
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null })
   resolvedAt: Date | null;
 
   // timestamps: createdAt, updatedAt
