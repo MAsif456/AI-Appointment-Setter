@@ -65,6 +65,10 @@ export async function advancePhaseFromIntent(
     } else {
       await conversationsService.updatePhase(conversationObjectId, "booked");
     }
+  } else if (intent.intent === "CONSENT_GRANTED") {
+    await conversationsService.updatePhase(conversationObjectId, "qualifying");
+  } else if (intent.intent === "CONSENT_DECLINED") {
+    await conversationsService.updatePhase(conversationObjectId, "consent_declined");
   } else if (intent.intent === "DETAILS_UNCHANGED") {
     const postcode = conversation.context?.get("returningPatientPostcode");
     if (postcode) {

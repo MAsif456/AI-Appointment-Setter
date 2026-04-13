@@ -29,6 +29,14 @@ import {
   DETAILS_CHANGED_KEYWORDS,
   RESCHEDULE_KEYWORDS, matchesKeywords,
 } from "../orchestrator/orchestrator.types";
+import {
+  CONSENT_GRANTED_KEYWORDS,
+  CONSENT_DECLINED_KEYWORDS,
+  CONSENT_ACKNOWLEDGED_RESPONSE,
+  CONSENT_DECLINED_RESPONSE,
+  CONSENT_DECLINED_FOLLOWUP,
+} from "../gdpr/gdpr.types";
+import { ConsentService } from "../gdpr/consent/consent.service";
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from "../cancellation/cancellation.service";
 import { ConversationsPersistenceService } from "./conversations.persistence.service";
@@ -65,6 +73,7 @@ export class ConversationsService {
     private readonly persistence: ConversationsPersistenceService,
     private readonly patientHistoryService: PatientHistoryService,
     private readonly postcodeValidationService: PostcodeValidationService,
+    private readonly consentService: ConsentService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -260,6 +269,45 @@ export class ConversationsService {
     if (conversation.phase === 'booked' && RESCHEDULE_KEYWORDS.some(kw => userMessage.toLowerCase().includes(kw))) {
       await this.persistence.updateConversationMeta(conversation, 'lead', 'rescheduling');
       conversation.phase = 'rescheduling';
+    }
+
+    // Consent gate — UK GDPR Art. 9(2)(a) explicit consent before processing health data.
+    // Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/
+    // Covers both LiveChat API and GHL webhook paths (orchestrator delegates here).
+    if (conversation.phase === 'consenting' || conversation.phase === 'consent_declined') {
+      const lower = userMessage.toLowerCase().trim();
+      if (matchesKeywords(lower, CONSENT_GRANTED_KEYWORDS)) {
+        await this.consentService.recordConsent(
+          (conversation.leadId as any).toString(),
+          (conversation.clinicId as any).toString(),
+          'granted',
+          conversation.channel,
+          conversationId,
+        );
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'qualifying');
+        const reply = CONSENT_ACKNOWLEDGED_RESPONSE;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      if (matchesKeywords(lower, CONSENT_DECLINED_KEYWORDS)) {
+        await this.consentService.recordConsent(
+          (conversation.leadId as any).toString(),
+          (conversation.clinicId as any).toString(),
+          'declined',
+          conversation.channel,
+          conversationId,
+        );
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'consent_declined');
+        const reply = CONSENT_DECLINED_RESPONSE;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      // Unrecognised message in consent_declined — static follow-up
+      if (conversation.phase === 'consent_declined') {
+        const reply = CONSENT_DECLINED_FOLLOWUP;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
     }
 
     // Returning patient detail confirmation — LiveChat API path.

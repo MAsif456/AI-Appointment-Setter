@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
+import { fieldEncryptionPlugin } from "../../gdpr/encryption/field-encryption.plugin";
 
 export type LeadDocument = Lead & Document;
 
@@ -105,6 +106,10 @@ export class Lead {
   @Prop()
   lastAppointmentAt?: Date;
 
+  /** HMAC-SHA256 blind index of normalised phone — enables equality queries on encrypted phone field. */
+  @Prop({ trim: true })
+  phoneHash?: string;
+
   @Prop({ type: Map, of: String, default: {} })
   customFields: Map<string, string>; // for future needs
 
@@ -113,10 +118,20 @@ export class Lead {
 
 export const LeadSchema = SchemaFactory.createForClass(Lead);
 
-// Indexes
+// Apply field-level encryption (UK GDPR Art. 5(1)(f) — integrity and confidentiality)
+// Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/the-principles/integrity-and-confidentiality-security/
+if (process.env.FIELD_ENCRYPTION_KEY) {
+  LeadSchema.plugin(fieldEncryptionPlugin, {
+    fields: ['phone', 'email', 'issue'],
+    encryptionKey: process.env.FIELD_ENCRYPTION_KEY,
+    modelName: 'Lead',
+  });
+}
+
+// Indexes - phoneHash replaces phone for encrypted-field lookups
 LeadSchema.index(
-  { clinicId: 1, phone: 1 },
-  { unique: true, partialFilterExpression: { phone: { $ne: "unknown" } } },
+  { clinicId: 1, phoneHash: 1 },
+  { unique: true, partialFilterExpression: { phoneHash: { $type: "string" } } },
 );
 LeadSchema.index({ clinicId: 1, email: 1 }, { unique: true, sparse: true });
 LeadSchema.index({ ghlContactId: 1 });

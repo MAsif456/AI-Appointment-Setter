@@ -193,6 +193,11 @@ export class Clinic {
   @Prop()
   itemsToBring?: string;
 
+  /** UK GDPR Art. 5(1)(e) - configurable retention period per clinic (months).
+   *  After this period, inactive lead data is automatically anonymised. */
+  @Prop({ default: 12, min: 1 })
+  dataRetentionMonths: number;
+
   @Prop({ default: true })
   isActive: boolean;
 

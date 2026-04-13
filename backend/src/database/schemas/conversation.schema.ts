@@ -70,6 +70,8 @@ export class Conversation {
     type: String,
     enum: [
       "greeting",
+      "consenting",
+      "consent_declined",
       "qualifying",
       "qualified",
       "booking",
