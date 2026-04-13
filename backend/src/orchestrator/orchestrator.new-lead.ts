@@ -202,6 +202,29 @@ export async function handleNewLeadFlow(
     greeting = outputCheck.fallbackResponse ?? FALLBACK_AI_UNAVAILABLE;
   }
 
+  // Determine target phase BEFORE sending so the consent statement
+  // is included in the greeting message delivered to the patient.
+  // Returning patients with prior consent stay in 'greeting' so the next reply
+  // can be detected as DETAILS_UNCHANGED / DETAILS_CHANGED.
+  // Returning patients without consent (e.g. after erasure) route to 'consenting'.
+  // New patients always route to 'consenting' for UK GDPR Art. 9(2)(a) explicit consent.
+  let targetPhase: string;
+  if (returningPatient) {
+    const hasConsent = await consentService.hasActiveConsent(
+      (conversation.leadId as Types.ObjectId).toString(),
+      clinicConfig.clinicId,
+    );
+    targetPhase = hasConsent ? 'greeting' : 'consenting';
+  } else {
+    targetPhase = 'consenting';
+  }
+
+  // Append consent statement so the patient sees it in the first message.
+  // UK GDPR Art. 9(2)(a) requires explicit consent before processing health data.
+  if (targetPhase === 'consenting') {
+    greeting = `${greeting}\n\n${CONSENT_STATEMENT_TEXT}`;
+  }
+
   // Send via GHL (3x retry with jitter handled by GhlApiService)
   let ghlMessageId: string | undefined;
   try {
@@ -226,7 +249,7 @@ export async function handleNewLeadFlow(
     );
   }
 
-  // Persist the greeting message
+  // Persist the greeting message (includes consent statement if applicable)
   await messagesService.addMessage(
     conversation._id as Types.ObjectId,
     clinicObjectId,
@@ -236,27 +259,6 @@ export async function handleNewLeadFlow(
     conversation.channel,
     ghlMessageId,
   );
-
-  // Returning patients with prior consent stay in 'greeting' so the next reply
-  // can be detected as DETAILS_UNCHANGED / DETAILS_CHANGED.
-  // Returning patients without consent (e.g. after erasure) route to 'consenting'.
-  // New patients always route to 'consenting' for UK GDPR Art. 9(2)(a) explicit consent.
-  let targetPhase: string;
-  if (returningPatient) {
-    const hasConsent = await consentService.hasActiveConsent(
-      (conversation.leadId as Types.ObjectId).toString(),
-      clinicConfig.clinicId,
-    );
-    targetPhase = hasConsent ? 'greeting' : 'consenting';
-  } else {
-    targetPhase = 'consenting';
-  }
-
-  // Append consent statement to the greeting so the patient sees it in the same message.
-  // UK GDPR Art. 9(2)(a) requires explicit consent before processing health data.
-  if (targetPhase === 'consenting') {
-    greeting = `${greeting}\n\n${CONSENT_STATEMENT_TEXT}`;
-  }
 
   await conversationsService.updatePhase(
     conversation._id as Types.ObjectId,

@@ -64,6 +64,21 @@ export class ConversationsService {
   ): Promise<ConversationDocument> {
     let lead = await this.leadModel.findOne({ ghlContactId }).exec();
 
+    // Fallback: if the GHL contact was deleted and re-created, the contactId
+    // changes but the email/phone stays the same. Find the existing lead to
+    // avoid E11000 duplicate key violations on { clinicId, email }.
+    if (!lead && patientInfo.email) {
+      lead = await this.leadModel.findOne({ clinicId, email: patientInfo.email }).exec();
+      if (lead) {
+        lead.ghlContactId = ghlContactId;
+        lead.firstName = patientInfo.firstName;
+        if (patientInfo.phone) lead.phone = patientInfo.phone;
+        if (patientInfo.issue) lead.issue = patientInfo.issue;
+        await lead.save();
+        this.logger.log(`Re-linked existing lead to new ghlContactId: ${ghlContactId}`);
+      }
+    }
+
     if (!lead) {
       lead = await this.leadModel.create({
         clinicId,
