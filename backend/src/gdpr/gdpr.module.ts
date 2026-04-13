@@ -10,6 +10,7 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConsentRecordEntry, ConsentRecordSchema } from '../database/schemas/consent-record.schema';
 import { ErasureRecord, ErasureRecordSchema } from '../database/schemas/erasure-record.schema';
+import { ErasureRequest, ErasureRequestSchema } from '../database/schemas/erasure-request.schema';
 import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import { Conversation, ConversationSchema } from '../database/schemas/conversation.schema';
 import { Message, MessageSchema } from '../database/schemas/message.schema';
@@ -19,14 +20,17 @@ import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { PatientHistory, PatientHistorySchema } from '../database/schemas/patient-history.schema';
 import { ConsentService } from './consent/consent.service';
 import { ErasureService } from './erasure/erasure.service';
+import { ErasureRequestService } from './erasure/erasure-request.service';
 import { RetentionService } from './retention/retention.service';
 import { GdprController } from './gdpr.controller';
+import { GdprAuditInterceptor } from './audit/gdpr-audit.interceptor';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: ConsentRecordEntry.name, schema: ConsentRecordSchema },
       { name: ErasureRecord.name, schema: ErasureRecordSchema },
+      { name: ErasureRequest.name, schema: ErasureRequestSchema },
       { name: Lead.name, schema: LeadSchema },
       { name: Conversation.name, schema: ConversationSchema },
       { name: Message.name, schema: MessageSchema },
@@ -37,8 +41,8 @@ import { GdprController } from './gdpr.controller';
     ]),
   ],
   controllers: [GdprController],
-  providers: [ConsentService, ErasureService, RetentionService],
-  exports: [ConsentService, ErasureService],
+  providers: [ConsentService, ErasureService, ErasureRequestService, RetentionService, GdprAuditInterceptor],
+  exports: [ConsentService, ErasureService, ErasureRequestService],
 })
 export class GdprModule implements OnModuleInit {
   private readonly logger = new Logger(GdprModule.name);

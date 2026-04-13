@@ -107,13 +107,15 @@ export class ErasureService {
     const leadObjectId = new Types.ObjectId(leadId);
 
     try {
-      // Step 1: PatientHistory — first to prevent returning-patient detection mid-erasure
+      // Step 1: PatientHistory — first to prevent returning-patient detection mid-erasure.
+      // Uses per-lead unique suffix on phone/email to avoid duplicate key violations.
+      const uniqueSuffix = `-${leadId}`;
       const phResult = await this.patientHistoryModel.updateMany(
         { clinicId, phone: { $ne: ANONYMISED_VALUE } },
         {
           $set: {
-            phone: ANONYMISED_VALUE,
-            email: ANONYMISED_VALUE,
+            phone: `${ANONYMISED_VALUE}${uniqueSuffix}`,
+            email: `${ANONYMISED_VALUE}${uniqueSuffix}`,
             firstName: ANONYMISED_VALUE,
             lastName: ANONYMISED_VALUE,
             validatedPostcode: ANONYMISED_VALUE,
@@ -149,13 +151,16 @@ export class ErasureService {
       );
       collectionsProcessed.conversations = convResult.modifiedCount;
 
-      // Step 5: Lead — last, because prior steps reference it
+      // Step 5: Lead — last, because prior steps reference it.
+      // Email and phone use the per-lead uniqueSuffix to avoid E11000 duplicate key
+      // violations on the { clinicId, email } and { clinicId, phoneHash } unique indexes
+      // when multiple leads in the same clinic are anonymised.
       await this.leadModel.findByIdAndUpdate(leadId, {
         $set: {
           firstName: ANONYMISED_VALUE,
           lastName: ANONYMISED_VALUE,
-          phone: ANONYMISED_VALUE,
-          email: ANONYMISED_VALUE,
+          phone: `${ANONYMISED_VALUE}${uniqueSuffix}`,
+          email: `${ANONYMISED_VALUE}${uniqueSuffix}`,
           postcode: ANONYMISED_VALUE,
           issue: ANONYMISED_VALUE,
           ghlContactId: ANONYMISED_VALUE,

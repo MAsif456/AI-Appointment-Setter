@@ -4,13 +4,14 @@
  * Each consent action (grant, decline, withdraw) creates a new immutable
  * ConsentRecord document.  The most-recent record determines active status.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   ConsentRecordEntry,
   ConsentRecordDocument,
 } from '../../database/schemas/consent-record.schema';
+import { AuditLog, AuditLogDocument } from '../../database/schemas/audit-log.schema';
 import {
   CONSENT_STATEMENT_VERSION,
   CONSENT_STATEMENT_TEXT,
@@ -18,14 +19,13 @@ import {
 
 @Injectable()
 export class ConsentService {
-  /**
-   * Constructs a new ConsentService instance.
-   *
-   * @param consentModel Injected instance of ConsentRecordEntry mongoose model.
-   */
+  private readonly logger = new Logger(ConsentService.name);
+
   constructor(
     @InjectModel(ConsentRecordEntry.name)
     private readonly consentModel: Model<ConsentRecordDocument>,
+    @InjectModel(AuditLog.name)
+    private readonly auditLogModel: Model<AuditLogDocument>,
   ) {}
 
   /** Creates a new consent event (granted, declined, or withdrawn). */
@@ -36,7 +36,7 @@ export class ConsentService {
     channel: string,
     conversationId?: string,
   ): Promise<ConsentRecordDocument> {
-    return this.consentModel.create({
+    const record = await this.consentModel.create({
       leadId: new Types.ObjectId(leadId),
       clinicId: new Types.ObjectId(clinicId),
       ...(conversationId
@@ -47,6 +47,19 @@ export class ConsentService {
       consentStatementText: CONSENT_STATEMENT_TEXT,
       channel,
     });
+
+    // Audit trail — ICO Art. 7(1) requires controllers to demonstrate consent.
+    await this.auditLogModel.create({
+      clinicId: new Types.ObjectId(clinicId),
+      action: `consent.${status}`,
+      entityType: 'lead',
+      entityId: leadId,
+      severity: status === 'withdrawn' ? 'warning' : 'info',
+      metadata: { channel, consentStatementVersion: CONSENT_STATEMENT_VERSION },
+    });
+
+    this.logger.log(`CONSENT_${status.toUpperCase()} leadId=${leadId} clinicId=${clinicId}`);
+    return record;
   }
 
   /** Returns true only if the most recent consent record is 'granted'. */
