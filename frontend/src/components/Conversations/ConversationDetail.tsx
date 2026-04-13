@@ -1,18 +1,29 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ConversationDetail as ConversationDetailType } from '@/data/mockConversations';
+import api from '@/lib/apiAxios';
 import styles from './ConversationDetail.module.css';
+
+interface ConsentRecord {
+  _id: string;
+  status: 'granted' | 'declined' | 'withdrawn';
+  consentStatementVersion: string;
+  channel: string;
+  createdAt: string;
+}
 
 interface Props {
   conversation: ConversationDetailType;
+  leadId?: string;
 }
 
 /**
  * Displays a full conversation thread with message history,
  * patient info, conversation status, and booking details.
  */
-export default function ConversationDetail({ conversation }: Props) {
+export default function ConversationDetail({ conversation, leadId }: Props) {
   const statusMap: Record<string, string> = {
     Confirmed: styles.statusConfirmed,
     Qualified: styles.statusQualified,
@@ -67,6 +78,7 @@ export default function ConversationDetail({ conversation }: Props) {
             />
           )}
           <ActionButtons />
+          {leadId && <GdprSection leadId={leadId} />}
         </div>
       </div>
     </div>
@@ -160,6 +172,111 @@ function ActionButtons() {
       <button className={styles.actionBtn}>
         &#8599; View in GHL
       </button>
+    </div>
+  );
+}
+
+/** GDPR data subject rights — consent history and erasure (UK GDPR Art. 7, 17). */
+function GdprSection({ leadId }: { leadId: string }) {
+  const [consentHistory, setConsentHistory] = useState<ConsentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erasing, setErasing] = useState(false);
+  const [erasureResult, setErasureResult] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const fetchConsent = useCallback(async () => {
+    try {
+      const res = await api.get(`/gdpr/consent/${leadId}`);
+      setConsentHistory(res.data);
+    } catch {
+      setConsentHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId]);
+
+  useEffect(() => { fetchConsent(); }, [fetchConsent]);
+
+  const handleErase = async () => {
+    setConfirmOpen(false);
+    setErasing(true);
+    setErasureResult(null);
+    try {
+      await api.delete(`/gdpr/erasure/${leadId}`);
+      setErasureResult('Patient data erased successfully.');
+      fetchConsent();
+    } catch (err: any) {
+      setErasureResult(err.response?.data?.message || 'Erasure failed.');
+    } finally {
+      setErasing(false);
+    }
+  };
+
+  const statusLabel: Record<string, string> = {
+    granted: 'Granted',
+    declined: 'Declined',
+    withdrawn: 'Withdrawn',
+  };
+
+  return (
+    <div className={styles.infoCard}>
+      <h3 className={styles.cardTitle}>Data Protection</h3>
+
+      {/* Consent history */}
+      <div className={styles.gdprSubHeading}>Consent History</div>
+      {loading ? (
+        <p className={styles.gdprMuted}>Loading...</p>
+      ) : consentHistory.length === 0 ? (
+        <p className={styles.gdprMuted}>No consent records found.</p>
+      ) : (
+        <ul className={styles.consentList}>
+          {consentHistory.map((record) => (
+            <li key={record._id} className={styles.consentItem}>
+              <span className={`${styles.consentBadge} ${
+                record.status === 'granted'
+                  ? styles.consentGranted
+                  : record.status === 'declined'
+                    ? styles.consentDeclined
+                    : styles.consentWithdrawn
+              }`}>
+                {statusLabel[record.status] ?? record.status}
+              </span>
+              <span className={styles.consentDate}>
+                {new Date(record.createdAt).toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Erasure */}
+      {erasureResult && (
+        <p role="status" className={styles.gdprResult}>{erasureResult}</p>
+      )}
+
+      {confirmOpen ? (
+        <div className={styles.confirmBox}>
+          <p className={styles.confirmText}>
+            This will permanently anonymise all personal data for this patient. This action cannot be undone.
+          </p>
+          <div className={styles.confirmActions}>
+            <button className={styles.confirmBtn} onClick={handleErase} disabled={erasing}>
+              Confirm Delete
+            </button>
+            <button className={styles.cancelBtn} onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className={styles.eraseBtn}
+          onClick={() => setConfirmOpen(true)}
+          disabled={erasing}
+        >
+          {erasing ? 'Erasing...' : 'Delete Patient Data'}
+        </button>
+      )}
     </div>
   );
 }

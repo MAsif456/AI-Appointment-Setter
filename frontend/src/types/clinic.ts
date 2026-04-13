@@ -61,6 +61,7 @@ export interface Clinic {
   monthBookingsCount: number;
   isActive: boolean;
   defaultAppointmentDuration: number;
+  dataRetentionMonths?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -64,6 +64,9 @@ const ClinicSettingsForm = forwardRef<ClinicSettingsFormHandle, Props>(function 
   const [appointmentDuration, setAppointmentDuration] = useState(
     clinic.defaultAppointmentDuration ?? 30
   );
+  const [dataRetentionMonths, setDataRetentionMonths] = useState(
+    clinic.dataRetentionMonths ?? 12
+  );
   const [businessHours, setBusinessHours] = useState<WeekHours>(toWeekHours(clinic.businessHours));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -79,6 +82,7 @@ const ClinicSettingsForm = forwardRef<ClinicSettingsFormHandle, Props>(function 
       serviceAreas: setServiceAreas as (v: never) => void,
       servicesOffered: setServicesOffered as (v: never) => void,
       appointmentDuration: setAppointmentDuration as (v: never) => void,
+      dataRetentionMonths: setDataRetentionMonths as (v: never) => void,
     };
     setters[field]?.(value as never);
   };
@@ -117,6 +121,7 @@ const ClinicSettingsForm = forwardRef<ClinicSettingsFormHandle, Props>(function 
         serviceAreas: updatedServiceAreas,
         businessHours: fromWeekHours(businessHours),
         defaultAppointmentDuration: appointmentDuration,
+        dataRetentionMonths,
       });
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save settings');
@@ -148,6 +153,7 @@ const ClinicSettingsForm = forwardRef<ClinicSettingsFormHandle, Props>(function 
           serviceAreas={serviceAreas}
           servicesOffered={servicesOffered}
           appointmentDuration={appointmentDuration}
+          dataRetentionMonths={dataRetentionMonths}
           onChange={handleFieldChange}
           errors={errors}
         />

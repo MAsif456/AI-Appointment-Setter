@@ -176,3 +176,148 @@
 .actionBtn:hover {
   background-color: #f3f4f6;
 }
+
+/* GDPR Data Protection section */
+.gdprSubHeading {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.gdprMuted {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.consentList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.consentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.consentBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.consentGranted {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.consentDeclined {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.consentWithdrawn {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.consentDate {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.gdprResult {
+  font-size: 13px;
+  color: #065f46;
+  background: #d1fae5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.eraseBtn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc2626;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.eraseBtn:hover {
+  background-color: #fef2f2;
+}
+
+.eraseBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmBox {
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fef2f2;
+}
+
+.confirmText {
+  font-size: 13px;
+  color: #991b1b;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+}
+
+.confirmBtn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirmBtn:hover {
+  background: #b91c1c;
+}
+
+.confirmBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  background: #f3f4f6;
+}
