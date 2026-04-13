@@ -1,11 +1,20 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import NotificationPreferences from '@/app/settings/components/NotificationPreferences';
 import api from '@/lib/apiAxios';
+import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/lib/apiAxios', () => ({
   __esModule: true,
   default: { get: jest.fn(), patch: jest.fn() },
 }));
+
+// Mock useAuth so the component doesn't need a real AuthProvider in tests.
+// Default to admin so all toggles (including admin-only newUserJoined) are visible.
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({ isAdmin: true })),
+}));
+
+const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
 const mockedApi = api as jest.Mocked<typeof api>;
 
@@ -14,6 +23,8 @@ const DEFAULT_PREFS = {
   emailNotifications: true,
   stalledConversations: true,
   escalatedConversations: true,
+  bookingCancelled: true,
+  newUserJoined: true,
   appointmentReminders: true,
 };
 
@@ -21,6 +32,7 @@ describe('NotificationPreferences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockedUseAuth.mockReturnValue({ isAdmin: true } as any);
   });
 
   afterEach(() => {
@@ -51,13 +63,16 @@ describe('NotificationPreferences', () => {
 
   // ── Renders preferences from API ──────────────────────────────────────────
 
-  it('renders all four toggles after successful load', async () => {
+  it('renders all toggles after successful load', async () => {
     mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
     render(<NotificationPreferences />);
     await waitFor(() => {
       expect(screen.getByRole('switch', { name: 'General notifications' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Email notifications' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Stalled conversations' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Escalated conversations' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Booking cancelled' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'New user joined' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Appointment reminders' })).toBeInTheDocument();
     });
   });
@@ -71,6 +86,14 @@ describe('NotificationPreferences', () => {
     });
   });
 
+  it('hides newUserJoined toggle for non-admin users', async () => {
+    mockedUseAuth.mockReturnValue({ isAdmin: false } as any);
+    mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
+    render(<NotificationPreferences />);
+    await waitFor(() => screen.getByRole('switch', { name: 'Email notifications' }));
+    expect(screen.queryByRole('switch', { name: 'New user joined' })).not.toBeInTheDocument();
+  });
+
   // ── General notifications master switch ───────────────────────────────────
 
   it('disables individual toggles when general notifications is toggled off', async () => {
@@ -80,8 +103,7 @@ describe('NotificationPreferences', () => {
 
     fireEvent.click(screen.getByRole('switch', { name: 'General notifications' }));
 
-    const emailToggle = screen.getByRole('switch', { name: 'Email notifications' });
-    expect(emailToggle).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Email notifications' })).toBeDisabled();
   });
 
   it('re-enables individual toggles when general notifications is toggled back on', async () => {
@@ -89,12 +111,10 @@ describe('NotificationPreferences', () => {
     render(<NotificationPreferences />);
     await waitFor(() => screen.getByRole('switch', { name: 'General notifications' }));
 
-    // Turn off then on
     fireEvent.click(screen.getByRole('switch', { name: 'General notifications' }));
     fireEvent.click(screen.getByRole('switch', { name: 'General notifications' }));
 
-    const emailToggle = screen.getByRole('switch', { name: 'Email notifications' });
-    expect(emailToggle).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Email notifications' })).not.toBeDisabled();
   });
 
   // ── Save Preferences ──────────────────────────────────────────────────────
@@ -171,15 +191,11 @@ describe('NotificationPreferences', () => {
     render(<NotificationPreferences />);
     await waitFor(() => screen.getByRole('switch', { name: 'Email notifications' }));
 
-    // Make a change
     fireEvent.click(screen.getByRole('switch', { name: 'Email notifications' }));
     expect(screen.getByRole('switch', { name: 'Email notifications' })).toHaveAttribute('aria-checked', 'false');
 
-    // Cancel — should revert
     fireEvent.click(screen.getByText('Cancel'));
     expect(screen.getByRole('switch', { name: 'Email notifications' })).toHaveAttribute('aria-checked', 'true');
-
-    // No PATCH should have been called
     expect(mockedApi.patch).not.toHaveBeenCalled();
   });
 
@@ -191,7 +207,6 @@ describe('NotificationPreferences', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Email notifications' }));
     fireEvent.click(screen.getByText('Cancel'));
 
-    // GET called once on mount only
     expect(mockedApi.get).toHaveBeenCalledTimes(1);
   });
 
@@ -214,7 +229,51 @@ describe('NotificationPreferences', () => {
     );
   });
 
-  // ── New user defaults ─────────────────────────────────────────────────────
+  // ── New preferences ───────────────────────────────────────────────────────
+
+  it('reflects bookingCancelled false on load', async () => {
+    mockedApi.get.mockResolvedValue({ data: { ...DEFAULT_PREFS, bookingCancelled: false } });
+    render(<NotificationPreferences />);
+    await waitFor(() =>
+      expect(screen.getByRole('switch', { name: 'Booking cancelled' })).toHaveAttribute('aria-checked', 'false'),
+    );
+  });
+
+  it('sends bookingCancelled false when toggled off and saved', async () => {
+    mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
+    mockedApi.patch.mockResolvedValue({ data: { ...DEFAULT_PREFS, bookingCancelled: false } });
+    render(<NotificationPreferences />);
+    await waitFor(() => screen.getByRole('switch', { name: 'Booking cancelled' }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Booking cancelled' }));
+    fireEvent.click(screen.getByText('Save Preferences'));
+
+    await waitFor(() =>
+      expect(mockedApi.patch).toHaveBeenCalledWith(
+        '/users/me/notification-preferences',
+        expect.objectContaining({ bookingCancelled: false }),
+      ),
+    );
+  });
+
+  it('sends newUserJoined false when toggled off and saved', async () => {
+    mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
+    mockedApi.patch.mockResolvedValue({ data: { ...DEFAULT_PREFS, newUserJoined: false } });
+    render(<NotificationPreferences />);
+    await waitFor(() => screen.getByRole('switch', { name: 'New user joined' }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'New user joined' }));
+    fireEvent.click(screen.getByText('Save Preferences'));
+
+    await waitFor(() =>
+      expect(mockedApi.patch).toHaveBeenCalledWith(
+        '/users/me/notification-preferences',
+        expect.objectContaining({ newUserJoined: false }),
+      ),
+    );
+  });
+
+  // ── All-true defaults ─────────────────────────────────────────────────────
 
   it('shows all toggles on when API returns all-true defaults', async () => {
     mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
