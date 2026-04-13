@@ -42,5 +42,5 @@ export class ErasureRecord {
 
 export const ErasureRecordSchema = SchemaFactory.createForClass(ErasureRecord);
 
-ErasureRecordSchema.index({ originalLeadId: 1 });
+// originalLeadId index is already declared via @Prop({ index: true }) above.
 ErasureRecordSchema.index({ clinicId: 1, createdAt: -1 });

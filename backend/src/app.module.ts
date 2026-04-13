@@ -21,7 +21,6 @@ import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReminderModule } from "./reminder/reminder.module";
-import { ScheduleModule } from "@nestjs/schedule";
 import { GdprModule } from "./gdpr/gdpr.module";
 
 @Module({
@@ -56,7 +55,6 @@ import { GdprModule } from "./gdpr/gdpr.module";
     CancellationModule,
     HealthModule,
     ReminderModule,
-    ScheduleModule.forRoot(),
     GdprModule,
   ],
   controllers: [AppController],

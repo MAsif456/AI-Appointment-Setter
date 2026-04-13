@@ -35,6 +35,7 @@ import {
   CONSENT_ACKNOWLEDGED_RESPONSE,
   CONSENT_DECLINED_RESPONSE,
   CONSENT_DECLINED_FOLLOWUP,
+  CONSENT_STATEMENT_TEXT,
 } from "../gdpr/gdpr.types";
 import { ConsentService } from "../gdpr/consent/consent.service";
 import { GhlApiService } from '../ghl/ghl-api.service';
@@ -91,15 +92,22 @@ export class ConversationsService {
   }
 
   /** Lists all conversations with basic lead/clinic info. */
-  async listConversations(clinicIds?: string[]) {
+  async listConversations(clinicIds?: string[], includeAnonymised = false) {
     // If clinicIds provided and empty → staff with no assigned clinics → return empty array
     if (clinicIds !== undefined && clinicIds.length === 0) {
       return [];
     }
-    const filter =
+    const filter: Record<string, any> =
       clinicIds && clinicIds.length > 0
         ? { clinicId: { $in: clinicIds.map((id) => new Types.ObjectId(id)) } }
-        : {}; // No filter = return all (for admins)
+        : {};
+
+    // Separate active conversations from anonymised (redacted) ones
+    if (!includeAnonymised) {
+      filter.isAnonymised = { $ne: true };
+    } else {
+      filter.isAnonymised = true;
+    }
 
     return this.conversationModel
       .find(filter)
@@ -308,6 +316,10 @@ export class ConversationsService {
         await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
         return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
       }
+      // Unrecognised message in consenting — re-prompt for consent
+      const reply = CONSENT_STATEMENT_TEXT;
+      await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+      return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
     }
 
     // Returning patient detail confirmation — LiveChat API path.

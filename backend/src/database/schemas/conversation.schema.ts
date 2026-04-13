@@ -235,6 +235,10 @@ export class Conversation {
   @Prop()
   flagReason?: string;
 
+  /** True when patient data has been anonymised via right-to-erasure. */
+  @Prop({ default: false })
+  isAnonymised: boolean;
+
   // Timestamps: createdAt, updatedAt
 }
 

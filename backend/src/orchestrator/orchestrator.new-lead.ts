@@ -16,6 +16,7 @@ import { PatientHistoryService } from "../patient-history/patient-history.servic
 import { GhlContactCreatePayload } from "../webhooks/dto/ghl-webhook.dto";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { ConsentService } from "../gdpr/consent/consent.service";
+import { CONSENT_STATEMENT_TEXT } from "../gdpr/gdpr.types";
 import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 import { channelToMessageType } from "./orchestrator.prompts";
 import { getChannelAdapter } from "../ghl/channel-adapter";
@@ -250,6 +251,13 @@ export async function handleNewLeadFlow(
   } else {
     targetPhase = 'consenting';
   }
+
+  // Append consent statement to the greeting so the patient sees it in the same message.
+  // UK GDPR Art. 9(2)(a) requires explicit consent before processing health data.
+  if (targetPhase === 'consenting') {
+    greeting = `${greeting}\n\n${CONSENT_STATEMENT_TEXT}`;
+  }
+
   await conversationsService.updatePhase(
     conversation._id as Types.ObjectId,
     targetPhase,
