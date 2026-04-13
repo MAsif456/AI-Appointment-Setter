@@ -52,13 +52,15 @@ export default function ConversationList() {
   const [clinicFilter, setClinicFilter] = useState('All Clinics');
   const [phaseFilter, setPhaseFilter] = useState('All Phases');
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<'active' | 'redacted'>('active');
 
-  // Fetch conversations from API
+  // Fetch conversations from API — re-fetches when tab changes
   useEffect(() => {
     const fetchConversations = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/conversations');
+        const params = activeTab === 'redacted' ? '?redacted=true' : '';
+        const response = await api.get(`/conversations${params}`);
         setConversations(response.data);
         setError(null);
       } catch (err: any) {
@@ -69,7 +71,7 @@ export default function ConversationList() {
       }
     };
     fetchConversations();
-  }, []);
+  }, [activeTab]);
 
   if (loading) {
     return (
@@ -153,7 +155,22 @@ export default function ConversationList() {
     <div className={styles.container}>
       <h1 className={styles.title}>Conversations</h1>
 
-      {priorityCount > 0 && (
+      <div className={styles.tabs}>
+        <button
+          className={activeTab === 'active' ? styles.tabActive : styles.tab}
+          onClick={() => { setActiveTab('active'); setPage(1); }}
+        >
+          Active
+        </button>
+        <button
+          className={activeTab === 'redacted' ? styles.tabActive : styles.tab}
+          onClick={() => { setActiveTab('redacted'); setPage(1); }}
+        >
+          Redacted
+        </button>
+      </div>
+
+      {priorityCount > 0 && activeTab === 'active' && (
         <div className={styles.priorityBanner}>
           <HighPriorityIcon className={styles.priorityBannerIcon} />
           <span>
