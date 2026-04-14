@@ -233,7 +233,7 @@ describe("buildSlotPromptSection", () => {
   it("should offer multiple options naturally for 2+ slots", () => {
     const result = buildSlotPromptSection(threeSlots, "routine");
     expect(result).toContain("Offer these 3 options naturally");
-    expect(result).toContain("Here are a few times I have available");
+    expect(result).toContain("Which works best for you?");
     expect(result).toContain("not the only available slots");
   });
 
