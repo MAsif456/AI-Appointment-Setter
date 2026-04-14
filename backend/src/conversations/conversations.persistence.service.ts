@@ -85,7 +85,9 @@ export class ConversationsPersistenceService {
   async storeOfferedSlots(conversation: ConversationDocument, slots: Slot[]) {
     if (slots.length === 0) return;
     const offeredSlots = slots.map((s) => ({
-      dateTime: new Date(`${s.date}T${s.startTime}:00`),
+      // Use isoDateTime (UTC) when available — avoids misinterpreting UK local
+      // parts as UTC on a UTC server, which causes a 1-hour offset during BST.
+      dateTime: s.isoDateTime ? new Date(s.isoDateTime) : new Date(`${s.date}T${s.startTime}:00`),
       displayText: formatSlotDisplay(s),
     }));
     const existingHistory: { dateTime: Date; displayText: string }[] =
