@@ -139,14 +139,33 @@ export function selectSlots(
     return [pickFromDay(earlyDay), pickFromDay(midDay), pickFromDay(lateDay)];
   }
 
-  // routine or flexible with fewer than 3 days: one slot per day, max 3
-  const byDay = new Map<string, Slot>();
+  // Group all slots by day
+  const byDay = new Map<string, Slot[]>();
   for (const slot of sorted) {
-    if (!byDay.has(slot.date) && byDay.size < 3) {
-      byDay.set(slot.date, slot);
+    if (!byDay.has(slot.date)) byDay.set(slot.date, []);
+    byDay.get(slot.date)!.push(slot);
+  }
+
+  // Take one slot per available day (up to 3 days)
+  const result: Slot[] = [];
+  for (const daySlots of byDay.values()) {
+    if (result.length >= 3) break;
+    result.push(daySlots[0]);
+  }
+
+  // If fewer than 3 days have availability, fill remaining slots with
+  // additional times from the same days so we offer up to 3 options.
+  if (result.length < 3) {
+    for (const daySlots of byDay.values()) {
+      for (const slot of daySlots.slice(1)) {
+        if (result.length >= 3) break;
+        result.push(slot);
+      }
+      if (result.length >= 3) break;
     }
   }
-  return Array.from(byDay.values());
+
+  return result;
 }
 
 /**
@@ -224,11 +243,19 @@ export function buildSlotPromptSection(
       `Only ONE slot available: "${formatted[0]}"`,
       '- Say something like: "I have [slot] available — does that work, or would you prefer a different time?"',
     );
+  } else if (slots.length === 2) {
+    lines.push(
+      "",
+      `Offer these 2 options naturally.`,
+      `- e.g. "I have ${formatted[0]}, or ${formatted[1]}. Which works best for you?"`,
+      "- Make clear these are suggestions, not the only available slots.",
+    );
   } else {
     lines.push(
       "",
-      `Offer these ${slots.length} options naturally.`,
-      '- e.g. "Here are a few times I have available: [slot1], [slot2], or [slot3] — but if none of those suit, just let me know and I can check other times for you."',
+      `Offer these ${slots.length} options naturally in a conversational format.`,
+      `- e.g. "I have ${formatted[0]}, ${formatted[1]}, or ${formatted[2]}. Which works best for you?"`,
+      "- Present the options as a natural sentence, not as a list.",
       "- Make clear these are suggestions, not the only available slots.",
     );
   }
