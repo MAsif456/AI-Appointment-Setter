@@ -85,19 +85,24 @@ export function fieldEncryptionPlugin(
             doc[field] = plaintext;
           }
         } catch {
-          // If current key fails, try previous key for key rotation support
-          // Controlled by FIELD_ENCRYPTION_KEY_PREVIOUS env var
+          // If current key fails, try previous key for key rotation support.
+          // If both fail (e.g. corrupted ciphertext from Mongoose lowercase setter),
+          // leave the value as-is — displaying garbled text is safer than crashing.
           const prevKeyHex = process.env.FIELD_ENCRYPTION_KEY_PREVIOUS;
           if (prevKeyHex) {
-            const prevMaster = Buffer.from(prevKeyHex, 'hex');
-            const prevKey = deriveFieldKey(prevMaster, `${modelName}.${field}`);
-            const plaintext = decrypt(value, prevKey);
-            if (typeof doc.set === 'function') {
-              doc.set(field, plaintext);
-              doc.$locals = doc.$locals ?? {};
-              doc.$locals.__decrypted = true;
-            } else {
-              doc[field] = plaintext;
+            try {
+              const prevMaster = Buffer.from(prevKeyHex, 'hex');
+              const prevKey = deriveFieldKey(prevMaster, `${modelName}.${field}`);
+              const plaintext = decrypt(value, prevKey);
+              if (typeof doc.set === 'function') {
+                doc.set(field, plaintext);
+                doc.$locals = doc.$locals ?? {};
+                doc.$locals.__decrypted = true;
+              } else {
+                doc[field] = plaintext;
+              }
+            } catch {
+              // Both keys failed — value is unrecoverable (corrupted ciphertext)
             }
           }
         }

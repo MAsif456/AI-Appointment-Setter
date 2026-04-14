@@ -33,7 +33,10 @@ export class Lead {
   @Prop({ trim: true, default: "unknown" })
   phone?: string;
 
-  @Prop({ lowercase: true, trim: true })
+  // Note: lowercase removed — it corrupts AES-256-GCM base64 ciphertext by
+  // converting uppercase letters, making the auth tag fail on decryption.
+  // Email normalisation is handled in the pre-save hook below instead.
+  @Prop({ trim: true })
   email?: string;
 
   @Prop({ trim: true, uppercase: true })
@@ -117,6 +120,17 @@ export class Lead {
 }
 
 export const LeadSchema = SchemaFactory.createForClass(Lead);
+
+// Normalise email to lowercase before encryption — replaces the Mongoose
+// `lowercase: true` schema option which cannot be used on encrypted fields
+// because it corrupts base64 ciphertext.  Registered BEFORE the encryption
+// plugin so Mongoose executes this hook first (hooks run in registration order).
+LeadSchema.pre('save', function () {
+  const email = this.get('email');
+  if (typeof email === 'string') {
+    this.set('email', email.toLowerCase());
+  }
+});
 
 // Apply field-level encryption (UK GDPR Art. 5(1)(f) — integrity and confidentiality)
 // Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/the-principles/integrity-and-confidentiality-security/
