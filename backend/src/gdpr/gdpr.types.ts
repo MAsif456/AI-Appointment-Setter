@@ -24,7 +24,9 @@ export const CONSENT_STATEMENT_TEXT =
 export const CONSENT_GRANTED_KEYWORDS = [
   'yes', 'sure', 'ok', 'okay', "that's fine", 'i agree', 'go ahead',
   'fine', 'alright', 'sounds good', 'happy to', 'no problem',
-  'that is fine', 'agree', 'accepted', 'i consent',
+  'that is fine', 'agree', 'accepted', 'i consent', 'i do',
+  'actually i do', 'actually yes', 'changed my mind', 'i changed my mind',
+  "i'm happy to", 'yeah', 'yep', 'yea', 'of course',
 ];
 
 /** Keywords indicating patient declines consent. */

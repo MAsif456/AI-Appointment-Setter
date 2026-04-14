@@ -82,11 +82,11 @@ describe('fieldEncryptionPlugin', () => {
     });
   });
 
-  describe('post-find hooks', () => {
-    it('decrypts configured fields in a single document', () => {
+  describe('post-init hook (decryption)', () => {
+    it('decrypts configured fields on document hydration', () => {
       const schema = createTestSchema();
-      const postFindOneHooks = (schema as any).s.hooks._posts.get('findOne');
-      expect(postFindOneHooks.length).toBeGreaterThan(0);
+      const postInitHooks = (schema as any).s.hooks._posts.get('init');
+      expect(postInitHooks.length).toBeGreaterThan(0);
 
       const masterKey = Buffer.from(TEST_KEY, 'hex');
       const phoneKey = deriveFieldKey(masterKey, 'TestModel.phone');
@@ -95,16 +95,17 @@ describe('fieldEncryptionPlugin', () => {
       const encEmail = encrypt('j@t.com', emailKey);
 
       const doc = fakeDoc({ phone: encPhone, email: encEmail, name: 'John' });
-      postFindOneHooks[0].fn.call(null, doc);
+      // post('init') uses `this` as the document, not a parameter
+      postInitHooks[0].fn.call(doc);
 
       expect(doc._store.phone).toBe('07700900000');
       expect(doc._store.email).toBe('j@t.com');
       expect(doc._store.name).toBe('John');
     });
 
-    it('decrypts documents in an array (post-find)', () => {
+    it('decrypts multiple documents individually', () => {
       const schema = createTestSchema();
-      const postFindHooks = (schema as any).s.hooks._posts.get('find');
+      const postInitHooks = (schema as any).s.hooks._posts.get('init');
 
       const masterKey = Buffer.from(TEST_KEY, 'hex');
       const phoneKey = deriveFieldKey(masterKey, 'TestModel.phone');
@@ -114,16 +115,20 @@ describe('fieldEncryptionPlugin', () => {
         fakeDoc({ phone: encrypt('222', phoneKey) }),
       ];
 
-      postFindHooks[0].fn.call(null, docs);
+      // post('init') fires per-document
+      docs.forEach(doc => postInitHooks[0].fn.call(doc));
 
       expect(docs[0]._store.phone).toBe('111');
       expect(docs[1]._store.phone).toBe('222');
     });
 
-    it('handles null document gracefully', () => {
+    it('handles unencrypted fields gracefully', () => {
       const schema = createTestSchema();
-      const postFindOneHooks = (schema as any).s.hooks._posts.get('findOne');
-      expect(() => postFindOneHooks[0].fn.call(null, null)).not.toThrow();
+      const postInitHooks = (schema as any).s.hooks._posts.get('init');
+      const doc = fakeDoc({ phone: 'plaintext', email: undefined });
+      // Should not throw — unencrypted values are left as-is
+      expect(() => postInitHooks[0].fn.call(doc)).not.toThrow();
+      expect(doc._store.phone).toBe('plaintext');
     });
   });
 

@@ -105,15 +105,13 @@ export function fieldEncryptionPlugin(
     }
   }
 
-  schema.post('find', function (docs: any[]) {
-    if (Array.isArray(docs)) docs.forEach(decryptFields);
+  // Decrypt using post('init') — a document middleware that fires every time a
+  // document is hydrated from the database. Unlike post('find')/post('findOne')
+  // (query middleware), post('init') fires reliably for ALL access patterns:
+  // find, findOne, findById, populate, and aggregation with $lookup.
+  // This is the approach used by the mongoose-field-encryption package.
+  // Ref: https://mongoosejs.com/docs/middleware.html (Document middleware: init)
+  schema.post('init', function () {
+    decryptFields(this);
   });
-
-  schema.post('findOne', function (doc: any) {
-    decryptFields(doc);
-  });
-
-  // Note: Mongoose 9 does not support 'findById' as a separate hook name.
-  // findById() internally delegates to findOne(), so the findOne hook above
-  // covers both findOne() and findById() calls.
 }
