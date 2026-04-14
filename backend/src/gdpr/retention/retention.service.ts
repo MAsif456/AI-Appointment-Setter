@@ -107,11 +107,18 @@ export class RetentionService {
 
     // Summary audit log
     if (totalAnonymised > 0) {
+      const clinicNames = clinics.map((c) => c.name).join(', ');
       await this.auditLogModel.create({
         action: 'data.retention_cleanup',
         entityType: 'system',
         severity: 'info',
         changes: { totalAnonymised },
+        metadata: {
+          totalAnonymised,
+          clinicsProcessed: clinics.length,
+          clinicNames,
+          triggeredBy: 'system (scheduled cron)',
+        },
       });
     }
 

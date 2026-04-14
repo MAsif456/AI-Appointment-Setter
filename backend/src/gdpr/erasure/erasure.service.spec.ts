@@ -10,6 +10,7 @@ import { Appointment } from '../../database/schemas/appointment.schema';
 import { PatientHistory } from '../../database/schemas/patient-history.schema';
 import { AuditLog } from '../../database/schemas/audit-log.schema';
 import { ErasureRecord } from '../../database/schemas/erasure-record.schema';
+import { Clinic } from '../../database/schemas/clinic.schema';
 import { ANONYMISED_VALUE } from '../gdpr.types';
 
 const LEAD_ID = new Types.ObjectId().toHexString();
@@ -35,6 +36,11 @@ describe('ErasureService', () => {
     create: jest.fn(),
     findByIdAndUpdate: jest.fn(),
   };
+  const mockClinicModel = {
+    findById: jest.fn().mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ name: 'Test Clinic' }),
+    }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +53,7 @@ describe('ErasureService', () => {
         { provide: getModelToken(PatientHistory.name), useValue: mockPatientHistoryModel },
         { provide: getModelToken(AuditLog.name), useValue: mockAuditLogModel },
         { provide: getModelToken(ErasureRecord.name), useValue: mockErasureModel },
+        { provide: getModelToken(Clinic.name), useValue: mockClinicModel },
       ],
     }).compile();
 
@@ -63,7 +70,7 @@ describe('ErasureService', () => {
 
   it('returns existing completed record (idempotent)', async () => {
     const completed = { originalLeadId: LEAD_ID, status: 'completed' };
-    mockLeadModel.findById.mockResolvedValue({ clinicId: CLINIC_ID });
+    mockLeadModel.findById.mockResolvedValue({ clinicId: CLINIC_ID, firstName: 'Test', email: 'test@example.com' });
     mockErasureModel.findOne
       .mockResolvedValueOnce(completed) // completed check
       ;
@@ -77,13 +84,18 @@ describe('ErasureService', () => {
     const mockRecord = { _id: 'rec1', collectionsProcessed: {}, status: 'in_progress' };
 
     beforeEach(() => {
-      mockLeadModel.findById.mockResolvedValue({ clinicId: CLINIC_ID });
+      mockLeadModel.findById.mockResolvedValue({
+        clinicId: CLINIC_ID, firstName: 'Test', lastName: 'Patient', email: 'test@example.com',
+      });
       mockErasureModel.findOne
         .mockResolvedValueOnce(null)   // no completed
         .mockResolvedValueOnce(null);  // no in_progress
       mockErasureModel.create.mockResolvedValue(mockRecord);
       mockLeadModel.findByIdAndUpdate.mockResolvedValue({});
       mockErasureModel.findByIdAndUpdate.mockResolvedValue({});
+      mockClinicModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ name: 'Test Clinic' }),
+      });
     });
 
     it('anonymises all collections in order', async () => {
@@ -92,7 +104,9 @@ describe('ErasureService', () => {
       expect(mockPatientHistoryModel.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ clinicId: CLINIC_ID }),
         expect.objectContaining({
-          $set: expect.objectContaining({ phone: ANONYMISED_VALUE }),
+          $set: expect.objectContaining({
+            phone: `${ANONYMISED_VALUE}-${LEAD_ID}`,
+          }),
         }),
       );
       expect(mockAppointmentModel.updateMany).toHaveBeenCalled();

@@ -37,6 +37,7 @@ import {
   ErasureRecord,
   ErasureRecordDocument,
 } from '../../database/schemas/erasure-record.schema';
+import { Clinic, ClinicDocument } from '../../database/schemas/clinic.schema';
 import { ANONYMISED_VALUE } from '../gdpr.types';
 
 @Injectable()
@@ -61,6 +62,7 @@ export class ErasureService {
     @InjectModel(PatientHistory.name) private readonly patientHistoryModel: Model<PatientHistoryDocument>,
     @InjectModel(AuditLog.name) private readonly auditLogModel: Model<AuditLogDocument>,
     @InjectModel(ErasureRecord.name) private readonly erasureModel: Model<ErasureRecordDocument>,
+    @InjectModel(Clinic.name) private readonly clinicModel: Model<ClinicDocument>,
   ) {}
 
 /**
@@ -88,6 +90,12 @@ export class ErasureService {
 
     const clinicId = lead.clinicId;
     const collectionsProcessed: Record<string, number> = {};
+
+    // Capture patient details before anonymisation for the audit trail.
+    const patientName = `${lead.firstName} ${lead.lastName ?? ''}`.trim();
+    const patientEmail = lead.email ?? 'unknown';
+    const clinic = await this.clinicModel.findById(clinicId, 'name').lean();
+    const clinicName = clinic?.name ?? 'Unknown';
 
     // Create or resume the erasure journal
     let record = await this.erasureModel.findOne({
@@ -187,7 +195,13 @@ export class ErasureService {
         entityId: leadId,
         changes: collectionsProcessed,
         severity: 'warning',
-        metadata: { requestedBy },
+        metadata: {
+          patientName,
+          patientEmail,
+          clinicName,
+          requestedBy,
+          collectionsProcessed,
+        },
       });
 
       this.logger.log(

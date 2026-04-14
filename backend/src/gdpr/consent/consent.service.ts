@@ -11,6 +11,8 @@ import {
   ConsentRecordEntry,
   ConsentRecordDocument,
 } from '../../database/schemas/consent-record.schema';
+import { Lead, LeadDocument } from '../../database/schemas/lead.schema';
+import { Clinic, ClinicDocument } from '../../database/schemas/clinic.schema';
 import { AuditLog, AuditLogDocument } from '../../database/schemas/audit-log.schema';
 import {
   CONSENT_STATEMENT_VERSION,
@@ -24,6 +26,10 @@ export class ConsentService {
   constructor(
     @InjectModel(ConsentRecordEntry.name)
     private readonly consentModel: Model<ConsentRecordDocument>,
+    @InjectModel(Lead.name)
+    private readonly leadModel: Model<LeadDocument>,
+    @InjectModel(Clinic.name)
+    private readonly clinicModel: Model<ClinicDocument>,
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLogDocument>,
   ) {}
@@ -48,6 +54,12 @@ export class ConsentService {
       channel,
     });
 
+    // Look up patient and clinic names for a self-contained audit trail.
+    const [lead, clinic] = await Promise.all([
+      this.leadModel.findById(leadId, 'firstName lastName email').lean(),
+      this.clinicModel.findById(clinicId, 'name').lean(),
+    ]);
+
     // Audit trail — ICO Art. 7(1) requires controllers to demonstrate consent.
     await this.auditLogModel.create({
       clinicId: new Types.ObjectId(clinicId),
@@ -55,7 +67,13 @@ export class ConsentService {
       entityType: 'lead',
       entityId: leadId,
       severity: status === 'withdrawn' ? 'warning' : 'info',
-      metadata: { channel, consentStatementVersion: CONSENT_STATEMENT_VERSION },
+      metadata: {
+        patientName: `${lead?.firstName ?? 'Unknown'} ${lead?.lastName ?? ''}`.trim(),
+        patientEmail: lead?.email ?? 'unknown',
+        clinicName: clinic?.name ?? 'Unknown',
+        channel,
+        consentStatementVersion: CONSENT_STATEMENT_VERSION,
+      },
     });
 
     this.logger.log(`CONSENT_${status.toUpperCase()} leadId=${leadId} clinicId=${clinicId}`);

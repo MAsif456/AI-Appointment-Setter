@@ -20,6 +20,7 @@ import {
   ErasureRequestDocument,
 } from '../../database/schemas/erasure-request.schema';
 import { Lead, LeadDocument } from '../../database/schemas/lead.schema';
+import { Clinic, ClinicDocument } from '../../database/schemas/clinic.schema';
 import { AuditLog, AuditLogDocument } from '../../database/schemas/audit-log.schema';
 import { ErasureService } from './erasure.service';
 
@@ -32,6 +33,8 @@ export class ErasureRequestService {
     private readonly requestModel: Model<ErasureRequestDocument>,
     @InjectModel(Lead.name)
     private readonly leadModel: Model<LeadDocument>,
+    @InjectModel(Clinic.name)
+    private readonly clinicModel: Model<ClinicDocument>,
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLogDocument>,
     private readonly erasureService: ErasureService,
@@ -63,13 +66,21 @@ export class ErasureRequestService {
       reason,
     });
 
+    const clinic = await this.clinicModel.findById(lead.clinicId, 'name').lean();
+
     await this.auditLogModel.create({
       clinicId: lead.clinicId,
       action: 'erasure.requested',
       entityType: 'lead',
       entityId: leadId,
       severity: 'warning',
-      metadata: { requestedBy, reason },
+      metadata: {
+        patientName: `${lead.firstName} ${lead.lastName ?? ''}`.trim(),
+        patientEmail: lead.email ?? 'unknown',
+        clinicName: clinic?.name ?? 'Unknown',
+        requestedBy,
+        reason,
+      },
     });
 
     this.logger.log(
@@ -89,6 +100,10 @@ export class ErasureRequestService {
       throw new ConflictException(`Request already ${request.status}`);
     }
 
+    // Capture patient details before erasure anonymises them.
+    const lead = await this.leadModel.findById(request.leadId, 'firstName lastName email').lean();
+    const clinic = await this.clinicModel.findById(request.clinicId, 'name').lean();
+
     // Execute the actual erasure
     await this.erasureService.erasePatientData(
       request.leadId.toString(),
@@ -106,7 +121,15 @@ export class ErasureRequestService {
       entityType: 'lead',
       entityId: request.leadId.toString(),
       severity: 'warning',
-      metadata: { reviewedBy, requestId },
+      metadata: {
+        patientName: `${lead?.firstName ?? 'Unknown'} ${lead?.lastName ?? ''}`.trim(),
+        patientEmail: lead?.email ?? 'unknown',
+        clinicName: clinic?.name ?? 'Unknown',
+        approvedBy: reviewedBy,
+        requestId,
+        originalRequestedBy: request.requestedBy,
+        reason: request.reason,
+      },
     });
 
     this.logger.log(
@@ -133,13 +156,24 @@ export class ErasureRequestService {
     request.rejectionReason = rejectionReason;
     await request.save();
 
+    const lead = await this.leadModel.findById(request.leadId, 'firstName lastName email').lean();
+    const clinic = await this.clinicModel.findById(request.clinicId, 'name').lean();
+
     await this.auditLogModel.create({
       clinicId: request.clinicId,
       action: 'erasure.rejected',
       entityType: 'lead',
       entityId: request.leadId.toString(),
       severity: 'info',
-      metadata: { reviewedBy, requestId, rejectionReason },
+      metadata: {
+        patientName: `${lead?.firstName ?? 'Unknown'} ${lead?.lastName ?? ''}`.trim(),
+        patientEmail: lead?.email ?? 'unknown',
+        clinicName: clinic?.name ?? 'Unknown',
+        rejectedBy: reviewedBy,
+        requestId,
+        originalRequestedBy: request.requestedBy,
+        rejectionReason: rejectionReason ?? 'none provided',
+      },
     });
 
     this.logger.log(

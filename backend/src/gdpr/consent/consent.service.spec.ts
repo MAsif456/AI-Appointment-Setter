@@ -3,6 +3,9 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { ConsentService } from './consent.service';
 import { ConsentRecordEntry } from '../../database/schemas/consent-record.schema';
+import { Lead } from '../../database/schemas/lead.schema';
+import { Clinic } from '../../database/schemas/clinic.schema';
+import { AuditLog } from '../../database/schemas/audit-log.schema';
 import { CONSENT_STATEMENT_VERSION, CONSENT_STATEMENT_TEXT } from '../gdpr.types';
 
 const LEAD_ID = new Types.ObjectId().toHexString();
@@ -18,6 +21,22 @@ describe('ConsentService', () => {
     find: jest.fn(),
   };
 
+  const mockLeadModel = {
+    findById: jest.fn().mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ firstName: 'Test', lastName: 'Patient', email: 'test@example.com' }),
+    }),
+  };
+
+  const mockClinicModel = {
+    findById: jest.fn().mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ name: 'Test Clinic' }),
+    }),
+  };
+
+  const mockAuditLogModel = {
+    create: jest.fn().mockResolvedValue({}),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -26,11 +45,31 @@ describe('ConsentService', () => {
           provide: getModelToken(ConsentRecordEntry.name),
           useValue: mockConsentModel,
         },
+        {
+          provide: getModelToken(Lead.name),
+          useValue: mockLeadModel,
+        },
+        {
+          provide: getModelToken(Clinic.name),
+          useValue: mockClinicModel,
+        },
+        {
+          provide: getModelToken(AuditLog.name),
+          useValue: mockAuditLogModel,
+        },
       ],
     }).compile();
 
     service = module.get<ConsentService>(ConsentService);
     jest.clearAllMocks();
+    // Re-set default mock returns after clearAllMocks
+    mockLeadModel.findById.mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ firstName: 'Test', lastName: 'Patient', email: 'test@example.com' }),
+    });
+    mockClinicModel.findById.mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ name: 'Test Clinic' }),
+    });
+    mockAuditLogModel.create.mockResolvedValue({});
   });
 
   describe('recordConsent', () => {
