@@ -1,6 +1,6 @@
 import {
   IsEmail, IsNotEmpty, MinLength, Matches, IsIn,
-  IsOptional, IsArray, IsMongoId,
+  IsOptional, IsArray, IsMongoId, IsBoolean,
 } from 'class-validator';
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
@@ -65,6 +65,37 @@ export class ChangePasswordDto {
 export class ForgotPasswordDto {
   @IsEmail()
   email: string;
+}
+
+/** Updates the authenticated user's notification preferences */
+export class UpdateNotificationPreferencesDto {
+  @IsOptional()
+  @IsBoolean()
+  generalNotifications?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  emailNotifications?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  stalledConversations?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  escalatedConversations?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  bookingCancelled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  newUserJoined?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  appointmentReminders?: boolean;
 }
 
 /** Completes the reset-password flow — token comes from the link in the email */

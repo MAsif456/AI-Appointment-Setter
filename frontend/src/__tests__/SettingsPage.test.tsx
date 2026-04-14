@@ -4,6 +4,7 @@ import SettingsPage from '@/app/settings/page';
 // Mock child components so tests stay focused on tab routing
 jest.mock('@/app/settings/components/AccountSettings', () => () => <div>Account Settings Content</div>);
 jest.mock('@/app/settings/components/UserManagement', () => () => <div>User Management Content</div>);
+jest.mock('@/app/settings/components/NotificationPreferences', () => () => <div>Notification Preferences Content</div>);
 
 // Mock AuthContext to control role
 const mockUseAuth = jest.fn();
@@ -39,11 +40,10 @@ describe('SettingsPage', () => {
       expect(screen.getByText('User Management Content')).toBeInTheDocument();
     });
 
-    it('shows placeholder for Notifications tab', () => {
+    it('shows notification preferences when Notifications tab is clicked', () => {
       render(<SettingsPage />);
       fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
-      expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
-      expect(screen.getByText('Coming soon.')).toBeInTheDocument();
+      expect(screen.getByText('Notification Preferences Content')).toBeInTheDocument();
     });
 
     it('shows placeholder for Integrations tab', () => {
