@@ -88,7 +88,9 @@ export class SlotsService {
   }
 
   /**
-   * Filter slots by clinic business hours
+   * Filter slots by clinic business hours.
+   * Business hours are stored as UK local time (HH:MM), so we compare using
+   * Europe/London timezone rather than UTC to handle BST/GMT correctly.
    */
   private filterByBusinessHours(
     slots: GHLSlot[],
@@ -97,8 +99,9 @@ export class SlotsService {
     return slots.filter((slot) => {
       const slotStart = new Date(slot.startTime);
 
+      // Use Europe/London timezone so day name and time are correct during BST
       const dayName = slotStart
-        .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
+        .toLocaleDateString("en-US", { weekday: "long", timeZone: "Europe/London" })
         .toLowerCase();
 
       // Find business hours for this day
@@ -117,12 +120,14 @@ export class SlotsService {
         return false;
       }
 
-      // Extract time in UTC (fixes timezone bug)
-      const hours = slotStart.getUTCHours();
-      const minutes = slotStart.getUTCMinutes();
-      const slotTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+      // Extract slot time in UK local timezone so it matches stored business hours
+      const slotTime = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/London",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(slotStart);
 
-      // Compare withbusiness hours
       return (
         slotTime >= businessHour.openTime && slotTime < businessHour.closeTime
       );
@@ -130,19 +135,40 @@ export class SlotsService {
   }
 
   /**
-   * Format slots for return
+   * Format slots for return.
+   * Extracts date and time in Europe/London timezone so the values displayed
+   * to leads match UK local time (handling BST/GMT automatically).
    */
   private formatSlots(slots: GHLSlot[]): SlotDto[] {
     return slots.map((slot) => {
       const dateTime = new Date(slot.startTime);
-      const endTime = new Date(slot.endTime);
+      const endDateTime = new Date(slot.endTime);
 
-      return {
-        date: dateTime.toISOString().split("T")[0], // "2024-03-25"
-        startTime: dateTime.toTimeString().substring(0, 5), // "14:00"
-        endTime: endTime.toTimeString().substring(0, 5), // "14:30"
-        dateTime,
-      };
+      // Extract all date/time parts in UK local time in a single format call
+      const startParts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/London",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(dateTime);
+      const getPart = (parts: Intl.DateTimeFormatPart[], type: string) =>
+        parts.find((p) => p.type === type)?.value ?? "";
+
+      const date = `${getPart(startParts, "year")}-${getPart(startParts, "month")}-${getPart(startParts, "day")}`;
+      const startTime = `${getPart(startParts, "hour")}:${getPart(startParts, "minute")}`;
+
+      const endParts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/London",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(endDateTime);
+      const endTime = `${getPart(endParts, "hour")}:${getPart(endParts, "minute")}`;
+
+      return { date, startTime, endTime, dateTime };
     });
   }
 }
