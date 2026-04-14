@@ -69,6 +69,8 @@ export default function DataProtectionPage() {
 
   const pending = requests.filter((r) => r.status === 'pending');
   const resolved = requests.filter((r) => r.status !== 'pending');
+  const approvedCount = resolved.filter((r) => r.status === 'approved').length;
+  const rejectedCount = resolved.filter((r) => r.status === 'rejected').length;
 
   return (
     <div className={styles.container}>
@@ -175,48 +177,54 @@ export default function DataProtectionPage() {
               <h2 className={styles.sectionTitle}>
                 Resolved ({resolved.length})
               </h2>
-              <div className={styles.cardGrid}>
-                {resolved.map((req) => (
-                  <div key={req._id} className={`${styles.card} ${styles.cardResolved}`}>
-                    <div className={styles.cardHeader}>
-                      <span className={
-                        req.status === 'approved'
-                          ? styles.badgeApproved
-                          : styles.badgeRejected
-                      }>
-                        {req.status === 'approved' ? 'Approved' : 'Rejected'}
-                      </span>
-                      <span className={styles.date}>
-                        {new Date(req.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className={styles.cardBody}>
-                      <div className={styles.field}>
-                        <span className={styles.label}>Patient</span>
-                        <span className={styles.value}>
-                          {req.leadId
-                            ? `${req.leadId.firstName} ${req.leadId.lastName || ''}`.trim()
-                            : '[Redacted]'}
-                        </span>
-                      </div>
-                      <div className={styles.field}>
-                        <span className={styles.label}>Requested by</span>
-                        <span className={styles.value}>{req.requestedBy}</span>
-                      </div>
-                      <div className={styles.field}>
-                        <span className={styles.label}>Reviewed by</span>
-                        <span className={styles.value}>{req.reviewedBy ?? '—'}</span>
-                      </div>
-                      {req.rejectionReason && (
-                        <div className={styles.field}>
-                          <span className={styles.label}>Rejection reason</span>
-                          <span className={styles.value}>{req.rejectionReason}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+
+              <div className={styles.resolvedSummary}>
+                <div className={styles.summaryChip}>
+                  <span className={styles.summaryCount}>{approvedCount}</span>
+                  <span className={styles.summaryLabel}>Approved</span>
+                </div>
+                <div className={styles.summaryChip}>
+                  <span className={styles.summaryCount}>{rejectedCount}</span>
+                  <span className={styles.summaryLabel}>Rejected</span>
+                </div>
               </div>
+
+              <table className={styles.resolvedTable}>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Requested</th>
+                    <th>Requested By</th>
+                    <th>Reviewed By</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resolved.map((req) => (
+                    <tr key={req._id}>
+                      <td>
+                        <span className={
+                          req.status === 'approved'
+                            ? styles.badgeApproved
+                            : styles.badgeRejected
+                        }>
+                          {req.status === 'approved' ? 'Approved' : 'Rejected'}
+                        </span>
+                      </td>
+                      <td className={styles.dateCell}>
+                        {new Date(req.createdAt).toLocaleDateString()}
+                      </td>
+                      <td>{req.requestedBy}</td>
+                      <td>{req.reviewedBy ?? '—'}</td>
+                      <td className={styles.reasonCell}>
+                        {req.status === 'rejected' && req.rejectionReason
+                          ? req.rejectionReason
+                          : req.reason}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           )}
         </>
