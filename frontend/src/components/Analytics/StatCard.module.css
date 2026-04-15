@@ -1,0 +1,41 @@
+/* Stat card for displaying a single analytics metric */
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 24px 28px;
+  background: #ffffff;
+  flex: 1;
+  min-width: 180px;
+}
+
+.title {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+  font-weight: 400;
+}
+
+.valueRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.suffix {
+  font-size: 24px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}

@@ -219,6 +219,20 @@ export class ConversationsService {
   }
 
   /**
+   * Updates the GHL conversation ID on an existing conversation document.
+   * Called when an inbound message arrives with a different conversationId than what is stored,
+   * which happens when a new GHL thread is opened for a returning contact.
+   */
+  async updateGhlConversationId(
+    conversationId: Types.ObjectId,
+    ghlConversationId: string,
+  ): Promise<void> {
+    await this.conversationModel
+      .findByIdAndUpdate(conversationId, { ghlConversationId })
+      .exec();
+  }
+
+  /**
    * Looks up a lead document by its MongoDB ObjectId.
    * Used by the orchestrator to load patient details for multi-turn prompts.
    */

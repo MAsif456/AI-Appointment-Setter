@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../database/schemas/user.schema';
-import { UpdateUserDto } from './dto/auth.dto';
+import { UpdateUserDto, UpdateNotificationPreferencesDto } from './dto/auth.dto';
 
 const PAGE_SIZE = 5;
 
@@ -116,6 +116,66 @@ export class UsersService {
     await user.save();
     this.logger.log(`User ${id} updated by admin ${requesterId}`);
     return user;
+  }
+
+  /**
+   * Returns the notification preferences for the authenticated user.
+   * If no preferences are stored yet, returns the schema defaults (all true).
+   */
+  async getNotificationPreferences(userId: string): Promise<UserDocument['notificationPreferences']> {
+    const user = await this.userModel.findById(userId).select('notificationPreferences');
+    if (!user) throw new NotFoundException('User not found');
+    const prefs = user.notificationPreferences as any ?? {};
+    return {
+      generalNotifications: prefs.generalNotifications ?? true,
+      emailNotifications: prefs.emailNotifications ?? true,
+      stalledConversations: prefs.stalledConversations ?? true,
+      escalatedConversations: prefs.escalatedConversations ?? true,
+      bookingCancelled: prefs.bookingCancelled ?? true,
+      newUserJoined: prefs.newUserJoined ?? true,
+      appointmentReminders: prefs.appointmentReminders ?? true,
+    };
+  }
+
+  /**
+   * Updates notification preferences for the authenticated user.
+   * Only the fields present in the DTO are changed; others are preserved.
+   */
+  async updateNotificationPreferences(
+    userId: string,
+    dto: UpdateNotificationPreferencesDto,
+  ): Promise<UserDocument['notificationPreferences']> {
+    const user = await this.userModel.findById(userId).select('notificationPreferences');
+    if (!user) throw new NotFoundException('User not found');
+
+    const current = user.notificationPreferences as any ?? {};
+
+    const updated = {
+      generalNotifications: dto.generalNotifications ?? current.generalNotifications ?? true,
+      emailNotifications: dto.emailNotifications ?? current.emailNotifications ?? true,
+      stalledConversations: dto.stalledConversations ?? current.stalledConversations ?? true,
+      escalatedConversations: dto.escalatedConversations ?? current.escalatedConversations ?? true,
+      bookingCancelled: dto.bookingCancelled ?? current.bookingCancelled ?? true,
+      newUserJoined: dto.newUserJoined ?? current.newUserJoined ?? true,
+      appointmentReminders: dto.appointmentReminders ?? current.appointmentReminders ?? true,
+    };
+
+    await this.userModel.findByIdAndUpdate(userId, { $set: { notificationPreferences: updated } });
+    this.logger.log(`Notification preferences updated for user ${userId}`);
+    return updated;
+  }
+
+  /**
+   * Checks whether a specific notification type is enabled for a user.
+   * Returns false if generalNotifications is off, regardless of individual toggles.
+   */
+  async isNotificationEnabled(
+    userId: string,
+    type: 'emailNotifications' | 'stalledConversations' | 'escalatedConversations' | 'bookingCancelled' | 'newUserJoined' | 'appointmentReminders',
+  ): Promise<boolean> {
+    const prefs = await this.getNotificationPreferences(userId);
+    if (!prefs.generalNotifications) return false;
+    return prefs[type] ?? true;
   }
 
   /**
