@@ -1,0 +1,29 @@
+/* Clinic analytics tab layout */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.statCards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.loading {
+  color: #6b7280;
+  font-size: 14px;
+  padding: 24px 0;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 14px;
+  padding: 24px 0;
+}

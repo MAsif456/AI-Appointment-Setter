@@ -175,5 +175,69 @@ export async function seedMessages(
     },
   ]);
 
-  console.log("Messages created\n");
+  // === Bulk messages for analytics ===
+  // Each bulk conversation gets 4 messages (2 AI, 2 lead) so transcripts
+  // look realistic in the conversations UI. Timestamps inherit the parent
+  // conversation's createdAt so bulk messages fall inside whatever
+  // analytics date window is queried. `responseTimeSeconds` is retained
+  // on AI messages for audit/debug purposes even though the analytics
+  // overview now reports "average messages to booking" instead.
+  const bulkMessages: any[] = [];
+  for (let i = 4; i < conversations.length; i++) {
+    const convo = conversations[i];
+    const base = convo.createdAt ? new Date(convo.createdAt).getTime() : Date.now();
+    const aiResponseSeconds = 4 + (i % 8); // 4–11 second spread
+
+    bulkMessages.push(
+      {
+        conversationId: convo._id,
+        clinicId: convo.clinicId,
+        leadId: convo.leadId,
+        sender: "ai",
+        content: "Hi, thanks for getting in touch. How can we help?",
+        channel: convo.channel,
+        detectedIntent: "GREETING",
+        responseTimeSeconds: aiResponseSeconds,
+        createdAt: new Date(base),
+        updatedAt: new Date(base),
+      },
+      {
+        conversationId: convo._id,
+        clinicId: convo.clinicId,
+        leadId: convo.leadId,
+        sender: "lead",
+        content: "I'm looking to book an appointment.",
+        channel: convo.channel,
+        createdAt: new Date(base + 60_000),
+        updatedAt: new Date(base + 60_000),
+      },
+      {
+        conversationId: convo._id,
+        clinicId: convo.clinicId,
+        leadId: convo.leadId,
+        sender: "ai",
+        content: "Great — can you confirm your postcode?",
+        channel: convo.channel,
+        responseTimeSeconds: aiResponseSeconds + 2,
+        createdAt: new Date(base + 120_000),
+        updatedAt: new Date(base + 120_000),
+      },
+      {
+        conversationId: convo._id,
+        clinicId: convo.clinicId,
+        leadId: convo.leadId,
+        sender: "lead",
+        content: "CF10 3AB",
+        channel: convo.channel,
+        createdAt: new Date(base + 180_000),
+        updatedAt: new Date(base + 180_000),
+      },
+    );
+  }
+
+  if (bulkMessages.length > 0) {
+    await MessageModel.insertMany(bulkMessages);
+  }
+
+  console.log(`Messages created (bulk: ${bulkMessages.length})\n`);
 }

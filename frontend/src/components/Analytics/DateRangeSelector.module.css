@@ -1,0 +1,56 @@
+/* Date range selector dropdown and custom date picker */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.select {
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a2e;
+  background: #ffffff;
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.select:focus {
+  outline: 2px solid #4361ee;
+  border-color: #4361ee;
+}
+
+.customRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dateInput {
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1a1a2e;
+}
+
+.separator {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.applyButton {
+  padding: 6px 14px;
+  background: #4361ee;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.applyButton:hover {
+  background: #3a56d4;
+}
