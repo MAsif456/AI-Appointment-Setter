@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 export type ClinicDocument = Clinic & Document;
 
@@ -35,27 +35,43 @@ export class QualificationQuestion {
 /** AI configuration settings controlling how the AI interacts with patients for a clinic. */
 @Schema({ _id: false })
 export class AIConfiguration {
-  @Prop({ type: String, enum: ['friendly', 'professional', 'balanced'], default: 'friendly' })
+  @Prop({
+    type: String,
+    enum: ["friendly", "professional", "balanced"],
+    default: "friendly",
+  })
   tone: string;
 
   @Prop({
-    default: 'Hi {{firstName}}! Thanks for getting in touch with {{clinicName}}. I can help you book an appointment. Let me ask a few quick questions.',
+    default:
+      "Hi {{firstName}}! Thanks for getting in touch with {{clinicName}}. I can help you book an appointment. Let me ask a few quick questions.",
     maxlength: 500,
   })
   greetingTemplate: string;
 
+  /** Optional greeting template used when a returning patient is detected.
+   *  Supports the same {{placeholder}} variables as greetingTemplate. */
+  @Prop({ maxlength: 500 })
+  returningPatientGreetingTemplate?: string;
+
+  /** Number of days before a patient history record is considered stale.
+   *  When stale, the system still recognises the patient but flags the data
+   *  for re-confirmation rather than skipping qualification silently. */
+  @Prop({ default: 365, min: 1 })
+  patientDataExpiryDays: number;
+
   @Prop({
     type: [QualificationQuestion],
     default: [
-      { key: 'urgency', label: 'Urgency', enabled: true },
-      { key: 'preferredTime', label: 'Preferred time of day', enabled: true },
-      { key: 'painDescription', label: 'Pain description', enabled: true },
-      { key: 'patientType', label: 'New or returning patient', enabled: true },
+      { key: "urgency", label: "Urgency", enabled: true },
+      { key: "preferredTime", label: "Preferred time of day", enabled: true },
+      { key: "painDescription", label: "Pain description", enabled: true },
+      { key: "patientType", label: "New or returning patient", enabled: true },
     ],
   })
   qualificationQuestions: QualificationQuestion[];
 
-  @Prop({ default: '', maxlength: 1000 })
+  @Prop({ default: "", maxlength: 1000 })
   customInstructions: string;
 
   @Prop({ type: [{ question: String, answer: String }], default: [] })
@@ -65,7 +81,7 @@ export class AIConfiguration {
 @Schema({ _id: false })
 export class ServiceArea {
   @Prop({ required: true })
-  postcodePrefix: string; 
+  postcodePrefix: string;
 
   @Prop()
   description?: string;
@@ -111,12 +127,14 @@ export class FollowUpSettings {
 export class CancellationPolicy {
   @Prop({ default: false })
   feeEnabled: boolean;
-
   @Prop()
   feeAmount?: number;
-
+  @Prop()
+  feeDescription?: string; // Human-readable fee, e.g. "£50" or "50%"
   @Prop({ default: 24 })
-  noticeHours: number; 
+  noticeHours: number;
+  @Prop({ maxlength: 500 })
+  cancellationMessage?: string; // Optional warning template with {{placeholders}}
 }
 
 @Schema({ timestamps: true })
@@ -131,7 +149,7 @@ export class Clinic {
   ghlCalendarId: string;
 
   @Prop({ trim: true })
-  ghlApiKey?: string; 
+  ghlApiKey?: string;
 
   @Prop({ trim: true })
   address?: string;
@@ -173,7 +191,7 @@ export class Clinic {
   paymentInstructions?: string;
 
   @Prop()
-  itemsToBring?: string; 
+  itemsToBring?: string;
 
   @Prop({ default: true })
   isActive: boolean;

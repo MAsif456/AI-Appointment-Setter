@@ -23,6 +23,13 @@ export class OverviewQueryDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  /**
+   * Comma-separated list of clinic IDs to restrict results to.
+   * Used for staff-role filtering so staff only see their assigned clinics.
+   */
+  @IsOptional()
+  clinicIds?: string;
 }
 
 /**

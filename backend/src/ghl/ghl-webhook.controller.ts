@@ -5,29 +5,29 @@ import {
   Logger,
   HttpCode,
   HttpStatus,
-} from '@nestjs/common';
-import { InboundWebhookDto } from './dto/inbound-webhook.dto';
-import { ConversationsService } from './conversations.service';
-import { MessagesService } from './messages.service';
-import { ClinicsService } from '../clinics/clinics.service';
+} from "@nestjs/common";
+import { InboundWebhookDto } from "./dto/inbound-webhook.dto";
+import { ConversationsService } from "./conversations.service";
+import { MessagesService } from "./messages.service";
+import { ClinicsService } from "../clinics/clinics.service";
 
-@Controller('ghl/webhook')
+@Controller("ghl/webhook")
 export class GhlWebhookController {
   private readonly logger = new Logger(GhlWebhookController.name);
 
-/**
- * Constructor for GhlWebhookController.
- * @param conversationsService - The conversation service object.
- * @param messagesService - The message service object.
- * @param clinicsService - The clinics service object.
- */
+  /**
+   * Constructor for GhlWebhookController.
+   * @param conversationsService - The conversation service object.
+   * @param messagesService - The message service object.
+   * @param clinicsService - The clinics service object.
+   */
   constructor(
     private readonly conversationsService: ConversationsService,
     private readonly messagesService: MessagesService,
     private readonly clinicsService: ClinicsService,
   ) {}
 
-  @Post('inbound')
+  @Post("inbound")
   @HttpCode(HttpStatus.OK)
   /**
    * Handles an inbound webhook for a GHL contact.
@@ -52,7 +52,7 @@ export class GhlWebhookController {
       conversation._id,
       clinic._id,
       conversation.leadId,
-      'lead',
+      "lead",
       payload.body,
       conversation.channel,
       payload.messageId,

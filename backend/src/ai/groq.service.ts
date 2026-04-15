@@ -1,40 +1,49 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Groq from 'groq-sdk';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import Groq from "groq-sdk";
+import { CircuitBreaker, CircuitState } from "../ghl/circuit-breaker";
 
 /** Timeout duration for Groq API calls in milliseconds (30 seconds) */
 const GROQ_TIMEOUT_MS = 30_000;
 
 /** Llama model used for AI greeting generation */
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 /**
  * Low-level wrapper around the Groq SDK client.
- * Handles client initialisation, API calls, timeout, and error handling.
+ * Handles client initialisation, API calls, timeout, circuit breaker, and error handling.
  */
 @Injectable()
 export class GroqService implements OnModuleInit {
   private readonly logger = new Logger(GroqService.name);
   private client: Groq | null = null;
+  private readonly aiCircuitBreaker: CircuitBreaker;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    this.aiCircuitBreaker = new CircuitBreaker({
+      failureThreshold: 3,
+      resetTimeoutMs: 30_000,
+      name: "Groq-AI",
+    });
+  }
 
   /**
    * Initialises the Groq client on module startup.
    * Logs an error if the API key is missing.
    */
   onModuleInit(): void {
-    const apiKey = this.configService.get<string>('GROQ_API_KEY');
+    const apiKey = this.configService.get<string>("GROQ_API_KEY");
+    this.logger.log(`Groq API key starts with: ${apiKey?.slice(0, 15)}`);
 
     if (!apiKey) {
       this.logger.error(
-        'GROQ_API_KEY is missing. AI greeting generation will not work.',
+        "GROQ_API_KEY is missing. AI greeting generation will not work.",
       );
       return;
     }
 
     this.client = new Groq({ apiKey });
-    this.logger.log('Groq client initialised successfully.');
+    this.logger.log("Groq client initialised successfully.");
   }
 
   /**
@@ -45,47 +54,47 @@ export class GroqService implements OnModuleInit {
    */
   async generateResponse(prompt: string): Promise<string | null> {
     if (!this.client) {
-      this.logger.error('Groq client is not initialised. Cannot generate.');
+      this.logger.error("Groq client is not initialised. Cannot generate.");
       return null;
     }
 
     try {
-      const result = await Promise.race([
-        this.callGroqApi(prompt),
-        this.createTimeout(),
-      ]);
-
-      return result;
+      return await this.aiCircuitBreaker.execute(() =>
+        Promise.race([this.callGroqApi(prompt), this.createTimeout()]),
+      );
     } catch (error) {
-      this.logger.error('Groq API error:', error);
+      this.logger.error("Groq API error:", error);
       return null;
     }
   }
 
   /**
    * Sends a multi-turn conversation to the Groq API and returns the response.
-   * Enforces a 30-second timeout via Promise.race().
+   * Protected by circuit breaker and 30-second timeout.
    * @param messages - Array of chat messages with role and content
    * @returns The generated text, or null on error/timeout
    */
   async generateChatResponse(
-    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   ): Promise<string | null> {
     if (!this.client) {
-      this.logger.error('Groq client is not initialised. Cannot generate.');
+      this.logger.error("Groq client is not initialised. Cannot generate.");
       return null;
     }
 
     try {
-      const result = await Promise.race([
-        this.callGroqChatApi(messages),
-        this.createTimeout(),
-      ]);
-      return result;
+      return await this.aiCircuitBreaker.execute(() =>
+        Promise.race([this.callGroqChatApi(messages), this.createTimeout()]),
+      );
     } catch (error) {
-      this.logger.error('Groq chat API error:', error);
+      this.logger.error("Groq chat API error:", error);
       return null;
     }
+  }
+
+  /** Returns the current state of the Groq AI circuit breaker for health monitoring. */
+  getCircuitBreakerState(): CircuitState {
+    return this.aiCircuitBreaker.getState();
   }
 
   /**
@@ -96,9 +105,9 @@ export class GroqService implements OnModuleInit {
   private async callGroqApi(prompt: string): Promise<string | null> {
     const response = await this.client!.chat.completions.create({
       model: GROQ_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 256,
+      max_tokens: 512,
     });
 
     const content = response.choices?.[0]?.message?.content ?? null;
@@ -111,13 +120,13 @@ export class GroqService implements OnModuleInit {
    * @returns The generated text content
    */
   private async callGroqChatApi(
-    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   ): Promise<string | null> {
     const response = await this.client!.chat.completions.create({
       model: GROQ_MODEL,
       messages,
       temperature: 0.7,
-      max_tokens: 256,
+      max_tokens: 512,
     });
 
     const content = response.choices?.[0]?.message?.content ?? null;

@@ -10,10 +10,16 @@ export interface ClinicConfig {
   name: string;
 
   /** AI conversation tone setting */
-  tone: 'Friendly' | 'Professional';
+  tone: "Friendly" | "Professional";
 
   /** Optional custom greeting template with {{placeholder}} variables */
   greetingTemplate?: string;
+
+  /** Optional greeting template for returning patients. Supports the same {{placeholder}} variables. */
+  returningPatientGreetingTemplate?: string;
+
+  /** Days before patient history is considered stale. Defaults to 365 if not set. */
+  patientDataExpiryDays?: number;
 
   /** Postcode prefixes the clinic serves, e.g. ["CF", "NP"] */
   serviceAreas?: string[];
@@ -26,4 +32,13 @@ export interface ClinicConfig {
 
   /** Whether the clinic is currently active */
   isActive: boolean;
+
+  /** Per-clinic cancellation policy settings */
+  cancellationPolicy?: {
+    feeEnabled: boolean;
+    feeAmount?: number;
+    feeDescription?: string;
+    noticeHours: number;
+    cancellationMessage?: string;
+  };
 }

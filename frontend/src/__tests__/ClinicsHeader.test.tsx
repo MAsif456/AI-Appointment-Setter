@@ -23,7 +23,7 @@ describe('ClinicsHeader', () => {
     expect(screen.getByPlaceholderText('Search clinics...')).toBeInTheDocument();
   });
   it('renders the Add Clinic link pointing to /clinics/new', () => {
-    render(<ClinicsHeader searchTerm="" onSearchChange={onSearchChange} />);
+    render(<ClinicsHeader searchTerm="" onSearchChange={onSearchChange} showAddButton={true} />);
     const link = screen.getByText('+ Add Clinic').closest('a');
     expect(link).toHaveAttribute('href', '/clinics/new');
   });

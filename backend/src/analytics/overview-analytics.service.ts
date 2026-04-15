@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Types } from 'mongoose';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Message } from '../database/schemas/message.schema';
 import {
@@ -36,16 +37,18 @@ export class OverviewAnalyticsService {
     period: string = 'week',
     customStart?: string,
     customEnd?: string,
+    clinicIds?: string,
   ): Promise<OverviewResponse> {
     const { startDate, endDate } = this.resolveDateRange(period, customStart, customEnd);
     const prev = getPreviousPeriodRange(startDate, endDate);
+    const clinicFilter = this.buildClinicFilter(clinicIds);
 
     // Run all queries in parallel for performance
     const [current, previous, bookingsOverTime, funnel] = await Promise.all([
-      this.getPeriodMetrics(startDate, endDate),
-      this.getPeriodMetrics(prev.startDate, prev.endDate),
-      this.getBookingsOverTime(startDate, endDate),
-      this.getConversionFunnel(startDate, endDate),
+      this.getPeriodMetrics(startDate, endDate, clinicFilter),
+      this.getPeriodMetrics(prev.startDate, prev.endDate, clinicFilter),
+      this.getBookingsOverTime(startDate, endDate, clinicFilter),
+      this.getConversionFunnel(startDate, endDate, clinicFilter),
     ]);
 
     return {
@@ -68,8 +71,10 @@ export class OverviewAnalyticsService {
    * Fetches per-clinic comparison data for the clinic comparison table.
    * Groups conversations by clinic and computes key metrics.
    */
-  async getClinicComparison(): Promise<ClinicComparisonRow[]> {
+  async getClinicComparison(clinicIds?: string): Promise<ClinicComparisonRow[]> {
+    const clinicFilter = this.buildClinicFilter(clinicIds);
     const results = await this.conversationModel.aggregate([
+      ...(clinicFilter ? [{ $match: clinicFilter }] : []),
       {
         $group: {
           _id: '$clinicId',
@@ -100,6 +105,21 @@ export class OverviewAnalyticsService {
     }));
   }
 
+  /**
+   * Parses a comma-separated clinic ID string into a Mongo `$in` filter.
+   * Returns `null` when no filter should be applied (admin view / all clinics).
+   */
+  private buildClinicFilter(clinicIds?: string): { clinicId: { $in: Types.ObjectId[] } } | null {
+    if (!clinicIds) return null;
+    const ids = clinicIds
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => Types.ObjectId.isValid(s))
+      .map((s) => new Types.ObjectId(s));
+    if (ids.length === 0) return null;
+    return { clinicId: { $in: ids } };
+  }
+
   /** Resolves start/end dates from period or custom range. */
   private resolveDateRange(period: string, customStart?: string, customEnd?: string) {
     if (customStart && customEnd) {
@@ -113,18 +133,23 @@ export class OverviewAnalyticsService {
   }
 
   /** Fetches lead count, booking count, conversion rate, and avg response time for a date range. */
-  private async getPeriodMetrics(startDate: Date, endDate: Date) {
+  private async getPeriodMetrics(
+    startDate: Date,
+    endDate: Date,
+    clinicFilter: { clinicId: { $in: Types.ObjectId[] } } | null = null,
+  ) {
     const dateFilter = { createdAt: { $gte: startDate, $lte: endDate } };
+    const baseFilter = { ...dateFilter, ...(clinicFilter ?? {}) };
 
     // Use conversations as single source of truth for leads and bookings
     const [leads, bookings, avgResp] = await Promise.all([
-      this.conversationModel.countDocuments(dateFilter),
+      this.conversationModel.countDocuments(baseFilter),
       this.conversationModel.countDocuments({
-        ...dateFilter,
+        ...baseFilter,
         phase: { $in: BOOKED_PHASES },
       }),
       this.messageModel.aggregate([
-        { $match: { ...dateFilter, sender: 'ai', responseTimeSeconds: { $gt: 0 } } },
+        { $match: { ...baseFilter, sender: 'ai', responseTimeSeconds: { $gt: 0 } } },
         { $group: { _id: null, avg: { $avg: '$responseTimeSeconds' } } },
       ]),
     ]);
@@ -136,12 +161,17 @@ export class OverviewAnalyticsService {
   }
 
   /** Aggregates daily booking counts from conversations that reached booked phase. */
-  private async getBookingsOverTime(startDate: Date, endDate: Date) {
+  private async getBookingsOverTime(
+    startDate: Date,
+    endDate: Date,
+    clinicFilter: { clinicId: { $in: Types.ObjectId[] } } | null = null,
+  ) {
     const results = await this.conversationModel.aggregate([
       {
         $match: {
           createdAt: { $gte: startDate, $lte: endDate },
           phase: { $in: BOOKED_PHASES },
+          ...(clinicFilter ?? {}),
         },
       },
       {
@@ -157,9 +187,18 @@ export class OverviewAnalyticsService {
   }
 
   /** Computes conversion funnel counts using $facet for a single DB round trip. */
-  private async getConversionFunnel(startDate: Date, endDate: Date) {
+  private async getConversionFunnel(
+    startDate: Date,
+    endDate: Date,
+    clinicFilter: { clinicId: { $in: Types.ObjectId[] } } | null = null,
+  ) {
     const result = await this.conversationModel.aggregate([
-      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+          ...(clinicFilter ?? {}),
+        },
+      },
       {
         $facet: {
           leads: [{ $count: 'count' }],

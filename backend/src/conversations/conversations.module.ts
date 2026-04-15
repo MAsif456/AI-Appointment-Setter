@@ -1,14 +1,25 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Conversation, ConversationSchema } from '../database/schemas/conversation.schema';
-import { Message, MessageSchema } from '../database/schemas/message.schema';
-import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
-import { Lead, LeadSchema } from '../database/schemas/lead.schema';
-import { AiModule } from '../ai/ai.module';
-import { AppointmentsModule } from '../appointments/appointments.module';
-import { ConversationsController } from './conversations.controller';
-import { ConversationsService } from './conversations.service';
-
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import {
+  Conversation,
+  ConversationSchema,
+} from "../database/schemas/conversation.schema";
+import { Message, MessageSchema } from "../database/schemas/message.schema";
+import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
+import { Lead, LeadSchema } from "../database/schemas/lead.schema";
+import { AiModule } from "../ai/ai.module";
+import { AppointmentsModule } from "../appointments/appointments.module";
+import { GhlModule } from "../ghl/ghl.module";
+import { EscalationService } from "../ai/escalation.service";
+import { ConversationsController } from "./conversations.controller";
+import { ConversationsService } from "./conversations.service";
+import { ConversationsPersistenceService } from "./conversations.persistence.service";
+import { AbuseHandlerService } from "./abuse-handler.service";
+import { AbuseDetectionService } from "./abuse-detection.service";
+import { SecurityModule } from "../security/security.module";
+import { CancellationModule } from "../cancellation/cancellation.module";
+import { PatientHistoryModule } from "../patient-history/patient-history.module";
+import { PostcodeValidationService } from "../orchestrator/postcode-validation.service";
 
 @Module({
   imports: [
@@ -20,9 +31,20 @@ import { ConversationsService } from './conversations.service';
     ]),
     AiModule,
     AppointmentsModule,
+    GhlModule,
+    SecurityModule,
+    CancellationModule,
+    PatientHistoryModule,
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService],
+  providers: [
+    ConversationsService,
+    ConversationsPersistenceService,
+    EscalationService,
+    AbuseHandlerService,
+    AbuseDetectionService,
+    PostcodeValidationService,
+  ],
   exports: [ConversationsService],
 })
 export class ConversationsModule {

@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
-import { MessagesService } from './messages.service';
-import { Message } from '../database/schemas/message.schema';
-import { Conversation } from '../database/schemas/conversation.schema';
+import { Test, TestingModule } from "@nestjs/testing";
+import { getModelToken } from "@nestjs/mongoose";
+import { Types } from "mongoose";
+import { MessagesService } from "./messages.service";
+import { Message } from "../database/schemas/message.schema";
+import { Conversation } from "../database/schemas/conversation.schema";
 
-describe('MessagesService', () => {
+describe("MessagesService", () => {
   let service: MessagesService;
   let messageModel: Record<string, jest.Mock>;
   let conversationModel: Record<string, jest.Mock>;
@@ -28,20 +28,23 @@ describe('MessagesService', () => {
       providers: [
         MessagesService,
         { provide: getModelToken(Message.name), useValue: messageModel },
-        { provide: getModelToken(Conversation.name), useValue: conversationModel },
+        {
+          provide: getModelToken(Conversation.name),
+          useValue: conversationModel,
+        },
       ],
     }).compile();
 
     service = module.get<MessagesService>(MessagesService);
   });
 
-  describe('addMessage', () => {
-    it('should create a message and update the conversation', async () => {
+  describe("addMessage", () => {
+    it("should create a message and update the conversation", async () => {
       const mockMessage = {
         _id: new Types.ObjectId(),
         conversationId,
-        sender: 'lead',
-        content: 'Hello',
+        sender: "lead",
+        content: "Hello",
       };
       messageModel.create.mockResolvedValue(mockMessage);
 
@@ -49,10 +52,10 @@ describe('MessagesService', () => {
         conversationId,
         clinicId,
         leadId,
-        'lead',
-        'Hello',
-        'sms',
-        'ghl_msg_001',
+        "lead",
+        "Hello",
+        "sms",
+        "ghl_msg_001",
       );
 
       expect(result).toEqual(mockMessage);
@@ -61,46 +64,55 @@ describe('MessagesService', () => {
           conversationId,
           clinicId,
           leadId,
-          sender: 'lead',
-          content: 'Hello',
-          channel: 'sms',
-          ghlMessageId: 'ghl_msg_001',
-          status: 'sent',
+          sender: "lead",
+          content: "Hello",
+          channel: "sms",
+          ghlMessageId: "ghl_msg_001",
+          status: "sent",
         }),
       );
       expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         conversationId,
         expect.objectContaining({
-          lastMessageFrom: 'lead',
+          lastMessageFrom: "lead",
           $inc: { messageCount: 1 },
         }),
       );
     });
 
-    it('should create a message without ghlMessageId', async () => {
-      const mockMessage = { _id: new Types.ObjectId(), sender: 'ai' };
+    it("should create a message without ghlMessageId", async () => {
+      const mockMessage = { _id: new Types.ObjectId(), sender: "ai" };
       messageModel.create.mockResolvedValue(mockMessage);
 
-      await service.addMessage(conversationId, clinicId, leadId, 'ai', 'Response', 'sms');
+      await service.addMessage(
+        conversationId,
+        clinicId,
+        leadId,
+        "ai",
+        "Response",
+        "sms",
+      );
 
       expect(messageModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          sender: 'ai',
-          content: 'Response',
+          sender: "ai",
+          content: "Response",
           ghlMessageId: undefined,
         }),
       );
     });
   });
 
-  describe('getByConversation', () => {
-    it('should return messages sorted by createdAt', async () => {
+  describe("getByConversation", () => {
+    it("should return messages sorted by createdAt", async () => {
       const messages = [
-        { _id: new Types.ObjectId(), content: 'First' },
-        { _id: new Types.ObjectId(), content: 'Second' },
+        { _id: new Types.ObjectId(), content: "First" },
+        { _id: new Types.ObjectId(), content: "Second" },
       ];
       messageModel.find.mockReturnValue({
-        sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(messages) }),
+        sort: jest
+          .fn()
+          .mockReturnValue({ exec: jest.fn().mockResolvedValue(messages) }),
       });
 
       const result = await service.getByConversation(conversationId);

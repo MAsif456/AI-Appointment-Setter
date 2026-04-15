@@ -28,4 +28,3 @@ export interface UpdateClinicSettingsDto {
   serviceAreas?: ServiceAreaDto[];
   businessHours?: BusinessHoursDto[];
 }
-

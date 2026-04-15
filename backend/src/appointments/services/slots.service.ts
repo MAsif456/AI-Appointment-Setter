@@ -1,8 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Clinic, ClinicDocument } from '../../database/schemas/clinic.schema';
-import { GHLCalendarService, GHLSlot } from './ghl-calendar.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Clinic, ClinicDocument } from "../../database/schemas/clinic.schema";
+import { GHLCalendarService, GHLSlot } from "./ghl-calendar.service";
+
+/** Typed error thrown when the GHL Calendar API is unreachable. */
+export class CalendarUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CalendarUnavailableError";
+  }
+}
 
 export interface SlotDto {
   date: string; // "2024-03-25"
@@ -37,7 +45,9 @@ export class SlotsService {
         return [];
       }
 
-      this.logger.log(`Fetching slots with appointment duration: ${clinic.defaultAppointmentDuration} minutes`);
+      this.logger.log(
+        `Fetching slots with appointment duration: ${clinic.defaultAppointmentDuration} minutes`,
+      );
 
       // Fetch slots from GHL
       const ghlSlots = await this.ghlCalendarService.fetchAvailableSlots(
@@ -48,14 +58,21 @@ export class SlotsService {
       );
 
       if (!ghlSlots || ghlSlots.length === 0) {
-        this.logger.log('No slots available from GHL');
+        this.logger.log("No slots available from GHL");
         return [];
       }
-      this.logger.log(`Received ${ghlSlots.length} slots from GHL before filtering`);
+      this.logger.log(
+        `Received ${ghlSlots.length} slots from GHL before filtering`,
+      );
 
       // Filter by business hours
-      const businessHoursFiltered = this.filterByBusinessHours(ghlSlots, clinic);
-      this.logger.log(`${businessHoursFiltered.length} slots after business hours filter`);
+      const businessHoursFiltered = this.filterByBusinessHours(
+        ghlSlots,
+        clinic,
+      );
+      this.logger.log(
+        `${businessHoursFiltered.length} slots after business hours filter`,
+      );
 
       // Format for return
       const formattedSlots = this.formatSlots(businessHoursFiltered);
@@ -64,7 +81,9 @@ export class SlotsService {
       return formattedSlots;
     } catch (error) {
       this.logger.error(`Error fetching slots: ${error.message}`);
-      return []; // Return empty array on error
+      throw new CalendarUnavailableError(
+        `GHL Calendar unavailable: ${error.message}`,
+      );
     }
   }
 
@@ -77,13 +96,15 @@ export class SlotsService {
   ): GHLSlot[] {
     return slots.filter((slot) => {
       const slotStart = new Date(slot.startTime);
-      
+
       const dayName = slotStart
-        .toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
+        .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
         .toLowerCase();
 
       // Find business hours for this day
-      const businessHour = clinic.businessHours.find((bh) => bh.day === dayName);
+      const businessHour = clinic.businessHours.find(
+        (bh) => bh.day === dayName,
+      );
 
       // Not open on this day
       if (!businessHour || !businessHour.isOpen) {
@@ -96,14 +117,15 @@ export class SlotsService {
         return false;
       }
 
-        
       // Extract time in UTC (fixes timezone bug)
       const hours = slotStart.getUTCHours();
       const minutes = slotStart.getUTCMinutes();
-      const slotTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      const slotTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 
       // Compare withbusiness hours
-      return slotTime >= businessHour.openTime && slotTime < businessHour.closeTime;
+      return (
+        slotTime >= businessHour.openTime && slotTime < businessHour.closeTime
+      );
     });
   }
 
@@ -116,7 +138,7 @@ export class SlotsService {
       const endTime = new Date(slot.endTime);
 
       return {
-        date: dateTime.toISOString().split('T')[0], // "2024-03-25"
+        date: dateTime.toISOString().split("T")[0], // "2024-03-25"
         startTime: dateTime.toTimeString().substring(0, 5), // "14:00"
         endTime: endTime.toTimeString().substring(0, 5), // "14:30"
         dateTime,

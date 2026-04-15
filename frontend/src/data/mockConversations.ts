@@ -53,7 +53,7 @@ export const mockConversations: Conversation[] = [
     leadSource: 'Facebook Ads',
     phase: 'Booking',
     lastMessage: 'No messages yet',
-    isHighPriority: true,
+    isHighPriority: false,
     requiresIntervention: false,
   },
   {
@@ -89,6 +89,17 @@ export const mockConversations: Conversation[] = [
     phase: 'Declined',
     lastMessage:
       "Unfortunately we don't cover the SA2 area. I...",
+    isHighPriority: false,
+    requiresIntervention: false,
+  },
+  {
+    id: 'conv_005',
+    patientName: 'James Morgan',
+    phone: '07700 900321',
+    clinic: 'Cardiff Physiotherapy Centre',
+    leadSource: 'Google Ads',
+    phase: 'Booking',
+    lastMessage: 'No messages yet',
     isHighPriority: false,
     requiresIntervention: false,
   },
