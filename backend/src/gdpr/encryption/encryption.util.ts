@@ -11,10 +11,12 @@
  * Ref: NIST SP 800-38D — Recommendation for GCM Mode
  *   https://csrc.nist.gov/publications/detail/sp/800-38d/final
  *
- * Per-field key derivation uses HKDF so that compromising one
- * field's ciphertext does not reveal the key for other fields.
- * Ref: NIST SP 800-108r1 — Key Derivation Using Pseudorandom Functions
- *   https://csrc.nist.gov/publications/detail/sp/800-108/rev-1/final
+ * Per-field key derivation uses HKDF (extract-and-expand) so that
+ * compromising one field's ciphertext does not reveal the key for other fields.
+ * Ref: IETF RFC 5869 — HMAC-based Extract-and-Expand Key Derivation Function
+ *   https://datatracker.ietf.org/doc/html/rfc5869
+ * Also endorsed by NIST SP 800-56C Rev. 2 for key-derivation methods.
+ *   https://csrc.nist.gov/publications/detail/sp/800-56c/rev-2/final
  */
 import { createCipheriv, createDecipheriv, randomBytes, createHmac } from 'crypto';
 import { hkdfSync } from 'crypto';

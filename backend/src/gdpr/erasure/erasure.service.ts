@@ -115,6 +115,13 @@ export class ErasureService {
     const leadObjectId = new Types.ObjectId(leadId);
 
     try {
+      // Note: updateMany() bypasses the encryption plugin's pre('findOneAndUpdate') hook
+      // because Mongoose fires separate hooks for updateMany vs findOneAndUpdate.
+      // This is intentional — the replacement value '[REDACTED]' contains no PII, so
+      // encrypting a fixed constant adds no confidentiality.  Storing it as plaintext
+      // also makes anonymised records immediately identifiable in compliance audits
+      // without requiring decryption.
+
       // Step 1: PatientHistory — first to prevent returning-patient detection mid-erasure.
       // Uses per-lead unique suffix on phone/email to avoid duplicate key violations.
       const uniqueSuffix = `-${leadId}`;
