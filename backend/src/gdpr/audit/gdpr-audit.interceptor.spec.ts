@@ -13,6 +13,14 @@ describe('GdprAuditInterceptor', () => {
     handle: () => of({ data: 'response' }),
   };
 
+/**
+ * Creates a mock ExecutionContext object for testing the GdprAuditInterceptor.
+ *
+ * @param {Record<string, string>} [params={}] - HTTP request parameters.
+ * @param {Record<string, string>} [headers={}] - HTTP request headers.
+ * @param {string} [ip='127.0.0.1'] - Client IP address.
+ * @returns {ExecutionContext} - A mockExecutionContext object.
+ */
   function createMockContext(
     params: Record<string, string> = {},
     headers: Record<string, string> = {},
@@ -21,6 +29,11 @@ describe('GdprAuditInterceptor', () => {
     return {
       getHandler: jest.fn(),
       getClass: jest.fn(),
+      /**
+       * Returns a mock HTTP request object containing the provided parameters, headers, and IP address.
+       * The returned object also contains mock implementations of getResponse and getNext.
+       * @returns {{ getRequest: () => { params: Record<string, string>, headers: Record<string, string>, ip: string }, getResponse: () => any, getNext: () => any }}
+       */
       switchToHttp: () => ({
         getRequest: () => ({ params, headers, ip }),
         getResponse: jest.fn(),
@@ -83,6 +96,13 @@ describe('GdprAuditInterceptor', () => {
     const context = {
       getHandler: jest.fn(),
       getClass: jest.fn(),
+    /**
+     * A mock for ExecutionContext.switchToHttp(). Returns a mock object
+     * with the following methods:
+     * - getRequest: returns the request object
+     * - getResponse: a mock for the response object
+     * - getNext: a mock for the next handler in the chain
+     */
       switchToHttp: () => ({
         getRequest: () => request,
         getResponse: jest.fn(),
