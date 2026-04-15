@@ -82,10 +82,6 @@ deploy:vercel:
   retry: 2
   only:
     - development
-  variables:
-    # Maps GitLab variables to the specific names Vercel CLI looks for
-    VERCEL_ORG_ID: $VERCEL_ORG_ID
-    VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
   script:
     - npm install --global vercel
     - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
