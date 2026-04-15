@@ -11,7 +11,7 @@ import { Types } from "mongoose";
 import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
 import { ConversationsService } from "../ghl/conversations.service";
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
-import { PatientHistoryService } from "../patient-history/patient-history.service";
+import { PatientHistoryService, ReturningPatientResult } from "../patient-history/patient-history.service";
 import { ConversationDocument } from "../database/schemas/conversation.schema";
 import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 
@@ -51,7 +51,7 @@ export async function handleReentryForTerminalConversation(
   );
 
   // Step 2: Check PatientHistory — null-on-failure built into the service
-  let returningPatient = null;
+  let returningPatient: ReturningPatientResult | null = null;
   if (lead) {
     const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
     returningPatient = await patientHistoryService.findReturningPatient(

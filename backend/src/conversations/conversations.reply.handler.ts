@@ -122,7 +122,7 @@ export async function buildAndSendReply(
       const dt = new Date(s.dateTime);
       return {
         date: dt.toISOString().split("T")[0],
-        startTime: dt.toTimeString().substring(0, 5),
+        startTime: dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }),
         endTime: "",
       };
     });
