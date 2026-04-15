@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Types } from 'mongoose';
+import { Clinic } from '../database/schemas/clinic.schema';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Message } from '../database/schemas/message.schema';
 import {
@@ -25,7 +26,41 @@ export class OverviewAnalyticsService {
   constructor(
     @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
+    @InjectModel(Clinic.name) private clinicModel: Model<Clinic>,
   ) {}
+
+  /**
+   * Returns the ObjectId list of all active clinics, optionally
+   * intersected with a caller-supplied `clinicIds` string. This is used
+   * as the single source of truth for every aggregation in this service
+   * so the overview cards and the clinic-comparison table agree on
+   * which clinics contribute to the totals (an inactive clinic with
+   * conversations would otherwise cause the comparison rows to sum to
+   * less than the overview totals).
+   */
+  private async resolveActiveClinicIds(
+    clinicIds?: string,
+  ): Promise<Types.ObjectId[]> {
+    const active = await this.clinicModel
+      .find({ isActive: true })
+      .select('_id')
+      .lean()
+      .exec();
+    const activeIds = active.map((c) => c._id as Types.ObjectId);
+
+    if (!clinicIds) return activeIds;
+
+    const requested = clinicIds
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => Types.ObjectId.isValid(s))
+      .map((s) => new Types.ObjectId(s));
+    if (requested.length === 0) return activeIds;
+
+    // Intersect: respect staff scoping while still excluding inactive clinics.
+    const requestedSet = new Set(requested.map((id) => id.toString()));
+    return activeIds.filter((id) => requestedSet.has(id.toString()));
+  }
 
   /**
    * Retrieves platform-wide analytics for a given period.
@@ -41,7 +76,8 @@ export class OverviewAnalyticsService {
   ): Promise<OverviewResponse> {
     const { startDate, endDate } = this.resolveDateRange(period, customStart, customEnd);
     const prev = getPreviousPeriodRange(startDate, endDate);
-    const clinicFilter = this.buildClinicFilter(clinicIds);
+    const activeIds = await this.resolveActiveClinicIds(clinicIds);
+    const clinicFilter = { clinicId: { $in: activeIds } };
 
     // Run all queries in parallel for performance
     const [current, previous, bookingsOverTime, funnel] = await Promise.all([
@@ -77,16 +113,14 @@ export class OverviewAnalyticsService {
     customStart?: string,
     customEnd?: string,
   ): Promise<ClinicComparisonRow[]> {
-    const clinicFilter = this.buildClinicFilter(clinicIds);
+    const activeIds = await this.resolveActiveClinicIds(clinicIds);
     const { startDate, endDate } = this.resolveDateRange(period, customStart, customEnd);
 
-    // Date-range filter applied first so the clinic rows reflect the same
-    // window as the rest of the dashboard (cards, chart, funnel). Without
-    // this $match the table would always show lifetime totals and
-    // appear unresponsive to the selector.
+    // Active-clinic + date-range filter applied first so the table rows
+    // sum to exactly the overview totals for the same window.
     const matchStage: Record<string, any> = {
       createdAt: { $gte: startDate, $lte: endDate },
-      ...(clinicFilter ?? {}),
+      clinicId: { $in: activeIds },
     };
 
     const results = await this.conversationModel.aggregate([

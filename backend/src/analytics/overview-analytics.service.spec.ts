@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { OverviewAnalyticsService } from './overview-analytics.service';
+import { Clinic } from '../database/schemas/clinic.schema';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Message } from '../database/schemas/message.schema';
 
@@ -8,6 +9,11 @@ import { Message } from '../database/schemas/message.schema';
 const createMockModel = () => ({
   countDocuments: jest.fn().mockResolvedValue(0),
   aggregate: jest.fn().mockResolvedValue([]),
+  find: jest.fn().mockReturnValue({
+    select: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([]),
+  }),
 });
 
 /**
@@ -18,16 +24,19 @@ describe('OverviewAnalyticsService', () => {
   let service: OverviewAnalyticsService;
   let conversationModel: ReturnType<typeof createMockModel>;
   let messageModel: ReturnType<typeof createMockModel>;
+  let clinicModel: ReturnType<typeof createMockModel>;
 
   beforeEach(async () => {
     conversationModel = createMockModel();
     messageModel = createMockModel();
+    clinicModel = createMockModel();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OverviewAnalyticsService,
         { provide: getModelToken(Conversation.name), useValue: conversationModel },
         { provide: getModelToken(Message.name), useValue: messageModel },
+        { provide: getModelToken(Clinic.name), useValue: clinicModel },
       ],
     }).compile();
 
