@@ -47,12 +47,14 @@ export default function BookingsChart({ data, title = 'Bookings Over Time' }: Bo
             <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} allowDecimals={false} />
             <Tooltip />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="count"
               stroke="#4361ee"
               strokeWidth={2}
               dot={{ fill: '#4361ee', r: 4 }}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
+              connectNulls
             />
           </LineChart>
         </ResponsiveContainer>

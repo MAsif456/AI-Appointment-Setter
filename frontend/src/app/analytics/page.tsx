@@ -32,7 +32,7 @@ export default function AnalyticsPage() {
     try {
       const [overviewData, clinicData] = await Promise.all([
         fetchOverviewAnalytics({ period, startDate, endDate }),
-        fetchClinicComparison(),
+        fetchClinicComparison({ period, startDate, endDate }),
       ]);
       setOverview(overviewData);
       setClinics(clinicData);

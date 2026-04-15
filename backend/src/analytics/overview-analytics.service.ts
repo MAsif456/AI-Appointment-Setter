@@ -71,10 +71,26 @@ export class OverviewAnalyticsService {
    * Fetches per-clinic comparison data for the clinic comparison table.
    * Groups conversations by clinic and computes key metrics.
    */
-  async getClinicComparison(clinicIds?: string): Promise<ClinicComparisonRow[]> {
+  async getClinicComparison(
+    clinicIds?: string,
+    period: string = 'week',
+    customStart?: string,
+    customEnd?: string,
+  ): Promise<ClinicComparisonRow[]> {
     const clinicFilter = this.buildClinicFilter(clinicIds);
+    const { startDate, endDate } = this.resolveDateRange(period, customStart, customEnd);
+
+    // Date-range filter applied first so the clinic rows reflect the same
+    // window as the rest of the dashboard (cards, chart, funnel). Without
+    // this $match the table would always show lifetime totals and
+    // appear unresponsive to the selector.
+    const matchStage: Record<string, any> = {
+      createdAt: { $gte: startDate, $lte: endDate },
+      ...(clinicFilter ?? {}),
+    };
+
     const results = await this.conversationModel.aggregate([
-      ...(clinicFilter ? [{ $match: clinicFilter }] : []),
+      { $match: matchStage },
       {
         $group: {
           _id: '$clinicId',
@@ -103,6 +119,14 @@ export class OverviewAnalyticsService {
       avgMessages: r.leads > 0 ? Math.round(r.totalMessages / r.leads) : 0,
       declineRate: r.leads > 0 ? Math.round((r.declined / r.leads) * 100) : 0,
     }));
+  }
+
+  /** Chooses a sensible $dateTrunc bucket for the chart given a span in days. */
+  private pickBucket(spanDays: number): { unit: 'day' | 'week' | 'month'; binSize: number } {
+    if (spanDays <= 10) return { unit: 'day', binSize: 1 };
+    if (spanDays <= 35) return { unit: 'day', binSize: 5 };
+    if (spanDays <= 120) return { unit: 'week', binSize: 1 };
+    return { unit: 'month', binSize: 1 };
   }
 
   /**
@@ -160,12 +184,29 @@ export class OverviewAnalyticsService {
     return { leads, bookings, conversionRate, avgResponseTime };
   }
 
-  /** Aggregates daily booking counts from conversations that reached booked phase. */
+  /**
+   * Aggregates booking counts for the chart.
+   *
+   * Bucket size scales with the selected window so the line chart is
+   * readable at every preset:
+   *   ≤ 10 days   → daily buckets
+   *   11–35 days  → 5-day buckets (≈ 6 points for "last 30 days")
+   *   36–120 days → weekly buckets
+   *   > 120 days  → monthly buckets
+   * Bins start from `startDate` so the first point is always the start of
+   * the requested window rather than a floating calendar boundary.
+   */
   private async getBookingsOverTime(
     startDate: Date,
     endDate: Date,
     clinicFilter: { clinicId: { $in: Types.ObjectId[] } } | null = null,
   ) {
+    const spanDays = Math.max(
+      1,
+      Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)),
+    );
+    const { unit, binSize } = this.pickBucket(spanDays);
+
     const results = await this.conversationModel.aggregate([
       {
         $match: {
@@ -176,12 +217,26 @@ export class OverviewAnalyticsService {
       },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          _id: {
+            $dateTrunc: {
+              date: '$createdAt',
+              unit,
+              binSize,
+              startOfWeek: 'monday',
+              timezone: 'UTC',
+            },
+          },
           count: { $sum: 1 },
         },
       },
       { $sort: { _id: 1 } },
-      { $project: { _id: 0, date: '$_id', count: 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: { $dateToString: { format: '%Y-%m-%d', date: '$_id' } },
+          count: 1,
+        },
+      },
     ]);
     return results;
   }

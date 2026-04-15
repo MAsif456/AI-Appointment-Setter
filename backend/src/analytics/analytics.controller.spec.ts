@@ -160,27 +160,44 @@ describe("AnalyticsController", () => {
 
   describe("getClinicComparison", () => {
     it("should return clinic comparison data", async () => {
-      const result = await controller.getClinicComparison(undefined, adminReq);
+      const result = await controller.getClinicComparison({}, adminReq);
 
       expect(overviewService.getClinicComparison).toHaveBeenCalled();
       expect(result).toEqual(mockComparison);
     });
 
+    it("should forward period and custom range to the service", async () => {
+      await controller.getClinicComparison(
+        { period: "month", startDate: "2026-03-01", endDate: "2026-03-15" },
+        adminReq,
+      );
+
+      expect(overviewService.getClinicComparison).toHaveBeenCalledWith(
+        undefined,
+        "month",
+        "2026-03-01",
+        "2026-03-15",
+      );
+    });
+
     it("should scope staff users to their assigned clinics", async () => {
       await controller.getClinicComparison(
-        undefined,
+        {},
         staffReq(["507f1f77bcf86cd799439011"]),
       );
 
       expect(overviewService.getClinicComparison).toHaveBeenCalledWith(
         "507f1f77bcf86cd799439011",
+        undefined,
+        undefined,
+        undefined,
       );
     });
 
     it("should return empty array when no clinics exist", async () => {
       overviewService.getClinicComparison.mockResolvedValue([]);
 
-      const result = await controller.getClinicComparison(undefined, adminReq);
+      const result = await controller.getClinicComparison({}, adminReq);
 
       expect(result).toEqual([]);
     });
@@ -191,7 +208,7 @@ describe("AnalyticsController", () => {
       );
 
       await expect(
-        controller.getClinicComparison(undefined, adminReq),
+        controller.getClinicComparison({}, adminReq),
       ).rejects.toThrow("Aggregation failed");
     });
   });

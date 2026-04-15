@@ -24,9 +24,44 @@ const URGENCIES = ["routine", "urgent", "unknown"] as const;
 const CHANNELS = ["whatsapp", "sms", "website"] as const;
 const POSTCODES = ["CF10 3AB", "NP20 1AA", "SA1 2BC", "CF31 4DE"] as const;
 
+/**
+ * Realistic UK-style lead names for the bulk analytics seed.
+ * Kept large enough that we don't repeat names inside the 71-lead bulk set.
+ */
+const FIRST_NAMES = [
+  "Oliver", "Amelia", "Noah", "Olivia", "Jack", "Isla", "Leo", "Emily",
+  "Harry", "Sophie", "George", "Grace", "Charlie", "Ella", "Thomas", "Poppy",
+  "Arthur", "Mia", "Theo", "Lily", "Freddie", "Ava", "Alfie", "Chloe",
+  "Henry", "Evie", "Oscar", "Charlotte", "James", "Freya", "Archie", "Jessica",
+  "Mason", "Ruby", "Edward", "Zara", "William", "Lucy", "Joshua", "Hannah",
+  "Samuel", "Rosie", "Daniel", "Maya", "Ethan", "Daisy", "Jacob", "Alice",
+  "Logan", "Ivy", "Michael", "Harper", "Lucas", "Scarlett", "Benjamin", "Willow",
+  "Max", "Matilda", "Isaac", "Bella", "Dylan", "Nina", "Finley", "Holly",
+  "Reuben", "Esme", "Tommy", "Tilly", "Harvey", "Millie", "Elliot",
+] as const;
+
+const LAST_NAMES = [
+  "Smith", "Jones", "Taylor", "Brown", "Williams", "Wilson", "Johnson",
+  "Davies", "Robinson", "Wright", "Thompson", "Evans", "Walker", "White",
+  "Roberts", "Green", "Hall", "Wood", "Jackson", "Clarke", "Patel", "Khan",
+  "Lewis", "Harris", "Morris", "King", "Hughes", "Edwards", "Hill", "Turner",
+  "Martin", "Cooper", "Ward", "Baker", "Morgan", "Phillips", "Richards",
+  "Watson", "Bennett", "Kelly", "Young", "Allen", "Price", "Griffiths",
+  "Mitchell", "Collins", "Bailey", "Carter", "Parker", "Reed", "Stewart",
+  "Cook", "Bell", "Murphy", "Rogers", "Gray", "James", "Reynolds",
+] as const;
+
 /** Deterministic pseudo-random so seeds are reproducible across runs. */
 function pick<T>(arr: readonly T[], i: number): T {
   return arr[i % arr.length];
+}
+
+/** Build a realistic full name that is unique inside the bulk set via index-based offsets. */
+function makeName(index: number): { firstName: string; lastName: string } {
+  return {
+    firstName: pick(FIRST_NAMES, index),
+    lastName: pick(LAST_NAMES, index * 7 + 3),
+  };
 }
 
 export async function seedLeads(LeadModel: any, clinics: any[]) {
@@ -101,36 +136,62 @@ export async function seedLeads(LeadModel: any, clinics: any[]) {
     },
   ];
 
-  // Phase 2 — bulk analytics leads, ~36 per clinic across 30 days.
+  // Phase 2 — bulk analytics leads. Capped at 71 so, with the 4 named
+  // fixtures, the grand total is exactly 75 leads / conversations and
+  // doesn't blow up the Conversations page. Distributed across three
+  // time tiers so each dashboard preset returns a realistic, professional
+  // number and the booking chart has peaks on multiple days:
+  //   last 7 days  → ~24 leads (tens platform-wide, several per day)
+  //   last 30 days → ~52 leads total (≈ 2× the week)
+  //   last 90 days → 75 leads total (full set, including the named fixtures)
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const LEADS_PER_CLINIC = 36;
+
+  const TIERS = [
+    { count: 24, dayMin: 1, dayMax: 7 }, // last week
+    { count: 28, dayMin: 8, dayMax: 30 }, // days 8–30
+    { count: 19, dayMin: 31, dayMax: 90 }, // days 31–90
+  ];
 
   const bulk: any[] = [];
-  clinics.forEach((clinic, clinicIdx) => {
-    for (let i = 0; i < LEADS_PER_CLINIC; i++) {
-      // Spread across last 30 days, skipping today so all leads fall inside
-      // a [now-30d, now] window regardless of clock drift.
-      const daysAgo = 1 + Math.floor((i * 30) / LEADS_PER_CLINIC);
-      const createdAt = new Date(now - daysAgo * DAY_MS - (i % 24) * 3600_000);
+  let globalIdx = 0;
+  TIERS.forEach((tier, tierIdx) => {
+    const span = tier.dayMax - tier.dayMin + 1;
+    for (let i = 0; i < tier.count; i++) {
+      // Rotate clinics across the tier so each clinic gets roughly the
+      // same share of leads in every time window.
+      const clinic = clinics[(i + tierIdx) % clinics.length];
+      const clinicIdx = (i + tierIdx) % clinics.length;
+
+      // Offset by tierIdx + i so different leads land on different days
+      // and multiple leads share the same day — the graph gets real peaks.
+      const daysAgo = tier.dayMin + ((i * 2 + tierIdx) % span);
+      const hour = 8 + ((i * 3 + tierIdx) % 10); // 08:00–17:00
+      const minute = (i * 11) % 60;
+      const createdAt = new Date(
+        now - daysAgo * DAY_MS - (24 - hour) * 3600_000 + minute * 60_000,
+      );
+
+      const { firstName, lastName } = makeName(globalIdx);
       bulk.push({
         clinicId: clinic._id,
-        firstName: `Lead${clinicIdx}${i}`,
-        lastName: `Test`,
-        phone: `07700 ${String(900000 + clinicIdx * 1000 + i).slice(-6)}`,
-        email: `lead.${clinicIdx}.${i}@example.com`,
-        postcode: pick(POSTCODES, i),
+        firstName,
+        lastName,
+        phone: `07700 ${String(900000 + globalIdx).padStart(6, "0")}`,
+        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${globalIdx}@example.com`,
+        postcode: pick(POSTCODES, globalIdx),
         postcodeStatus: "valid",
-        issue: pick(ISSUES, i + clinicIdx),
-        urgency: pick(URGENCIES, i + clinicIdx),
-        patientType: i % 4 === 0 ? "returning" : "new",
-        leadSource: pick(LEAD_SOURCES, i + clinicIdx),
-        preferredChannel: pick(CHANNELS, i),
-        ghlContactId: `contact_bulk_${clinicIdx}_${i}`,
+        issue: pick(ISSUES, globalIdx + clinicIdx),
+        urgency: pick(URGENCIES, globalIdx + clinicIdx),
+        patientType: globalIdx % 4 === 0 ? "returning" : "new",
+        leadSource: pick(LEAD_SOURCES, globalIdx + clinicIdx),
+        preferredChannel: pick(CHANNELS, globalIdx),
+        ghlContactId: `contact_bulk_${globalIdx}`,
         ghlTags: [],
         createdAt,
         updatedAt: createdAt,
       });
+      globalIdx++;
     }
   });
 

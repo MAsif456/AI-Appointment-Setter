@@ -92,16 +92,19 @@ export class AnalyticsController {
   }
 
   /**
-   * Returns comparison data for active clinics.
-   * Staff are scoped to their assigned clinics automatically.
+   * Returns comparison data for active clinics, filtered to the same
+   * date window as the overview cards. Staff are scoped to their
+   * assigned clinics automatically.
    */
   @Get("clinics")
-  getClinicComparison(
-    @Query("clinicIds") clinicIds: string | undefined,
-    @Req() req: any,
-  ) {
-    const effective = this.resolveClinicIds(req.user, clinicIds);
-    return this.overviewService.getClinicComparison(effective);
+  getClinicComparison(@Query() query: OverviewQueryDto, @Req() req: any) {
+    const effective = this.resolveClinicIds(req.user, query.clinicIds);
+    return this.overviewService.getClinicComparison(
+      effective,
+      query.period,
+      query.startDate,
+      query.endDate,
+    );
   }
 
   /**

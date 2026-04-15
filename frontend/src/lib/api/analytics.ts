@@ -28,10 +28,19 @@ export async function fetchOverviewAnalytics(
 }
 
 /**
- * Fetches comparison data for all active clinics.
+ * Fetches comparison data for clinics, optionally constrained to the
+ * same period / custom range used by the rest of the dashboard.
  */
-export async function fetchClinicComparison(): Promise<ClinicComparisonRow[]> {
-  return apiFetch<ClinicComparisonRow[]>('/analytics/clinics');
+export async function fetchClinicComparison(
+  params?: OverviewParams,
+): Promise<ClinicComparisonRow[]> {
+  const query = new URLSearchParams();
+  if (params?.period) query.set('period', params.period);
+  if (params?.startDate) query.set('startDate', params.startDate);
+  if (params?.endDate) query.set('endDate', params.endDate);
+
+  const qs = query.toString();
+  return apiFetch<ClinicComparisonRow[]>(`/analytics/clinics${qs ? `?${qs}` : ''}`);
 }
 
 /**
