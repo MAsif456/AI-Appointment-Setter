@@ -28,7 +28,6 @@ const mockData = {
   leads: 245,
   bookings: 103,
   conversionRate: 42,
-  avgResponseTime: 6,
   bookingsOverTime: [{ date: '2026-03-20', count: 5 }],
   funnel: { leads: 245, qualified: 200, bookingStarted: 150, booked: 103 },
   conversationPhaseDistribution: [
@@ -62,12 +61,12 @@ describe('ClinicAnalyticsTab', () => {
     render(<ClinicAnalyticsTab clinicId="abc123" />);
 
     await waitFor(() => {
-      expect(screen.getByText("This Month's Leads")).toBeInTheDocument();
+      expect(screen.getByText('Leads (7 days)')).toBeInTheDocument();
     });
 
-    expect(screen.getByText("This Month's Bookings")).toBeInTheDocument();
+    expect(screen.getByText('Bookings (7 days)')).toBeInTheDocument();
     expect(screen.getByText('Conversion Rate')).toBeInTheDocument();
-    expect(screen.getByText('Average Response Time')).toBeInTheDocument();
+    expect(screen.getByText('Avg Messages to Booking')).toBeInTheDocument();
   });
 
   it('should render phase distribution section', async () => {
@@ -106,7 +105,10 @@ describe('ClinicAnalyticsTab', () => {
     render(<ClinicAnalyticsTab clinicId="507f1f77bcf86cd799439011" />);
 
     await waitFor(() => {
-      expect(fetchClinicAnalytics).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(fetchClinicAnalytics).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        expect.objectContaining({ startDate: expect.any(String), endDate: expect.any(String) }),
+      );
     });
   });
 });

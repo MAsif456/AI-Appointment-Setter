@@ -1,6 +1,6 @@
 /**
  * Unit tests for the StatCard component.
- * Verifies rendering of title, value, suffix, trend icons, and clock icon.
+ * Verifies rendering of title, value, suffix, and trend icons.
  */
 import { render, screen } from '@testing-library/react';
 import StatCard from '@/components/Analytics/StatCard';
@@ -13,12 +13,12 @@ describe('StatCard', () => {
     expect(screen.getByText(/557/)).toBeInTheDocument();
   });
 
-  it('should render a string value with suffix', () => {
-    render(<StatCard title="Response Time" value="8" suffix=" sec" />);
+  it('should render a numeric value with suffix', () => {
+    render(<StatCard title="Conversion" value="45" suffix="%" />);
 
-    expect(screen.getByText('Response Time')).toBeInTheDocument();
-    expect(screen.getByText(/8/)).toBeInTheDocument();
-    expect(screen.getByText('sec')).toBeInTheDocument();
+    expect(screen.getByText('Conversion')).toBeInTheDocument();
+    expect(screen.getByText(/45/)).toBeInTheDocument();
+    expect(screen.getByText('%')).toBeInTheDocument();
   });
 
   it('should render percentage value', () => {
@@ -50,20 +50,10 @@ describe('StatCard', () => {
     expect(svg).not.toBeInTheDocument();
   });
 
-  it('should not show any icon when change is undefined and no icon prop', () => {
+  it('should not show any icon when change is undefined', () => {
     const { container } = render(<StatCard title="Leads" value={100} />);
 
     const svg = container.querySelector('svg');
     expect(svg).not.toBeInTheDocument();
-  });
-
-  it('should show clock icon when icon prop is set to clock', () => {
-    const { container } = render(<StatCard title="Response Time" value="8 sec" icon="clock" />);
-
-    const svg = container.querySelector('svg');
-    expect(svg).toBeInTheDocument();
-    // Clock icon has a circle element
-    const circle = container.querySelector('circle');
-    expect(circle).toBeInTheDocument();
   });
 });

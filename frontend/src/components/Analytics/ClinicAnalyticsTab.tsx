@@ -95,7 +95,7 @@ export default function ClinicAnalyticsTab({ clinicId }: ClinicAnalyticsTabProps
             <StatCard title={leadsLabel} value={data.leads} />
             <StatCard title={bookingsLabel} value={data.bookings} />
             <StatCard title="Conversion Rate" value={`${data.conversionRate}%`} />
-            <StatCard title="Average Response Time" value={`${data.avgResponseTime} sec`} icon="clock" />
+            <StatCard title="Avg Messages to Booking" value={data.avgMessagesToBooking} />
           </div>
 
           <BookingsChart data={data.bookingsOverTime} title="Bookings Over Time" />

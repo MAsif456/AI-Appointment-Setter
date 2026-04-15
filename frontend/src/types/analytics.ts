@@ -22,7 +22,7 @@ export interface PeriodComparison {
   leadsChange: number;
   bookingsChange: number;
   conversionRateChange: number;
-  avgResponseTimeChange: number;
+  avgMessagesToBookingChange: number;
 }
 
 /** Full response from GET /analytics/overview. */
@@ -30,7 +30,7 @@ export interface OverviewAnalytics {
   totalLeads: number;
   totalBookings: number;
   conversionRate: number;
-  avgResponseTime: number;
+  avgMessagesToBooking: number;
   comparison: PeriodComparison;
   bookingsOverTime: DailyDataPoint[];
   conversionFunnel: ConversionFunnel;
@@ -65,7 +65,6 @@ export interface ClinicAnalytics {
   leads: number;
   bookings: number;
   conversionRate: number;
-  avgResponseTime: number;
   bookingsOverTime: DailyDataPoint[];
   funnel: ConversionFunnel;
   conversationPhaseDistribution: PhaseCount[];

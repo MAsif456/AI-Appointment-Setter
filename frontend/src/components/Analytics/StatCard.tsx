@@ -7,29 +7,19 @@ interface StatCardProps {
   title: string;
   /** The main metric value to display. */
   value: string | number;
-  /** Optional suffix appended to the value (e.g. 'sec', '%'). */
+  /** Optional suffix appended to the value (e.g. '%'). */
   suffix?: string;
   /** Optional percentage change indicator. Positive = up trend, negative = down trend. */
   change?: number;
-  /** Optional icon type to display instead of a trend arrow. */
-  icon?: 'clock';
 }
 
 /**
  * Reusable stat card component for displaying a single analytics metric.
- * Shows title, large value, and an optional trend indicator or icon.
+ * Shows the title, a large value, and a trend arrow when a change is provided.
  */
-export default function StatCard({ title, value, suffix, change, icon }: StatCardProps) {
-  // Render a clock icon for response time cards
+export default function StatCard({ title, value, suffix, change }: StatCardProps) {
+  // Choose a trend arrow based on the sign of `change`; hide when zero/undefined.
   const renderIcon = () => {
-    if (icon === 'clock') {
-      return (
-        <svg className={styles.icon} viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      );
-    }
     if (change === undefined || change === 0) return null;
     if (change > 0) {
       return (

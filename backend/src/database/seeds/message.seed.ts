@@ -176,10 +176,12 @@ export async function seedMessages(
   ]);
 
   // === Bulk messages for analytics ===
-  // Each bulk conversation gets 4 messages (2 AI, 2 lead). The AI ones
-  // carry a responseTimeSeconds so avgResponseTime has a real average to
-  // compute. Timestamps inherit the parent conversation's createdAt so
-  // bulk messages fall inside whatever analytics date window is queried.
+  // Each bulk conversation gets 4 messages (2 AI, 2 lead) so transcripts
+  // look realistic in the conversations UI. Timestamps inherit the parent
+  // conversation's createdAt so bulk messages fall inside whatever
+  // analytics date window is queried. `responseTimeSeconds` is retained
+  // on AI messages for audit/debug purposes even though the analytics
+  // overview now reports "average messages to booking" instead.
   const bulkMessages: any[] = [];
   for (let i = 4; i < conversations.length; i++) {
     const convo = conversations[i];

@@ -32,8 +32,8 @@ const mockOverview = {
   totalLeads: 557,
   totalBookings: 250,
   conversionRate: 45,
-  avgResponseTime: 8,
-  comparison: { leadsChange: 5, bookingsChange: 10, conversionRateChange: -2, avgResponseTimeChange: -1 },
+  avgMessagesToBooking: 8,
+  comparison: { leadsChange: 5, bookingsChange: 10, conversionRateChange: -2, avgMessagesToBookingChange: -1 },
   bookingsOverTime: [{ date: '2026-03-20', count: 12 }],
   conversionFunnel: { leads: 557, qualified: 400, bookingStarted: 300, booked: 250 },
 };
@@ -69,7 +69,7 @@ describe('AnalyticsPage', () => {
     expect(screen.getByText('Total Leads')).toBeInTheDocument();
     expect(screen.getByText('Total Bookings')).toBeInTheDocument();
     expect(screen.getByText('Overall Conversion Rate')).toBeInTheDocument();
-    expect(screen.getByText('Average Response Time')).toBeInTheDocument();
+    expect(screen.getByText('Avg Messages to Booking')).toBeInTheDocument();
   });
 
   it('should render the conversion funnel', async () => {

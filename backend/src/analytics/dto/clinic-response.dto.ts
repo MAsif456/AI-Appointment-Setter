@@ -27,7 +27,6 @@ export interface ClinicAnalyticsResponse {
   leads: number;
   bookings: number;
   conversionRate: number;
-  avgResponseTime: number;
   bookingsOverTime: DailyDataPoint[];
   funnel: ConversionFunnel;
   conversationPhaseDistribution: PhaseCount[];

@@ -4,7 +4,6 @@ import { BadRequestException } from '@nestjs/common';
 import { ClinicAnalyticsService } from './clinic-analytics.service';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Lead } from '../database/schemas/lead.schema';
-import { Message } from '../database/schemas/message.schema';
 
 const VALID_ID = '507f1f77bcf86cd799439011';
 
@@ -22,19 +21,16 @@ describe('ClinicAnalyticsService', () => {
   let service: ClinicAnalyticsService;
   let conversationModel: ReturnType<typeof createMockModel>;
   let leadModel: ReturnType<typeof createMockModel>;
-  let messageModel: ReturnType<typeof createMockModel>;
 
   beforeEach(async () => {
     conversationModel = createMockModel();
     leadModel = createMockModel();
-    messageModel = createMockModel();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClinicAnalyticsService,
         { provide: getModelToken(Conversation.name), useValue: conversationModel },
         { provide: getModelToken(Lead.name), useValue: leadModel },
-        { provide: getModelToken(Message.name), useValue: messageModel },
       ],
     }).compile();
 
@@ -69,7 +65,6 @@ describe('ClinicAnalyticsService', () => {
       expect(result.leads).toBe(0);
       expect(result.bookings).toBe(0);
       expect(result.conversionRate).toBe(0);
-      expect(result.avgResponseTime).toBe(0);
       expect(result.funnel).toEqual({ leads: 0, qualified: 0, bookingStarted: 0, booked: 0 });
       expect(result.declineRate).toBe(0);
       expect(result.avgMessagesToBooking).toBe(0);
@@ -111,19 +106,6 @@ describe('ClinicAnalyticsService', () => {
       const result = await service.getClinicAnalytics(VALID_ID);
 
       expect(result.declineRate).toBe(20); // 10/50 * 100
-    });
-
-    it('should include average response time', async () => {
-      messageModel.aggregate.mockResolvedValue([{ _id: null, avg: 4.7 }]);
-      conversationModel.aggregate
-        .mockResolvedValueOnce([])   // bookingsOverTime
-        .mockResolvedValueOnce([{ leads: [], qualified: [], bookingStarted: [], booked: [] }])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-
-      const result = await service.getClinicAnalytics(VALID_ID);
-
-      expect(result.avgResponseTime).toBe(5); // Rounded from 4.7
     });
 
     it('should return lead source distribution with percentages', async () => {

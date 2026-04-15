@@ -12,7 +12,6 @@ import {
   ConversationSchema,
 } from "../database/schemas/conversation.schema";
 import { Lead, LeadSchema } from "../database/schemas/lead.schema";
-import { Message, MessageSchema } from "../database/schemas/message.schema";
 import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
 import {
   SecurityEvent,
@@ -28,7 +27,6 @@ import { AnalyticsService } from "./analytics.service";
     MongooseModule.forFeature([
       { name: Conversation.name, schema: ConversationSchema },
       { name: Lead.name, schema: LeadSchema },
-      { name: Message.name, schema: MessageSchema },
       { name: Clinic.name, schema: ClinicSchema },
       { name: SecurityEvent.name, schema: SecurityEventSchema },
     ]),

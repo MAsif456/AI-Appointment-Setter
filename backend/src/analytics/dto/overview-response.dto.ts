@@ -28,7 +28,7 @@ export interface PeriodComparison {
   leadsChange: number;
   bookingsChange: number;
   conversionRateChange: number;
-  avgResponseTimeChange: number;
+  avgMessagesToBookingChange: number;
 }
 
 /** Row in the clinic comparison table. */
@@ -47,7 +47,7 @@ export interface OverviewResponse {
   totalLeads: number;
   totalBookings: number;
   conversionRate: number;
-  avgResponseTime: number;
+  avgMessagesToBooking: number;
   comparison: PeriodComparison;
   bookingsOverTime: DailyDataPoint[];
   conversionFunnel: ConversionFunnel;

@@ -76,7 +76,11 @@ export default function AnalyticsPage() {
             <StatCard title="Total Leads" value={overview.totalLeads} change={overview.comparison.leadsChange} />
             <StatCard title="Total Bookings" value={overview.totalBookings} change={overview.comparison.bookingsChange} />
             <StatCard title="Overall Conversion Rate" value={`${overview.conversionRate}%`} change={overview.comparison.conversionRateChange} />
-            <StatCard title="Average Response Time" value={`${overview.avgResponseTime} sec`} icon="clock" />
+            <StatCard
+              title="Avg Messages to Booking"
+              value={overview.avgMessagesToBooking}
+              change={overview.comparison.avgMessagesToBookingChange}
+            />
           </div>
 
           <BookingsChart data={overview.bookingsOverTime} />

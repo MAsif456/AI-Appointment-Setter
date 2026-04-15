@@ -8,7 +8,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Lead } from '../database/schemas/lead.schema';
-import { Message } from '../database/schemas/message.schema';
 import {
   QUALIFIED_PHASES,
   BOOKING_STARTED_PHASES,
@@ -22,7 +21,6 @@ export class ClinicAnalyticsService {
   constructor(
     @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
     @InjectModel(Lead.name) private leadModel: Model<Lead>,
-    @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
 
   /**
@@ -41,12 +39,11 @@ export class ClinicAnalyticsService {
     const { startDate, endDate } = this.resolveDateRange(customStart, customEnd);
     const objectId = new Types.ObjectId(clinicId);
 
-    // Run all queries in parallel for performance
-    const [leads, bookings, avgResp, bookingsOverTime, funnel, phases, sources, avgMsgs] =
+    // Run all queries in parallel for performance.
+    const [leads, bookings, bookingsOverTime, funnel, phases, sources, avgMsgs] =
       await Promise.all([
         this.countLeads(objectId, startDate, endDate),
         this.countBookings(objectId, startDate, endDate),
-        this.getAvgResponseTime(objectId, startDate, endDate),
         this.getBookingsOverTime(objectId, startDate, endDate),
         this.getConversionFunnel(objectId, startDate, endDate),
         this.getPhaseDistribution(objectId, startDate, endDate),
@@ -60,7 +57,6 @@ export class ClinicAnalyticsService {
       leads,
       bookings,
       conversionRate: leads > 0 ? Math.round((bookings / leads) * 100) : 0,
-      avgResponseTime: avgResp,
       bookingsOverTime,
       funnel,
       conversationPhaseDistribution: phases,
@@ -102,14 +98,6 @@ export class ClinicAnalyticsService {
       clinicId, createdAt: { $gte: start, $lte: end },
       phase: { $in: BOOKED_PHASES },
     });
-  }
-
-  private async getAvgResponseTime(clinicId: Types.ObjectId, start: Date, end: Date) {
-    const result = await this.messageModel.aggregate([
-      { $match: { clinicId, createdAt: { $gte: start, $lte: end }, sender: 'ai', responseTimeSeconds: { $gt: 0 } } },
-      { $group: { _id: null, avg: { $avg: '$responseTimeSeconds' } } },
-    ]);
-    return result.length > 0 ? Math.round(result[0].avg) : 0;
   }
 
   /** Aggregates daily booking counts from conversations that reached booked phase. */
