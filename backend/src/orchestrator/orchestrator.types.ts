@@ -177,6 +177,13 @@ export const CANCEL_RESCHEDULE_KEYWORDS = [
   "actually it's fine", 'actually its fine',
 ];
 
+/** Conversation phases considered terminal — an inbound message arriving in one
+ *  of these triggers returning patient re-entry detection rather than continuing
+ *  the existing conversation flow. */
+export const TERMINAL_PHASES: readonly string[] = [
+  'booked', 'confirmed', 'cancelled', 'declined', 'closed', 'escalated',
+] as const;
+
 /** Static response when RESCHEDULE is detected but no appointment is on file. */
 export const NO_APPOINTMENT_RESPONSE =
   "I don't have a booking on file for you. Would you like to book an appointment?";

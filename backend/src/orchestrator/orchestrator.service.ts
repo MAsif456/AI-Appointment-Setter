@@ -87,6 +87,7 @@ export class OrchestratorService {
       logger: this.logger,
       correlationId,
       chatConversationsService: this.chatConversationsService,
+      patientHistoryService: this.patientHistoryService,
     });
   }
 
