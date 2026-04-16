@@ -82,6 +82,12 @@ export function formatSlotDisplay(slot: Slot): string {
   return `${dayName} ${dayNum} ${monthName} at ${time}`;
 }
 
+/** Converts a "HH:MM" string to total minutes since midnight. */
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
 /**
  * Selects a subset of slots based on the urgency level.
  * - urgent: returns the first 3 slots (earliest possible).
@@ -153,15 +159,27 @@ export function selectSlots(
     result.push(daySlots[0]);
   }
 
-  // If fewer than 3 days have availability, fill remaining slots with
-  // additional times from the same days so we offer up to 3 options.
+  // If fewer than 3 days have availability, fill remaining slots from the
+  // same day(s) — but enforce a minimum 60-minute gap between offered times
+  // so we never show consecutive 10-minute slots to the lead.
   if (result.length < 3) {
-    for (const daySlots of byDay.values()) {
-      for (const slot of daySlots.slice(1)) {
-        if (result.length >= 3) break;
-        result.push(slot);
-      }
+    const MIN_GAP_MINUTES = 60;
+    for (const [date, daySlots] of byDay) {
       if (result.length >= 3) break;
+      const pickedFromDay = result.filter((s) => s.date === date);
+      if (pickedFromDay.length === 0) continue;
+      let lastMinutes = timeToMinutes(
+        pickedFromDay[pickedFromDay.length - 1].startTime,
+      );
+      for (const slot of daySlots) {
+        if (result.length >= 3) break;
+        const slotMinutes = timeToMinutes(slot.startTime);
+        if (slotMinutes <= lastMinutes) continue;
+        if (slotMinutes - lastMinutes >= MIN_GAP_MINUTES) {
+          result.push(slot);
+          lastMinutes = slotMinutes;
+        }
+      }
     }
   }
 
