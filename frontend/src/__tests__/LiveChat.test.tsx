@@ -14,6 +14,11 @@ jest.mock('next/link', () => {
   };
 });
 
+// GdprPanel uses useAuth — provide a mock so it doesn't throw outside AuthProvider
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ isAdmin: false, isAuthenticated: true, user: null, loading: false }),
+}));
+
 const mockConversationData = {
   conversation: { _id: 'conv1', phase: 'greeting' },
   messages: [],
@@ -153,8 +158,9 @@ describe('LiveChat', () => {
       expect(screen.getByText('Hi there')).toBeInTheDocument();
     });
     
-    // Should only call GET /conversations/:id, not POST /start
-    expect(mockedApi.get).toHaveBeenCalledTimes(1);
+    // Should call GET /conversations/:id but not POST /start
+    // (GdprPanel also fires a GET for consent history, so we check by URL not count)
+    expect(mockedApi.get).toHaveBeenCalledWith(expect.stringContaining('/conversations/conv1'));
     expect(mockedApi.post).not.toHaveBeenCalled();
   });
 
