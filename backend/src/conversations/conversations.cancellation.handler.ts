@@ -4,7 +4,6 @@
  *   booked → cancelling → (cancelling_warned →) cancelled
  * Also handles DECLINE_CANCEL restoring the booked phase.
  */
-import { Types } from "mongoose";
 import { ConversationDocument } from "../database/schemas/conversation.schema";
 import { ClinicDocument } from "../database/schemas/clinic.schema";
 import { LeadDocument } from "../database/schemas/lead.schema";
@@ -67,7 +66,26 @@ export async function handleCancellationIntercept(
       newPhase = "cancelling";
     }
   } else if (phase === "cancelling" || phase === "cancelling_warned") {
-    if (CONFIRM_KEYWORDS.some((kw) => lower.includes(kw))) {
+    // Check whether we are awaiting a reason BEFORE keyword matching.
+    // Without this guard, freeform reasons containing "no" (e.g. "I no longer
+    // need it", "I feel better now") are wrongly classified as DECLINE_CANCEL
+    // because DECLINE_CANCEL_KEYWORDS uses substring matching.
+    const isAwaiting = await cancellationService.isAwaitingReason(convId);
+    if (isAwaiting) {
+      await cancellationService.storeReason(convId, userMessage);
+      const appointment =
+        await cancellationService.checkAppointmentExists(convId);
+      if (appointment) {
+        const result = await cancellationService.executeCancellation(
+          convId,
+          appointment._id,
+          lead.ghlContactId ?? "",
+          userMessage,
+        );
+        reply = result.message;
+        newPhase = "cancelled";
+      }
+    } else if (CONFIRM_KEYWORDS.some((kw) => lower.includes(kw))) {
       // Policy check only in first confirmation phase
       if (phase === "cancelling") {
         const appointment =
@@ -95,47 +113,14 @@ export async function handleCancellationIntercept(
           }
         }
       }
-      // Ask for reason or execute cancellation
-      const alreadyAsked = await cancellationService.isAwaitingReason(convId);
-      if (!alreadyAsked) {
-        reply = await cancellationService.requestReason(convId);
-      } else {
-        const appointment =
-          await cancellationService.checkAppointmentExists(convId);
-        if (appointment) {
-          const result = await cancellationService.executeCancellation(
-            convId,
-            appointment._id,
-            lead.ghlContactId ?? "",
-          );
-          reply = result.message;
-          newPhase = "cancelled";
-        }
-      }
+      // Reason not yet requested — ask for it
+      reply = await cancellationService.requestReason(convId);
     } else if (DECLINE_CANCEL_KEYWORDS.some((kw) => lower.includes(kw))) {
       reply =
         phase === "cancelling_warned"
           ? "No problem! Let's look at rescheduling your appointment instead. When would suit you better?"
           : "No problem, your appointment is still confirmed. Is there anything else I can help with?";
       newPhase = "booked";
-    } else {
-      // Freeform text — could be the cancellation reason
-      const isAwaiting = await cancellationService.isAwaitingReason(convId);
-      if (isAwaiting) {
-        await cancellationService.storeReason(convId, userMessage);
-        const appointment =
-          await cancellationService.checkAppointmentExists(convId);
-        if (appointment) {
-          const result = await cancellationService.executeCancellation(
-            convId,
-            appointment._id,
-            lead.ghlContactId ?? "",
-            userMessage,
-          );
-          reply = result.message;
-          newPhase = "cancelled";
-        }
-      }
     }
   } else if (
     phase === "cancelled" &&
