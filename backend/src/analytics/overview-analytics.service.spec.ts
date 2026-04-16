@@ -145,6 +145,16 @@ describe('OverviewAnalyticsService', () => {
       expect(conversationModel.countDocuments).toHaveBeenCalledTimes(4);
     });
 
+    it('should accept a "day" period and return valid metrics', async () => {
+      conversationModel.aggregate.mockResolvedValue([EMPTY_FUNNEL]);
+
+      const result = await service.getOverview('day');
+
+      expect(result.totalLeads).toBeDefined();
+      expect(result.comparison).toBeDefined();
+      expect(conversationModel.countDocuments).toHaveBeenCalledTimes(4);
+    });
+
     it('should return bookings-over-time data from conversations', async () => {
       const timeData = [
         { date: '2026-03-20', count: 5 },
