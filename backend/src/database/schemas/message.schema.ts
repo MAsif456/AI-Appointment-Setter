@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
+import { fieldEncryptionPlugin } from "../../gdpr/encryption/field-encryption.plugin";
 
 export type MessageDocument = Message & Document;
 
@@ -94,6 +95,16 @@ MessageSchema.index({ conversationId: 1, createdAt: 1 });
 MessageSchema.index({ clinicId: 1, createdAt: -1 });
 MessageSchema.index({ ghlMessageId: 1 });
 MessageSchema.index({ clinicId: 1, sender: 1, createdAt: -1 }); // For analytics
+
+// Apply field-level encryption to message content (UK GDPR Art. 5(1)(f))
+// Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/the-principles/integrity-and-confidentiality-security/
+if (process.env.FIELD_ENCRYPTION_KEY) {
+  MessageSchema.plugin(fieldEncryptionPlugin, {
+    fields: ['content'],
+    encryptionKey: process.env.FIELD_ENCRYPTION_KEY,
+    modelName: 'Message',
+  });
+}
 
 // Pre-save hook to calculate processing time
 MessageSchema.pre<MessageDocument>("save", function () {

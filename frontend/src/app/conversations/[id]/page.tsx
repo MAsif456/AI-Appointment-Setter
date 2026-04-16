@@ -87,8 +87,8 @@ export default function ConversationDetailPage() {
     );
   }
 
-  // Show chat for booking, qualifying, and greeting phases
-  if (['booking', 'qualifying', 'greeting'].includes(data.conversation.phase)) {
+  // Show chat for active phases (including consent phases)
+  if (['booking', 'qualifying', 'greeting', 'consenting', 'consent_declined'].includes(data.conversation.phase)) {
     return <LiveChat conversationId={id} />;
   }
 
@@ -120,5 +120,5 @@ export default function ConversationDetailPage() {
     })),
   };
 
-  return <ConversationDetail conversation={conversationDetail} />;
+  return <ConversationDetail conversation={conversationDetail} leadId={data.lead?.id} />;
 }

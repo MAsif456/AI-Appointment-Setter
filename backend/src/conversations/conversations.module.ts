@@ -19,6 +19,7 @@ import { AbuseDetectionService } from "./abuse-detection.service";
 import { SecurityModule } from "../security/security.module";
 import { CancellationModule } from "../cancellation/cancellation.module";
 import { PatientHistoryModule } from "../patient-history/patient-history.module";
+import { GdprModule } from "../gdpr/gdpr.module";
 import { PostcodeValidationService } from "../orchestrator/postcode-validation.service";
 
 @Module({
@@ -35,6 +36,7 @@ import { PostcodeValidationService } from "../orchestrator/postcode-validation.s
     SecurityModule,
     CancellationModule,
     PatientHistoryModule,
+    GdprModule,
   ],
   controllers: [ConversationsController],
   providers: [

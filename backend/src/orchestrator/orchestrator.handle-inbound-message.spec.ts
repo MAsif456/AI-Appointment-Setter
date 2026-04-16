@@ -25,6 +25,7 @@ import { PatientHistoryService } from "../patient-history/patient-history.servic
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
 import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
+import { ConsentService } from "../gdpr/consent/consent.service";
 import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 
 const mockSlotProvider = { getAvailableSlots: jest.fn() };
@@ -114,6 +115,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
           provide: ChatConversationsService,
           useValue: mockChatConversationsService,
         },
+        { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
       ],
     }).compile();
 

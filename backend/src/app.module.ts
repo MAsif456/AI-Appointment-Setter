@@ -23,6 +23,7 @@ import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReminderModule } from "./reminder/reminder.module";
+import { GdprModule } from "./gdpr/gdpr.module";
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ReminderModule } from "./reminder/reminder.module";
     CancellationModule,
     HealthModule,
     ReminderModule,
+    GdprModule,
     ScheduleModule.forRoot(),
     FollowUpModule,
   ],

@@ -26,6 +26,8 @@ import { PatientHistoryService } from "../patient-history/patient-history.servic
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
 import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
+import { ConsentService } from "../gdpr/consent/consent.service";
+import { CONSENT_STATEMENT_TEXT } from "../gdpr/gdpr.types";
 
 const mockSlotProvider = { getAvailableSlots: jest.fn() };
 const mockAppointmentsService = { bookAppointment: jest.fn() };
@@ -117,6 +119,7 @@ describe("OrchestratorService — handleNewLead", () => {
           provide: ChatConversationsService,
           useValue: { sendMessage: jest.fn() },
         },
+        { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
       ],
     }).compile();
 
@@ -187,8 +190,11 @@ describe("OrchestratorService — handleNewLead", () => {
       } as any,
       clinicConfig,
     );
+    // New patients route to 'consenting' so the consent statement is appended
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
-      expect.objectContaining({ message: FALLBACK_MESSAGE }),
+      expect.objectContaining({
+        message: `${FALLBACK_MESSAGE}\n\n${CONSENT_STATEMENT_TEXT}`,
+      }),
     );
   });
 
@@ -219,7 +225,7 @@ describe("OrchestratorService — handleNewLead", () => {
     );
     expect(mockConversationsService.updatePhase).toHaveBeenCalledWith(
       expect.anything(),
-      "qualifying",
+      "consenting",
     );
   });
 
@@ -324,8 +330,11 @@ describe("OrchestratorService — handleNewLead", () => {
       } as any,
       clinicConfig,
     );
+    // New patients route to 'consenting' so the consent statement is appended
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "Safe fallback" }),
+      expect.objectContaining({
+        message: `Safe fallback\n\n${CONSENT_STATEMENT_TEXT}`,
+      }),
     );
   });
 
