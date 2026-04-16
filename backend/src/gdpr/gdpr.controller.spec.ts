@@ -15,7 +15,7 @@ const REQUEST_ID = new Types.ObjectId().toHexString();
 
 describe('GdprController', () => {
   let controller: GdprController;
-  let consentService: { getConsentHistory: jest.Mock; withdrawConsent: jest.Mock };
+  let consentService: { getConsentHistory: jest.Mock; withdrawConsent: jest.Mock; getLeadClinicId: jest.Mock };
   let erasureService: { erasePatientData: jest.Mock; getErasureStatus: jest.Mock };
   let erasureRequestService: {
     createRequest: jest.Mock;
@@ -28,6 +28,7 @@ describe('GdprController', () => {
     consentService = {
       getConsentHistory: jest.fn().mockResolvedValue([]),
       withdrawConsent: jest.fn().mockResolvedValue({}),
+      getLeadClinicId: jest.fn().mockResolvedValue({ clinicId: 'clinic123' }),
     };
     erasureService = {
       erasePatientData: jest.fn().mockResolvedValue({}),
@@ -158,12 +159,12 @@ describe('GdprController', () => {
   });
 
   describe('withdrawConsent', () => {
-    it('delegates to consentService.withdrawConsent', async () => {
-      const req = { user: { email: 'admin@clinic.com' } };
-      await controller.withdrawConsent(LEAD_ID, req);
+    it('looks up clinicId from lead then delegates to consentService.withdrawConsent', async () => {
+      await controller.withdrawConsent(LEAD_ID);
 
+      expect(consentService.getLeadClinicId).toHaveBeenCalledWith(LEAD_ID);
       expect(consentService.withdrawConsent).toHaveBeenCalledWith(
-        LEAD_ID, 'admin@clinic.com',
+        LEAD_ID, 'clinic123',
       );
     });
   });

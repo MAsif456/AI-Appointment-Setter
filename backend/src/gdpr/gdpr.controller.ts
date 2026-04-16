@@ -126,12 +126,9 @@ export class GdprController {
   @HttpCode(200)
   async withdrawConsent(
     @Param('leadId') leadId: string,
-    @Req() req: { user?: { email?: string } },
   ) {
-    return this.consentService.withdrawConsent(
-      leadId,
-      req.user?.email ?? 'unknown',
-    );
+    const lead = await this.consentService.getLeadClinicId(leadId);
+    return this.consentService.withdrawConsent(leadId, lead.clinicId);
   }
 
   // ── Status ─────────────────────────────────────────────────────────

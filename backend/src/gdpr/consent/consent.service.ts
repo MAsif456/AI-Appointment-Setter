@@ -4,7 +4,7 @@
  * Each consent action (grant, decline, withdraw) creates a new immutable
  * ConsentRecord document.  The most-recent record determines active status.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -97,6 +97,13 @@ export class ConsentService {
     return this.consentModel
       .find({ leadId: new Types.ObjectId(leadId) })
       .sort({ createdAt: -1 });
+  }
+
+  /** Resolves a lead's clinicId — used by the controller to pass the correct clinicId. */
+  async getLeadClinicId(leadId: string): Promise<{ clinicId: string }> {
+    const lead = await this.leadModel.findById(leadId, 'clinicId').lean();
+    if (!lead) throw new NotFoundException(`Lead ${leadId} not found`);
+    return { clinicId: lead.clinicId.toString() };
   }
 
   /** Creates a 'withdrawn' consent record (e.g. via admin action). */
