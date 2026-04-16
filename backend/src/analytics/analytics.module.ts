@@ -1,25 +1,38 @@
+/**
+ * NestJS module for analytics operations.
+ *
+ * Combines the dashboard analytics services (overview + per-clinic) with
+ * the security-event logging service into a single module so the dashboard
+ * and staff security feed share one controller surface.
+ */
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { AnalyticsController } from "./analytics.controller";
-import { AnalyticsService } from "./analytics.service";
+import {
+  Conversation,
+  ConversationSchema,
+} from "../database/schemas/conversation.schema";
+import { Lead, LeadSchema } from "../database/schemas/lead.schema";
+import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
 import {
   SecurityEvent,
   SecurityEventSchema,
 } from "./schemas/security-event.schema";
+import { AnalyticsController } from "./analytics.controller";
+import { OverviewAnalyticsService } from "./overview-analytics.service";
+import { ClinicAnalyticsService } from "./clinic-analytics.service";
+import { AnalyticsService } from "./analytics.service";
 
-/**
- * Analytics module.
- * Provides security event logging and a query endpoint for the
- * Lunax staff dashboard to monitor rate limit breaches and auth threats.
- */
 @Module({
   imports: [
     MongooseModule.forFeature([
+      { name: Conversation.name, schema: ConversationSchema },
+      { name: Lead.name, schema: LeadSchema },
+      { name: Clinic.name, schema: ClinicSchema },
       { name: SecurityEvent.name, schema: SecurityEventSchema },
     ]),
   ],
   controllers: [AnalyticsController],
-  providers: [AnalyticsService],
+  providers: [OverviewAnalyticsService, ClinicAnalyticsService, AnalyticsService],
   exports: [AnalyticsService],
 })
 export class AnalyticsModule {}

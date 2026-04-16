@@ -8,6 +8,10 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
+import {
+  Conversation,
+  ConversationSchema,
+} from "../database/schemas/conversation.schema";
 import { ClinicsController } from "./clinics.controller";
 import { ClinicsService } from "./clinics.service";
 
@@ -17,7 +21,10 @@ import { ClinicsService } from "./clinics.service";
  */
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Clinic.name, schema: ClinicSchema }]),
+    MongooseModule.forFeature([
+      { name: Clinic.name, schema: ClinicSchema },
+      { name: Conversation.name, schema: ConversationSchema },
+    ]),
   ],
   controllers: [ClinicsController],
   providers: [ClinicsService],
