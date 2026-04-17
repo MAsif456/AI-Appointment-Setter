@@ -16,6 +16,10 @@ import {
   OrchestratorContext,
   IntentResult,
 } from './orchestrator.types';
+import {
+  CONSENT_GRANTED_KEYWORDS,
+  CONSENT_DECLINED_KEYWORDS,
+} from '../gdpr/gdpr.types';
 import { normalisePostcode } from './orchestrator.prompts';
 
 /**
@@ -39,6 +43,12 @@ export function detectOrchestratorIntent(
   if (currentPhase === 'greeting' && context?.isReturningPatient) {
     if (matchesKeywords(lower, DETAILS_UNCHANGED_KEYWORDS)) return { intent: 'DETAILS_UNCHANGED' };
     if (matchesKeywords(lower, DETAILS_CHANGED_KEYWORDS)) return { intent: 'DETAILS_CHANGED' };
+  }
+
+  // Consent intents — only in 'consenting' or 'consent_declined' phase
+  if (currentPhase === 'consenting' || currentPhase === 'consent_declined') {
+    if (matchesKeywords(lower, CONSENT_GRANTED_KEYWORDS)) return { intent: 'CONSENT_GRANTED' };
+    if (matchesKeywords(lower, CONSENT_DECLINED_KEYWORDS)) return { intent: 'CONSENT_DECLINED' };
   }
 
   if (currentPhase === 'qualifying') {

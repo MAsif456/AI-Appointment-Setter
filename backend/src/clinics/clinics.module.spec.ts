@@ -25,6 +25,10 @@ describe("ClinicsModule", () => {
         findOne: jest.fn().mockReturnValue({ lean: jest.fn() }),
         create: jest.fn(),
       })
+      .overrideProvider(getModelToken("Conversation"))
+      .useValue({
+        aggregate: jest.fn().mockResolvedValue([]),
+      })
       .compile();
   });
 

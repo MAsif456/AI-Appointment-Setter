@@ -8,7 +8,7 @@ import NotificationBell from '@/components/Notifications/NotificationBell';
 import styles from './Sidebar.module.css';
 import {
   DashboardIcon, ClinicsIcon, ConversationsIcon,
-  AnalyticsIcon, SettingsIcon, UserIcon, LogoutIcon,
+  AnalyticsIcon, SettingsIcon, UserIcon, LogoutIcon, ShieldIcon,
 } from '../Icons';
 
 const baseNavItems = [
@@ -31,7 +31,7 @@ const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon 
  */
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [showLogout, setShowLogout] = useState(false);
 
   const isStaff = user?.role === 'staff';
@@ -68,6 +68,15 @@ export default function Sidebar() {
               {item.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/data-protection"
+              className={`${styles.navLink} ${isActive('/data-protection') ? styles.navLinkActive : ''}`}
+            >
+              <ShieldIcon className={styles.navIcon} />
+              Data Protection
+            </Link>
+          )}
         </nav>
 
         <Link

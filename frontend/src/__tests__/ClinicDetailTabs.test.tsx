@@ -113,7 +113,7 @@ describe('ClinicDetailTabs', () => {
   it('renders correct placeholder for non-settings tabs', () => {
     render(<ClinicDetailTabs clinic={mockClinicData} />);
 
-    const placeholderTabs = ['Overview', 'Conversations', 'Analytics'];
+    const placeholderTabs = ['Overview', 'Conversations'];
 
     for (const tab of placeholderTabs) {
       fireEvent.click(screen.getByText(tab));

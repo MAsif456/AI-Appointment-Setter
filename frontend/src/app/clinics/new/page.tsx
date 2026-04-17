@@ -44,6 +44,7 @@ export default function AddClinicPage() {
   const [serviceAreas, setServiceAreas] = useState('');
   const [servicesOffered, setServicesOffered] = useState('');
   const [appointmentDuration, setAppointmentDuration] = useState(30);
+  const [dataRetentionMonths, setDataRetentionMonths] = useState(12);
   const [businessHours, setBusinessHours] = useState<WeekHours>(getDefaultHours);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showToast, setShowToast] = useState(false);
@@ -61,6 +62,7 @@ export default function AddClinicPage() {
       serviceAreas: setServiceAreas as (v: never) => void,
       servicesOffered: setServicesOffered as (v: never) => void,
       appointmentDuration: setAppointmentDuration as (v: never) => void,
+      dataRetentionMonths: setDataRetentionMonths as (v: never) => void,
     };
     setters[field]?.(value as never);
   };
@@ -135,6 +137,7 @@ export default function AddClinicPage() {
         serviceAreas,
         servicesOffered,
         appointmentDuration,
+        dataRetentionMonths,
         businessHours,
       });
       setShowToast(true);
@@ -188,6 +191,7 @@ export default function AddClinicPage() {
           serviceAreas={serviceAreas}
           servicesOffered={servicesOffered}
           appointmentDuration={appointmentDuration}
+          dataRetentionMonths={dataRetentionMonths}
           onChange={handleFieldChange}
           errors={errors}
         />

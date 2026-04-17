@@ -33,20 +33,33 @@ export class User {
   // Notification preferences (for Settings page)
   @Prop({
     type: {
+      _id: false,
+      generalNotifications: { type: Boolean, default: true },
       emailNotifications: { type: Boolean, default: true },
-      dailySummary: { type: Boolean, default: true },
-      stalled: { type: Boolean, default: true },
+      stalledConversations: { type: Boolean, default: true },
+      escalatedConversations: { type: Boolean, default: true },
+      bookingCancelled: { type: Boolean, default: true },
+      newUserJoined: { type: Boolean, default: true },
+      appointmentReminders: { type: Boolean, default: true },
     },
     default: {
+      generalNotifications: true,
       emailNotifications: true,
-      dailySummary: true,
-      stalled: true,
+      stalledConversations: true,
+      escalatedConversations: true,
+      bookingCancelled: true,
+      newUserJoined: true,
+      appointmentReminders: true,
     },
   })
   notificationPreferences: {
+    generalNotifications: boolean;
     emailNotifications: boolean;
-    dailySummary: boolean;
-    stalled: boolean;
+    stalledConversations: boolean;
+    escalatedConversations: boolean;
+    bookingCancelled: boolean;
+    newUserJoined: boolean;
+    appointmentReminders: boolean;
   };
 
   @Prop({ default: false })
@@ -76,8 +89,7 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// Indexes
-UserSchema.index({ email: 1 });
+// Indexes — email index already created by @Prop({ unique: true }) above.
 UserSchema.index({ isActive: 1 });
 UserSchema.index({ verificationToken: 1 }, { sparse: true });
 UserSchema.index({ passwordResetToken: 1 }, { sparse: true });

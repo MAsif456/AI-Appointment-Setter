@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Logger, UseGuards, Request, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Logger, UseGuards, Request, ForbiddenException, ConflictException } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -37,17 +37,21 @@ export class ConversationsController {
    * @returns Array of conversations
    */
   @Get()
-  async list(@Request() req: any) {
+  async list(
+    @Request() req: any,
+    @Query('redacted') redacted?: string,
+  ) {
     const user = req.user; // { _id, email, role, assignedClinics }
+    const includeAnonymised = redacted === 'true';
 
     // If admin → return all conversations
     if (user.role === 'admin') {
-      return this.conversationsService.listConversations();
+      return this.conversationsService.listConversations(undefined, includeAnonymised);
     }
-    
+
     // If staff → filter by assignedClinics
     const clinicIds = user.assignedClinics || [];
-    return this.conversationsService.listConversations(clinicIds);
+    return this.conversationsService.listConversations(clinicIds, includeAnonymised);
   }
 
   /**

@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 import { ConversationDetail as ConversationDetailType } from '@/data/mockConversations';
+import GdprPanel from './GdprPanel';
 import styles from './ConversationDetail.module.css';
 
 interface Props {
   conversation: ConversationDetailType;
+  leadId?: string;
 }
 
 /**
  * Displays a full conversation thread with message history,
  * patient info, conversation status, and booking details.
  */
-export default function ConversationDetail({ conversation }: Props) {
+export default function ConversationDetail({ conversation, leadId }: Props) {
   const statusMap: Record<string, string> = {
     Confirmed: styles.statusConfirmed,
     Qualified: styles.statusQualified,
@@ -67,6 +69,7 @@ export default function ConversationDetail({ conversation }: Props) {
             />
           )}
           <ActionButtons />
+          {leadId && <GdprPanel leadId={leadId} />}
         </div>
       </div>
     </div>

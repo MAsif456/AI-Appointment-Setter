@@ -25,6 +25,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReminderModule } from "./reminder/reminder.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { EscalationsModule } from "./escalations/escalations.module";
+import { GdprModule } from "./gdpr/gdpr.module";
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { EscalationsModule } from "./escalations/escalations.module";
     ReminderModule,
     NotificationsModule,
     EscalationsModule,
+    GdprModule,
     ScheduleModule.forRoot(),
     FollowUpModule,
   ],

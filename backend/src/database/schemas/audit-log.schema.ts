@@ -40,6 +40,16 @@ export class AuditLog {
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
 
+// Immutability hooks - OWASP Logging Cheat Sheet: audit logs must be append-only.
+// Application-level enforcement; direct MongoDB shell access could bypass.
+const IMMUTABLE_ERROR = 'AuditLog is immutable — records cannot be modified or deleted';
+AuditLogSchema.pre('findOneAndUpdate', function () { throw new Error(IMMUTABLE_ERROR); });
+AuditLogSchema.pre('updateOne', function () { throw new Error(IMMUTABLE_ERROR); });
+AuditLogSchema.pre('updateMany', function () { throw new Error(IMMUTABLE_ERROR); });
+AuditLogSchema.pre('findOneAndDelete', function () { throw new Error(IMMUTABLE_ERROR); });
+AuditLogSchema.pre('deleteOne', function () { throw new Error(IMMUTABLE_ERROR); });
+AuditLogSchema.pre('deleteMany', function () { throw new Error(IMMUTABLE_ERROR); });
+
 // Indexes
 AuditLogSchema.index({ clinicId: 1, createdAt: -1 });
 AuditLogSchema.index({ userId: 1, createdAt: -1 });

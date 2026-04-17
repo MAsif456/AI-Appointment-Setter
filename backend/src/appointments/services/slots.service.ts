@@ -139,8 +139,8 @@ export class SlotsService {
 
       return {
         date: dateTime.toISOString().split("T")[0], // "2024-03-25"
-        startTime: dateTime.toTimeString().substring(0, 5), // "14:00"
-        endTime: endTime.toTimeString().substring(0, 5), // "14:30"
+        startTime: dateTime.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }), // "14:00"
+        endTime: endTime.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }), // "14:30"
         dateTime,
       };
     });

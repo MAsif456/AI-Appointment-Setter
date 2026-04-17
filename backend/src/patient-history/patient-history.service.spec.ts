@@ -282,4 +282,47 @@ describe("PatientHistoryService", () => {
       expect.anything(),
     );
   });
+
+  it("persists email-only lead when phone is absent", async () => {
+    await createModule();
+    await service.persistHistory(
+      CLINIC_ID,
+      undefined,
+      "Jane@Example.com",
+      "Jane",
+      "Doe",
+      "CF10 1AA",
+      CONV_ID,
+    );
+    expect(mockModel.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "jane@example.com" }),
+      expect.objectContaining({
+        $set: expect.objectContaining({
+          firstName: "Jane",
+          lastName: "Doe",
+          validatedPostcode: "CF10 1AA",
+          previousConversationId: CONV_ID,
+          email: "jane@example.com",
+        }),
+      }),
+      { upsert: true, new: true },
+    );
+    // Phone-keyed filter should NOT be used
+    const filterArg = mockModel.findOneAndUpdate.mock.calls[0][0];
+    expect(filterArg.phone).toBeUndefined();
+  });
+
+  it("skips when both phone and email are absent", async () => {
+    await createModule();
+    await service.persistHistory(
+      CLINIC_ID,
+      undefined,
+      undefined,
+      "Jane",
+      undefined,
+      undefined,
+      CONV_ID,
+    );
+    expect(mockModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
 });

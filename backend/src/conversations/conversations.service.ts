@@ -33,6 +33,15 @@ import {
   DETAILS_CHANGED_KEYWORDS,
   RESCHEDULE_KEYWORDS, matchesKeywords,
 } from "../orchestrator/orchestrator.types";
+import {
+  CONSENT_GRANTED_KEYWORDS,
+  CONSENT_DECLINED_KEYWORDS,
+  CONSENT_ACKNOWLEDGED_RESPONSE,
+  CONSENT_DECLINED_RESPONSE,
+  CONSENT_DECLINED_FOLLOWUP,
+  CONSENT_STATEMENT_TEXT,
+} from "../gdpr/gdpr.types";
+import { ConsentService } from "../gdpr/consent/consent.service";
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from "../cancellation/cancellation.service";
 import { ConversationsPersistenceService } from "./conversations.persistence.service";
@@ -70,6 +79,7 @@ export class ConversationsService {
     private readonly persistence: ConversationsPersistenceService,
     private readonly patientHistoryService: PatientHistoryService,
     private readonly postcodeValidationService: PostcodeValidationService,
+    private readonly consentService: ConsentService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -87,15 +97,22 @@ export class ConversationsService {
   }
 
   /** Lists all conversations with basic lead/clinic info. */
-  async listConversations(clinicIds?: string[]) {
+  async listConversations(clinicIds?: string[], includeAnonymised = false) {
     // If clinicIds provided and empty → staff with no assigned clinics → return empty array
     if (clinicIds !== undefined && clinicIds.length === 0) {
       return [];
     }
-    const filter =
+    const filter: Record<string, any> =
       clinicIds && clinicIds.length > 0
         ? { clinicId: { $in: clinicIds.map((id) => new Types.ObjectId(id)) } }
-        : {}; // No filter = return all (for admins)
+        : {};
+
+    // Separate active conversations from anonymised (redacted) ones
+    if (!includeAnonymised) {
+      filter.isAnonymised = { $ne: true };
+    } else {
+      filter.isAnonymised = true;
+    }
 
     return this.conversationModel
       .find(filter)
@@ -129,22 +146,22 @@ export class ConversationsService {
     );
 
     let greeting: string | null;
-    if (conversation.isReturningPatient) {
-      const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
-      const returningPatient =
-        await this.patientHistoryService.findReturningPatient(
-          lead.phone,
-          lead.email,
-          clinicConfig.clinicId,
-          expiryDays,
-        );
-      greeting = returningPatient
-        ? await this.chatService.startReturningPatientConversation(
-            leadInfo,
-            clinicConfig,
-            returningPatient,
-          )
-        : await this.chatService.startConversation(leadInfo, clinicConfig);
+    if (conversation.isReturningPatient && conversation.returningPatientConfidence) {
+      // Reconstruct from flags already stored on the conversation — avoids
+      // a redundant PatientHistory DB query (flags were set during re-entry).
+      const returningPatient = {
+        firstName: lead.firstName ?? leadInfo.firstName ?? "",
+        lastName: lead.lastName,
+        validatedPostcode: conversation.context?.get("returningPatientPostcode"),
+        previousConversationId: conversation.previousConversationId,
+        lastBookedAt: new Date(),
+        confidence: conversation.returningPatientConfidence as "high" | "medium" | "stale",
+      };
+      greeting = await this.chatService.startReturningPatientConversation(
+        leadInfo,
+        clinicConfig,
+        returningPatient,
+      );
     } else {
       greeting = await this.chatService.startConversation(
         leadInfo,
@@ -284,6 +301,49 @@ export class ConversationsService {
     if (conversation.phase === 'booked' && RESCHEDULE_KEYWORDS.some(kw => userMessage.toLowerCase().includes(kw))) {
       await this.persistence.updateConversationMeta(conversation, 'lead', 'rescheduling');
       conversation.phase = 'rescheduling';
+    }
+
+    // Consent gate — UK GDPR Art. 9(2)(a) explicit consent before processing health data.
+    // Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/
+    // Covers both LiveChat API and GHL webhook paths (orchestrator delegates here).
+    if (conversation.phase === 'consenting' || conversation.phase === 'consent_declined') {
+      const lower = userMessage.toLowerCase().trim();
+      if (matchesKeywords(lower, CONSENT_GRANTED_KEYWORDS)) {
+        await this.consentService.recordConsent(
+          (conversation.leadId as any).toString(),
+          (conversation.clinicId as any).toString(),
+          'granted',
+          conversation.channel,
+          conversationId,
+        );
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'qualifying');
+        const reply = CONSENT_ACKNOWLEDGED_RESPONSE;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      if (matchesKeywords(lower, CONSENT_DECLINED_KEYWORDS)) {
+        await this.consentService.recordConsent(
+          (conversation.leadId as any).toString(),
+          (conversation.clinicId as any).toString(),
+          'declined',
+          conversation.channel,
+          conversationId,
+        );
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'consent_declined');
+        const reply = CONSENT_DECLINED_RESPONSE;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      // Unrecognised message in consent_declined — static follow-up
+      if (conversation.phase === 'consent_declined') {
+        const reply = CONSENT_DECLINED_FOLLOWUP;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      // Unrecognised message in consenting — re-prompt for consent
+      const reply = CONSENT_STATEMENT_TEXT;
+      await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+      return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
     }
 
     // Returning patient detail confirmation — LiveChat API path.

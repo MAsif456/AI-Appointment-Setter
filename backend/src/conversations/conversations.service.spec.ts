@@ -15,6 +15,7 @@ import { CancellationService } from "../cancellation/cancellation.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { PostcodeValidationService } from "../orchestrator/postcode-validation.service";
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { ConsentService } from "../gdpr/consent/consent.service";
 
 describe("ConversationsService", () => {
   let service: ConversationsService;
@@ -201,6 +202,7 @@ describe("ConversationsService", () => {
           },
         },
         PostcodeValidationService,
+        { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
       ],
     }).compile();
 

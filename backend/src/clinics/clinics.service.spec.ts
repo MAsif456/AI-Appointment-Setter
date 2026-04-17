@@ -57,10 +57,15 @@ describe("ClinicsService", () => {
       create: jest.fn().mockResolvedValue({ ...validDto, _id: "generated_id" }),
     };
 
+    const conversationModel = {
+      aggregate: jest.fn().mockResolvedValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClinicsService,
         { provide: getModelToken(Clinic.name), useValue: model },
+        { provide: getModelToken("Conversation"), useValue: conversationModel },
       ],
     }).compile();
 
@@ -125,23 +130,29 @@ describe("ClinicsService", () => {
     it("should return all clinics when no search term is provided", async () => {
       const clinics = [mockClinic()];
       model.find.mockReturnValue({
-        sort: jest
-          .fn()
-          .mockReturnValue({ exec: jest.fn().mockResolvedValue(clinics) }),
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue(clinics) }),
+        }),
       });
 
       const result = await service.findAll();
 
       expect(model.find).toHaveBeenCalledWith({});
-      expect(result).toEqual(clinics);
+      expect(result).toEqual(
+        clinics.map((c) => ({ ...c, todayLeadsCount: 0, todayBookingsCount: 0 })),
+      );
     });
 
     it("should filter clinics by name when a search term is provided", async () => {
       const clinics = [mockClinic()];
       model.find.mockReturnValue({
-        sort: jest
-          .fn()
-          .mockReturnValue({ exec: jest.fn().mockResolvedValue(clinics) }),
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue(clinics) }),
+        }),
       });
 
       const result = await service.findAll("Cardiff");
@@ -149,14 +160,18 @@ describe("ClinicsService", () => {
       expect(model.find).toHaveBeenCalledWith({
         name: { $regex: "Cardiff", $options: "i" },
       });
-      expect(result).toEqual(clinics);
+      expect(result).toEqual(
+        clinics.map((c) => ({ ...c, todayLeadsCount: 0, todayBookingsCount: 0 })),
+      );
     });
 
     it("should return an empty array when no clinics exist", async () => {
       model.find.mockReturnValue({
-        sort: jest
-          .fn()
-          .mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+        }),
       });
 
       const result = await service.findAll();

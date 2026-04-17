@@ -4,11 +4,13 @@ import FormCard from '@/components/FormCard/FormCard';
 import styles from '@/components/FormCard/FormCard.module.css';
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60, 75, 90, 105, 120];
+const RETENTION_OPTIONS = [3, 6, 12, 18, 24, 36];
 
 interface ServiceConfigSectionProps {
   serviceAreas: string;
   servicesOffered: string;
   appointmentDuration: number;
+  dataRetentionMonths: number;
   onChange: (field: string, value: string | number) => void;
   errors: Record<string, string>;
 }
@@ -18,6 +20,7 @@ export default function ServiceConfigSection({
   serviceAreas,
   servicesOffered,
   appointmentDuration,
+  dataRetentionMonths,
   onChange,
   errors,
 }: ServiceConfigSectionProps) {
@@ -63,6 +66,24 @@ export default function ServiceConfigSection({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.label}>Data Retention Period</label>
+        <select
+          className={styles.select}
+          value={dataRetentionMonths}
+          onChange={(e) => onChange('dataRetentionMonths', Number(e.target.value))}
+        >
+          {RETENTION_OPTIONS.map((months) => (
+            <option key={months} value={months}>
+              {months} months
+            </option>
+          ))}
+        </select>
+        <span className={styles.helperText}>
+          Patient data is automatically anonymised after this period of inactivity (GDPR Art. 5(1)(e))
+        </span>
       </div>
     </FormCard>
   );
