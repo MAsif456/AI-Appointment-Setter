@@ -50,7 +50,10 @@ export default function ConversationList() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [clinicFilter, setClinicFilter] = useState('All Clinics');
-  const [phaseFilter, setPhaseFilter] = useState('All Phases');
+  // Lead status is modelled as `phase` on the backend — this filter
+  // is labelled "Lead Status" in the UI to match the acceptance
+  // criteria, but the underlying state is still the phase string.
+  const [phaseFilter, setPhaseFilter] = useState('All Statuses');
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'active' | 'redacted'>('active');
 
@@ -106,7 +109,7 @@ export default function ConversationList() {
     const matchesClinic =
       clinicFilter === 'All Clinics' || clinic === clinicFilter;
     const matchesPhase =
-      phaseFilter === 'All Phases' || c.phase === phaseFilter;
+      phaseFilter === 'All Statuses' || c.phase === phaseFilter;
     return matchesSearch && matchesClinic && matchesPhase;
   });
 
@@ -121,9 +124,9 @@ export default function ConversationList() {
     ...new Set(conversations.map((c) => c.clinicId?.name || 'Unknown Clinic')),
   ];
 
-  // Extract unique phases for filter dropdown
+  // Extract unique lead statuses (phases) for filter dropdown
   const phases = [
-    'All Phases',
+    'All Statuses',
     ...new Set(conversations.map((c) => c.phase)),
   ];
 
@@ -193,6 +196,7 @@ export default function ConversationList() {
         <select
           className={styles.filterSelect}
           value={clinicFilter}
+          aria-label="Filter by clinic"
           onChange={(e) => {
             setClinicFilter(e.target.value);
             setPage(1);
@@ -207,6 +211,7 @@ export default function ConversationList() {
         <select
           className={styles.filterSelect}
           value={phaseFilter}
+          aria-label="Filter by lead status"
           onChange={(e) => {
             setPhaseFilter(e.target.value);
             setPage(1);

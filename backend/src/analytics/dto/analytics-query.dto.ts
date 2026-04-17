@@ -9,9 +9,9 @@ import { IsOptional, IsIn, IsDateString } from 'class-validator';
  * Supports period-based or custom date range filtering.
  */
 export class OverviewQueryDto {
-  /** Time period: 'week' (last 7 days) or 'month' (last 30 days). */
+  /** Time period: 'day' (today), 'week' (last 7 days), or 'month' (last 30 days). */
   @IsOptional()
-  @IsIn(['week', 'month'])
+  @IsIn(['day', 'week', 'month'])
   period?: string;
 
   /** Custom start date in ISO 8601 format (e.g. 2026-03-01). */

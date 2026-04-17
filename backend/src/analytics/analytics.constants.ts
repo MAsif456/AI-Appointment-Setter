@@ -24,7 +24,15 @@ export const VALID_BOOKING_STATUSES = ['confirmed', 'completed', 'rescheduled'];
 
 /**
  * Computes start and end dates for a given period relative to today.
- * @param period - 'week' for last 7 days, 'month' for last 30 days
+ *
+ * Supported periods:
+ *  - 'day'   → today only (used by the staff dashboard cards so the
+ *              comparison window resolves to "yesterday" automatically
+ *              via `getPreviousPeriodRange`).
+ *  - 'month' → trailing 30 days.
+ *  - 'week'  → trailing 7 days (default).
+ *
+ * @param period - 'day', 'week', or 'month'
  * @returns Object with startDate and endDate as Date objects
  */
 export function getDateRange(period: string): { startDate: Date; endDate: Date } {
@@ -33,6 +41,11 @@ export function getDateRange(period: string): { startDate: Date; endDate: Date }
 
   const startDate = new Date();
   startDate.setHours(0, 0, 0, 0);
+
+  if (period === 'day') {
+    // Today-only window; startDate already sits at 00:00 today.
+    return { startDate, endDate };
+  }
 
   if (period === 'month') {
     startDate.setDate(startDate.getDate() - 29);
