@@ -95,7 +95,7 @@ export class SecurityLoggerService {
       const updated = await this.conversationModel.findByIdAndUpdate(
         new Types.ObjectId(conversationId),
         { $inc: { injectionAttemptCount: 1 } },
-        { new: true },
+        { returnDocument: 'after' },
       );
       return updated?.injectionAttemptCount ?? 0;
     } catch (error) {

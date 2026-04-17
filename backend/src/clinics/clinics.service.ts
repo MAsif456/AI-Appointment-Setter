@@ -187,7 +187,7 @@ export class ClinicsService {
     if (businessHours) updatePayload.businessHours = businessHours;
 
     const clinic = await this.clinicModel
-      .findByIdAndUpdate(id, updatePayload, { new: true })
+      .findByIdAndUpdate(id, updatePayload, { returnDocument: 'after' })
       .exec();
 
     if (!clinic) {

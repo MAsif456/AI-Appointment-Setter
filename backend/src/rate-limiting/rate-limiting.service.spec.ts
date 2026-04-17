@@ -149,7 +149,7 @@ describe("RateLimitingService", () => {
       expect(mockCounterModel.findOneAndUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ key: "test-key" }),
         { $inc: { count: 1 } },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
@@ -168,7 +168,7 @@ describe("RateLimitingService", () => {
         expect.objectContaining({
           $set: expect.objectContaining({ count: 1 }),
         }),
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: 'after' },
       );
     });
 

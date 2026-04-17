@@ -289,7 +289,7 @@ describe("ClinicsService", () => {
       expect(model.findByIdAndUpdate).toHaveBeenCalledWith(
         "507f1f77bcf86cd799439011",
         expect.objectContaining({ name: "New Name" }),
-        { new: true },
+        { returnDocument: 'after' },
       );
       expect(result).toEqual(updated);
     });

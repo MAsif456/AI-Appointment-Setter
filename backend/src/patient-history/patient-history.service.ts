@@ -158,7 +158,7 @@ export class PatientHistoryService {
                 email: email ? email.toLowerCase().trim() : undefined,
               },
             },
-            { upsert: true, new: true },
+            { upsert: true, returnDocument: 'after' },
           )
           .exec();
         this.logger.log(
@@ -172,7 +172,7 @@ export class PatientHistoryService {
             {
               $set: { ...sharedFields, email: normalisedEmail },
             },
-            { upsert: true, new: true },
+            { upsert: true, returnDocument: 'after' },
           )
           .exec();
         this.logger.log(

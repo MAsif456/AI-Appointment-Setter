@@ -152,7 +152,7 @@ export class ConversationsService {
     newPhase: string,
   ): Promise<ConversationDocument | null> {
     const conversation = await this.conversationModel
-      .findByIdAndUpdate(conversationId, { phase: newPhase }, { new: true })
+      .findByIdAndUpdate(conversationId, { phase: newPhase }, { returnDocument: 'after' })
       .exec();
 
     this.logger.log(

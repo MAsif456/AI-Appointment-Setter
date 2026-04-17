@@ -233,7 +233,7 @@ describe("ConversationsService", () => {
       expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         conversationId,
         { phase: "qualifying" },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 

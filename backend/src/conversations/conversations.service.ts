@@ -610,7 +610,7 @@ export class ConversationsService {
     const updated = await this.conversationModel.findByIdAndUpdate(
       conversation._id,
       { $inc: { failedUnderstandingCount: 1 } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     const count = updated?.failedUnderstandingCount ?? 0;
     this.logger.log(

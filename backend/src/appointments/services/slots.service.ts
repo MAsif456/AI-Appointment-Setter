@@ -80,9 +80,11 @@ export class SlotsService {
 
       return formattedSlots;
     } catch (error) {
-      this.logger.error(`Error fetching slots: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error fetching slots: ${errorMessage}`);
       throw new CalendarUnavailableError(
-        `GHL Calendar unavailable: ${error.message}`,
+        `GHL Calendar unavailable: ${errorMessage}`,
       );
     }
   }

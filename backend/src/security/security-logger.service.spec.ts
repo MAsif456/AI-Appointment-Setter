@@ -186,7 +186,7 @@ describe("SecurityLoggerService", () => {
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         expect.any(Types.ObjectId),
         { $inc: { injectionAttemptCount: 1 } },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 

@@ -670,7 +670,7 @@ describe("ConversationsService", () => {
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         "conv1",
         { $inc: { failedUnderstandingCount: 1 } },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
