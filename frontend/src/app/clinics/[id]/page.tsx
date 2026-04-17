@@ -17,7 +17,11 @@ export default function ClinicDetailPage() {
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('Overview');
   const tabsRef = useRef<ClinicDetailTabsHandle>(null);
+
+  // Edit settings button only visible on Settings and AI Configuration tabs
+  const showEditButton = activeTab === 'Settings' || activeTab === 'AI Configuration';
 
   useEffect(() => {
     if (searchParams.get('edit') === 'true') {
@@ -76,7 +80,7 @@ export default function ClinicDetailPage() {
               Save Settings
             </button>
           </div>
-        ) : (
+        ) : showEditButton ? (
           <button className={styles.editButton} onClick={() => setIsEditing(true)}>
             <svg
               width="14"
@@ -94,7 +98,7 @@ export default function ClinicDetailPage() {
             </svg>
             Edit Settings
           </button>
-        )}
+        ) : null}
       </div>
 
       <ClinicDetailTabs
@@ -103,6 +107,7 @@ export default function ClinicDetailPage() {
         onClinicUpdated={(updated) => setClinic(updated)}
         isEditing={isEditing}
         onEditingChange={setIsEditing}
+        onTabChange={setActiveTab}
       />
     </div>
   );

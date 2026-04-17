@@ -26,6 +26,7 @@ interface ClinicDetailTabsProps {
   onClinicUpdated?: (updated: Clinic) => void;
   isEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
+  onTabChange?: (tab: string) => void;
 }
 
 export type ClinicDetailTabsHandle = {
@@ -33,7 +34,7 @@ export type ClinicDetailTabsHandle = {
 };
 
 const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProps>(
-  function ClinicDetailTabs({ clinic, onClinicUpdated, isEditing = false, onEditingChange }, ref) {
+  function ClinicDetailTabs({ clinic, onClinicUpdated, isEditing = false, onEditingChange, onTabChange }, ref) {
   const formRef = useRef<ClinicSettingsFormHandle>(null);
   useImperativeHandle(ref, () => ({ submitForm: () => formRef.current?.submit() }));
 
@@ -113,7 +114,7 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
       {TABS.map((tab) => (
         <button
           key={tab}
-          onClick={() => { setActiveTab(tab); onEditingChange?.(false); }}
+          onClick={() => { setActiveTab(tab); onEditingChange?.(false); onTabChange?.(tab); }}
           className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
         >
           {tab}
