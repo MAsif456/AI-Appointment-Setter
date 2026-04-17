@@ -104,12 +104,20 @@ export default function AddClinicPage() {
       newErrors.ghlCalendarId = 'GHL Calendar ID must be alphanumeric';
     }
 
-    // Optional field format checks
-    if (phoneNumber.trim() && !/^(\+44\s?|0)\d[\d\s]{8,12}$/.test(phoneNumber.trim())) {
+    // Address, phone, and service areas are required
+    if (!address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
+    if (!phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required';
+    } else if (!/^(\+44\s?|0)\d[\d\s]{8,12}$/.test(phoneNumber.trim())) {
       newErrors.phoneNumber = 'Enter a valid UK phone number (e.g. 029 2034 5678 or +44 29 2034 5678)';
     }
 
-    if (serviceAreas.trim()) {
+    if (!serviceAreas.trim()) {
+      newErrors.serviceAreas = 'At least one service area is required';
+    } else {
       const prefixes = serviceAreas.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
       const invalid = prefixes.find((p) => !/^[A-Z]{1,4}$/.test(p));
       if (invalid) {

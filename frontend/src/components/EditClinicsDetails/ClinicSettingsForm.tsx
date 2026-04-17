@@ -99,6 +99,15 @@ const ClinicSettingsForm = forwardRef<ClinicSettingsFormHandle, Props>(function 
     if (!clinicName.trim()) {
       newErrors.clinicName = 'Clinic name is required';
     }
+    if (!address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+    if (!phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required';
+    }
+    if (!serviceAreas.trim()) {
+      newErrors.serviceAreas = 'At least one service area is required';
+    }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;

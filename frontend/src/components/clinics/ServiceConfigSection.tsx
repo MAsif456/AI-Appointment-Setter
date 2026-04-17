@@ -27,7 +27,9 @@ export default function ServiceConfigSection({
   return (
     <FormCard title="Service Configuration">
       <div className={styles.field}>
-        <label className={styles.label}>Service Areas</label>
+        <label className={styles.label}>
+          Service Areas<span className={styles.required}>*</span>
+        </label>
         <input
           className={`${styles.input} ${errors.serviceAreas ? styles.inputError : ''}`}
           type="text"
