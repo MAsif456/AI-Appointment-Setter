@@ -16,7 +16,7 @@
 }
 
 .backLink:hover {
-  color: #4361ee;
+  color: var(--color-primary);
 }
 
 .backIcon {

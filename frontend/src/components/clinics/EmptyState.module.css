@@ -17,7 +17,7 @@
   align-items: center;
   gap: 6px;
   padding: 9px 20px;
-  background-color: #2563eb;
+  background-color: var(--color-primary);
   color: #ffffff;
   font-size: 14px;
   font-weight: 500;
@@ -28,5 +28,5 @@
 }
 
 .addButton:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
 }

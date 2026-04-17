@@ -165,7 +165,7 @@
 }
 
 .cardPhone a {
-  color: #4361ee;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -175,7 +175,7 @@
 
 .viewChatBtn {
   display: inline-block;
-  background: #4361ee;
+  background: var(--color-primary);
   color: #fff;
   border: none;
   padding: 8px 16px;
@@ -188,7 +188,7 @@
 }
 
 .viewChatBtn:hover {
-  background: #3a56d4;
+  background: var(--color-primary-hover);
 }
 
 .ackBtn {
@@ -243,7 +243,7 @@
 }
 
 .backLink:hover {
-  color: #4361ee;
+  color: var(--color-primary);
 }
 
 .backIcon {

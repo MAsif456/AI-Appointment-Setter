@@ -29,7 +29,7 @@
 }
 
 .titleHighlight {
-  color: #2563eb;
+  color: var(--color-primary);
 }
 
 .subtitle {
@@ -112,8 +112,8 @@
 
 .input:focus {
   background-color: white;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
 }
 
 .passwordWrapper {
@@ -134,7 +134,7 @@
 }
 
 .eyeButton:hover {
-  color: #2563eb;
+  color: var(--color-primary);
 }
 
 .fieldError {
@@ -149,7 +149,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: white;
-  background-color: #2563eb;
+  background-color: var(--color-primary);
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -157,9 +157,9 @@
 }
 
 .submitButton:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.3);
 }
 
 .submitButton:disabled {

@@ -141,7 +141,7 @@
   composes: messageBubble;
   align-self: flex-end;
   max-width: 85%;
-  background-color: #4361ee;
+  background-color: var(--color-primary);
   color: #ffffff;
   border-bottom-right-radius: 2px;
 }
@@ -186,7 +186,7 @@
   font-weight: 600;
 }
 
-.phaseGreeting { background-color: #dbeafe; color: #1d4ed8; }
+.phaseGreeting { background-color: #dbeafe; color: var(--color-primary); }
 .phaseQualifying { background-color: #fef3c7; color: #92400e; }
 .phaseBooking { background-color: #ede9fe; color: #6d28d9; }
 .phaseConfirmed { background-color: #d1fae5; color: #065f46; }
@@ -223,7 +223,7 @@
 }
 
 .input:focus {
-  border-color: #4361ee;
+  border-color: var(--color-primary);
   background: #fff;
 }
 
@@ -233,7 +233,7 @@
 
 .sendBtn {
   padding: 10px 20px;
-  background-color: #4361ee;
+  background-color: var(--color-primary);
   color: #fff;
   border: none;
   border-radius: 20px;
@@ -244,7 +244,7 @@
 }
 
 .sendBtn:hover:not(:disabled) {
-  background-color: #3a56d4;
+  background-color: var(--color-primary-hover);
 }
 
 .sendBtn:disabled {
@@ -280,7 +280,7 @@
 
 .infoLabel {
   font-size: 12px;
-  color: #4361ee;
+  color: var(--color-primary);
   font-weight: 500;
   margin-bottom: 2px;
 }

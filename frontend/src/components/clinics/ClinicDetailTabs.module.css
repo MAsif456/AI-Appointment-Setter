@@ -23,8 +23,8 @@
 }
 
 .tabActive {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .tabContent {
@@ -70,7 +70,7 @@
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background-color: #4361ee;
+  background-color: var(--color-primary);
   color: #ffffff;
   font-size: 14px;
   font-weight: 500;
@@ -80,7 +80,7 @@
 }
 
 .formSaveButton:hover {
-  background-color: #3a56d4;
+  background-color: var(--color-primary-hover);
 }
 
 .placeholder {
@@ -99,7 +99,7 @@
   padding: 10px 24px;
   border-radius: 8px;
   border: none;
-  background-color: #2563eb;
+  background-color: var(--color-primary);
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
@@ -108,7 +108,7 @@
 }
 
 .saveButton:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
 }
 
 .successBanner {

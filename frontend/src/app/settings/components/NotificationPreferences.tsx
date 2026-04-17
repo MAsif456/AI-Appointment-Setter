@@ -211,7 +211,7 @@ function ToggleRow({ label, description, checked, onChange, disabled, isMaster }
           borderRadius: 12,
           border: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          background: checked ? '#2563eb' : '#cbd5e1',
+          background: checked ? '#111827' : '#cbd5e1',
           position: 'relative',
           flexShrink: 0,
           transition: 'background 0.2s',

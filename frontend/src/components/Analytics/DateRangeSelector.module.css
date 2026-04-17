@@ -18,8 +18,8 @@
 }
 
 .select:focus {
-  outline: 2px solid #4361ee;
-  border-color: #4361ee;
+  outline: 2px solid var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .customRow {
@@ -43,7 +43,7 @@
 
 .applyButton {
   padding: 6px 14px;
-  background: #4361ee;
+  background: var(--color-primary);
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -52,5 +52,5 @@
 }
 
 .applyButton:hover {
-  background: #3a56d4;
+  background: var(--color-primary-hover);
 }

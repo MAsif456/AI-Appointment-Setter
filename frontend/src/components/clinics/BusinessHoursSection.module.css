@@ -27,7 +27,7 @@
 }
 
 .timeInput:focus {
-  border-color: #4361ee;
+  border-color: var(--color-primary);
 }
 
 .timeInput:disabled {
@@ -54,6 +54,6 @@
 .checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #4361ee;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }

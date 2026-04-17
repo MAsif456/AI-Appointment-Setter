@@ -49,9 +49,9 @@ export default function BookingsChart({ data, title = 'Bookings Over Time' }: Bo
             <Line
               type="linear"
               dataKey="count"
-              stroke="#4361ee"
+              stroke="#111827"
               strokeWidth={2}
-              dot={{ fill: '#4361ee', r: 4 }}
+              dot={{ fill: '#111827', r: 4 }}
               activeDot={{ r: 6 }}
               isAnimationActive={false}
               connectNulls

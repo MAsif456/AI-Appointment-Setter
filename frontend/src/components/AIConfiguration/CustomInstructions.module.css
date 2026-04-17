@@ -31,7 +31,7 @@
 
 .textarea:focus {
   outline: none;
-  border-color: #4361ee;
+  border-color: var(--color-primary);
 }
 
 .textarea::placeholder {

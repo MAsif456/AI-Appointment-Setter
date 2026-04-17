@@ -61,7 +61,7 @@
   padding: 10px 24px;
   border: none;
   border-radius: 8px;
-  background-color: #4361ee;
+  background-color: var(--color-primary);
   color: #ffffff;
   font-size: 14px;
   font-weight: 500;
@@ -71,7 +71,7 @@
 }
 
 .saveButton:hover {
-  background-color: #3a56d4;
+  background-color: var(--color-primary-hover);
 }
 
 .saveButton:disabled {

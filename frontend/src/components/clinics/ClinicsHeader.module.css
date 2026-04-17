@@ -49,8 +49,8 @@
 }
 
 .searchInput:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
 }
 
 .addButton {
@@ -58,7 +58,7 @@
   align-items: center;
   gap: 6px;
   padding: 9px 20px;
-  background-color: #2563eb;
+  background-color: var(--color-primary);
   color: #ffffff;
   font-size: 14px;
   font-weight: 500;
@@ -70,5 +70,5 @@
 }
 
 .addButton:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
 }

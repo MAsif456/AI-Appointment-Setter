@@ -138,11 +138,11 @@ export function HighPriorityIcon({ className }: IconProps) {
 export function AIBotIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 36 36" fill="none">
-      <circle cx="18" cy="18" r="18" fill="#4361ee" />
+      <circle cx="18" cy="18" r="18" fill="currentColor" />
       <circle cx="12.5" cy="15" r="2" fill="#fff" />
       <circle cx="23.5" cy="15" r="2" fill="#fff" />
       <path d="M12 22c0 2.5 2.7 4.5 6 4.5s6-2 6-4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M18 4V2M26 7l1.5-1.5M10 7L8.5 5.5" stroke="#4361ee" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M18 4V2M26 7l1.5-1.5M10 7L8.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <rect x="8" y="10" width="20" height="14" rx="7" stroke="#fff" strokeWidth="1.2" />
     </svg>
   );

@@ -203,7 +203,7 @@
 
 .rejectInput:focus {
   outline: none;
-  border-color: #4361ee;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.15);
 }
 

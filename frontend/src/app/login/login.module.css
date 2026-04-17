@@ -18,7 +18,7 @@
 
 .header { text-align: center; margin-bottom: 2.5rem; }
 .title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 0.75rem; }
-.titleHighlight { color: #2563eb; }
+.titleHighlight { color: var(--color-primary); }
 .subtitle { font-size: 1.125rem; color: #4b5563; margin-bottom: 0.5rem; }
 .description { font-size: 0.875rem; color: #9ca3af; }
 
@@ -72,8 +72,8 @@
 
 .input:focus {
   background-color: white;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
 }
 
 /* Red border on both inputs when a login attempt fails — matches Add Clinic form style */
@@ -93,7 +93,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: white;
-  background-color: #2563eb;
+  background-color: var(--color-primary);
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -101,9 +101,9 @@
 }
 
 .submitButton:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.3);
 }
 
 .submitButton:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -113,12 +113,12 @@
 .forgotPasswordLink {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-.forgotPasswordLink:hover { color: #1d4ed8; text-decoration: underline; }
+.forgotPasswordLink:hover { color: var(--color-primary-hover); text-decoration: underline; }
 
 @media (max-width: 640px) {
   .card { padding: 2rem 1.5rem; }

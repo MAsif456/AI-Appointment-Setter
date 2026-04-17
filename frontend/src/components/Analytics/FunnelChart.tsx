@@ -23,7 +23,7 @@ interface FunnelChartProps {
 }
 
 /** Colour mapping for each funnel stage. */
-const STAGE_COLOURS = ['#4361ee', '#2ec4b6', '#9b5de5', '#00b894'];
+const STAGE_COLOURS = ['#111827', '#2ec4b6', '#9b5de5', '#00b894'];
 
 /**
  * Horizontal bar chart showing the conversion funnel.

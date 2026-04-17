@@ -34,8 +34,8 @@
 }
 
 .tabActive {
-  color: #4361ee;
-  border-bottom-color: #4361ee;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 /* Compact priority banner — icon colored, text grey */
@@ -81,7 +81,7 @@
 }
 
 .searchInput:focus {
-  border-color: #4361ee;
+  border-color: var(--color-primary);
 }
 
 .filterSelect {
@@ -204,8 +204,8 @@
 }
 
 .pageBtn:hover:not(:disabled) {
-  border-color: #4361ee;
-  color: #4361ee;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .pageBtn:disabled {
@@ -215,9 +215,9 @@
 
 .pageBtnActive {
   composes: pageBtn;
-  background-color: #4361ee;
+  background-color: var(--color-primary);
   color: #fff;
-  border-color: #4361ee;
+  border-color: var(--color-primary);
 }
 
 .pageBtnIcon {

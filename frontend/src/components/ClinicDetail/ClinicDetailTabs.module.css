@@ -18,11 +18,11 @@
 }
 
 .tab:hover {
-  color: #4361ee;
+  color: var(--color-primary);
 }
 
 .tabActive {
-  color: #4361ee;
-  border-bottom-color: #4361ee;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
   font-weight: 600;
 }

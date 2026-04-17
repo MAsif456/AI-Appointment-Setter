@@ -101,7 +101,7 @@
   padding: 2px 12px;
   font-size: 13px;
   font-weight: 500;
-  color: #2563eb;
+  color: var(--color-primary);
   background-color: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 20px;
@@ -153,11 +153,11 @@
 .viewDetails {
   font-size: 14px;
   font-weight: 500;
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .viewDetails:hover {
-  color: #1d4ed8;
+  color: var(--color-primary-hover);
 }

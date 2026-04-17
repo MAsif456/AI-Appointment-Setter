@@ -1,3 +1,12 @@
+/* Global CSS custom properties for centralised colour management */
+:root {
+  --color-primary: #111827;
+  --color-primary-hover: #000000;
+  --color-primary-light: #f3f4f6;
+  --color-error: #dc2626;
+  --color-error-light: #fef2f2;
+}
+
 * {
   margin: 0;
   padding: 0;
