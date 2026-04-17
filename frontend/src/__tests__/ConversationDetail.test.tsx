@@ -15,6 +15,11 @@ jest.mock('next/link', () => {
   };
 });
 
+// scrollIntoView is not implemented in jsdom
+beforeAll(() => {
+  Element.prototype.scrollIntoView = jest.fn();
+});
+
 describe('ConversationDetail', () => {
   const sarahConversation = mockConversationDetails['conv_002'];
 

@@ -78,6 +78,9 @@ describe("ClinicsService", () => {
         name: "Minimal Clinic",
         ghlLocationId: "loc_minimal_001",
         ghlCalendarId: "cal_minimal_001",
+        address: "1 Test Street, Cardiff",
+        phone: "029 2034 5678",
+        serviceAreas: [{ postcodePrefix: "CF" }],
       };
       model.create.mockResolvedValue({ ...minimalDto, _id: "new_id" });
 
