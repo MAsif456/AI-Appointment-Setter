@@ -57,5 +57,5 @@ export const PatientHistorySchema =
 PatientHistorySchema.index({ clinicId: 1, phone: 1 }, { unique: true });
 
 // Secondary lookup path: email + clinic (medium-confidence match).
-// sparse: true skips documents where email is absent.
-PatientHistorySchema.index({ clinicId: 1, email: 1 }, { sparse: true });
+// unique + sparse: deduplicates email-only records while skipping documents where email is absent.
+PatientHistorySchema.index({ clinicId: 1, email: 1 }, { unique: true, sparse: true });

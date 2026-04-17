@@ -118,36 +118,54 @@ export class PatientHistoryService {
     validatedPostcode: string | undefined,
     conversationId: Types.ObjectId,
   ): Promise<void> {
-    if (!phone) {
+    if (!phone && !email) {
       this.logger.warn(
-        `persistHistory called without a phone number — clinicId: ${clinicId}. Skipping.`,
+        `persistHistory called without phone or email — clinicId: ${clinicId}. Skipping.`,
       );
       return;
     }
     try {
       const clinicObjectId = new Types.ObjectId(clinicId);
-      const normalisedPhone = this.normalisePhone(phone);
+      const sharedFields = {
+        firstName,
+        lastName,
+        validatedPostcode: validatedPostcode?.toUpperCase(),
+        previousConversationId: conversationId,
+        lastBookedAt: new Date(),
+      };
 
-      await this.patientHistoryModel
-        .findOneAndUpdate(
-          { clinicId: clinicObjectId, phone: normalisedPhone },
-          {
-            $set: {
-              email: email ? email.toLowerCase().trim() : undefined,
-              firstName,
-              lastName,
-              validatedPostcode: validatedPostcode?.toUpperCase(),
-              previousConversationId: conversationId,
-              lastBookedAt: new Date(),
+      if (phone) {
+        const normalisedPhone = this.normalisePhone(phone);
+        await this.patientHistoryModel
+          .findOneAndUpdate(
+            { clinicId: clinicObjectId, phone: normalisedPhone },
+            {
+              $set: {
+                ...sharedFields,
+                email: email ? email.toLowerCase().trim() : undefined,
+              },
             },
-          },
-          { upsert: true, new: true },
-        )
-        .exec();
-
-      this.logger.log(
-        `PatientHistory persisted — clinicId: ${clinicId}, phone: ${normalisedPhone}`,
-      );
+            { upsert: true, new: true },
+          )
+          .exec();
+        this.logger.log(
+          `PatientHistory persisted — clinicId: ${clinicId}, phone: ${normalisedPhone}`,
+        );
+      } else {
+        const normalisedEmail = email!.toLowerCase().trim();
+        await this.patientHistoryModel
+          .findOneAndUpdate(
+            { clinicId: clinicObjectId, email: normalisedEmail },
+            {
+              $set: { ...sharedFields, email: normalisedEmail },
+            },
+            { upsert: true, new: true },
+          )
+          .exec();
+        this.logger.log(
+          `PatientHistory persisted — clinicId: ${clinicId}, email: ${normalisedEmail}`,
+        );
+      }
     } catch (error) {
       // Never throw — a persistence failure must not block a confirmed booking
       this.logger.error(

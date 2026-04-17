@@ -124,22 +124,22 @@ export class ConversationsService {
     );
 
     let greeting: string | null;
-    if (conversation.isReturningPatient) {
-      const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
-      const returningPatient =
-        await this.patientHistoryService.findReturningPatient(
-          lead.phone,
-          lead.email,
-          clinicConfig.clinicId,
-          expiryDays,
-        );
-      greeting = returningPatient
-        ? await this.chatService.startReturningPatientConversation(
-            leadInfo,
-            clinicConfig,
-            returningPatient,
-          )
-        : await this.chatService.startConversation(leadInfo, clinicConfig);
+    if (conversation.isReturningPatient && conversation.returningPatientConfidence) {
+      // Reconstruct from flags already stored on the conversation — avoids
+      // a redundant PatientHistory DB query (flags were set during re-entry).
+      const returningPatient = {
+        firstName: lead.firstName ?? leadInfo.firstName ?? "",
+        lastName: lead.lastName,
+        validatedPostcode: conversation.context?.get("returningPatientPostcode"),
+        previousConversationId: conversation.previousConversationId,
+        lastBookedAt: new Date(),
+        confidence: conversation.returningPatientConfidence as "high" | "medium" | "stale",
+      };
+      greeting = await this.chatService.startReturningPatientConversation(
+        leadInfo,
+        clinicConfig,
+        returningPatient,
+      );
     } else {
       greeting = await this.chatService.startConversation(
         leadInfo,
