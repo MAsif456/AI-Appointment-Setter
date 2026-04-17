@@ -95,15 +95,15 @@ export class CreateClinicDto {
   ghlCalendarId: string;
 
   @IsString()
-  @IsOptional()
-  address?: string;
+  @IsNotEmpty({ message: "Address is required" })
+  address: string;
 
-  @IsOptional()
+  @IsNotEmpty({ message: "Phone number is required" })
   @Matches(/^(\+44\s?|0)\d[\d\s]{8,12}$/, {
     message:
       "Enter a valid UK phone number (e.g. 029 2034 5678 or +44 29 2034 5678)",
   })
-  phone?: string;
+  phone: string;
 
   @IsOptional()
   @IsIn(VALID_DURATIONS, {
@@ -115,8 +115,8 @@ export class CreateClinicDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ServiceAreaDto)
-  @IsOptional()
-  serviceAreas?: ServiceAreaDto[];
+  @IsNotEmpty({ message: "At least one service area is required" })
+  serviceAreas: ServiceAreaDto[];
 
   @IsArray()
   @ValidateNested({ each: true })

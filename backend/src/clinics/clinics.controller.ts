@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { ClinicsService } from "./clinics.service";
 import { CreateClinicDto } from "./dto/create-clinic.dto";
-import type { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
+import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 
 /**
  * REST controller exposing clinic endpoints.
