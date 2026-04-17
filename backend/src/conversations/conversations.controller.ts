@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, Logger, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Logger, UseGuards, Request, ForbiddenException, ConflictException } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { FALLBACK_AI_UNAVAILABLE } from '../orchestrator/orchestrator.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -185,6 +185,16 @@ export class ConversationsController {
         }
       }
 
+      // Defence in depth for US-20 read-only mode: once a conversation has
+      // been escalated to a human, the AI must not produce further replies
+      // even if a rogue client bypasses the UI. The frontend hides the
+      // composer; this 409 makes sure a direct API call fails too.
+      if (conversation.phase === 'escalated') {
+        throw new ConflictException(
+          'Conversation has been escalated to a human team member and is now read-only',
+        );
+      }
+
       this.logger.log(`Message in conversation ${id}: "${body.message}"`);
       const result = await this.conversationsService.sendMessage(id, body.message);
       if (!result) return { reply: FALLBACK_AI_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null };
@@ -200,6 +210,11 @@ export class ConversationsController {
         phase: updatedConversation.phase,
       };
     } catch (error) {
+      // Re-throw HTTP exceptions (forbidden, conflict, etc.) so the client
+      // sees the correct status code instead of a generic fallback payload.
+      if (error instanceof ForbiddenException || error instanceof ConflictException) {
+        throw error;
+      }
       this.logger.error(`Send message failed for conversation ${id}:`, (error as Error).stack);
       return { reply: FALLBACK_AI_UNAVAILABLE, offeredSlots: [], slotSelection: null, bookingResult: null, phase: null };
     }

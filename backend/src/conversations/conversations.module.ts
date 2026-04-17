@@ -7,10 +7,18 @@ import {
 import { Message, MessageSchema } from "../database/schemas/message.schema";
 import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
 import { Lead, LeadSchema } from "../database/schemas/lead.schema";
+import {
+  EscalationNotification,
+  EscalationNotificationSchema,
+} from "../database/schemas/escalation-notification.schema";
 import { AiModule } from "../ai/ai.module";
 import { AppointmentsModule } from "../appointments/appointments.module";
 import { GhlModule } from "../ghl/ghl.module";
 import { EscalationService } from "../ai/escalation.service";
+import { EscalationGhlService } from "../ai/escalation-ghl.service";
+import { EscalationNotifierService } from "../ai/escalation-notifier.service";
+import { ComprehensionClassifier } from "../ai/comprehension-classifier";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { ConversationsController } from "./conversations.controller";
 import { ConversationsService } from "./conversations.service";
 import { ConversationsPersistenceService } from "./conversations.persistence.service";
@@ -29,6 +37,7 @@ import { PostcodeValidationService } from "../orchestrator/postcode-validation.s
       { name: Message.name, schema: MessageSchema },
       { name: Clinic.name, schema: ClinicSchema },
       { name: Lead.name, schema: LeadSchema },
+      { name: EscalationNotification.name, schema: EscalationNotificationSchema },
     ]),
     AiModule,
     AppointmentsModule,
@@ -36,6 +45,7 @@ import { PostcodeValidationService } from "../orchestrator/postcode-validation.s
     SecurityModule,
     CancellationModule,
     PatientHistoryModule,
+    NotificationsModule,
     GdprModule,
   ],
   controllers: [ConversationsController],
@@ -43,6 +53,9 @@ import { PostcodeValidationService } from "../orchestrator/postcode-validation.s
     ConversationsService,
     ConversationsPersistenceService,
     EscalationService,
+    EscalationGhlService,
+    EscalationNotifierService,
+    ComprehensionClassifier,
     AbuseHandlerService,
     AbuseDetectionService,
     PostcodeValidationService,

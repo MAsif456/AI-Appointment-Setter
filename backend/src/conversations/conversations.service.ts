@@ -19,7 +19,11 @@ import {
 } from "../appointments/appointments.service";
 import { UrgencyLevel } from "../ai/urgency-detector.types";
 import { UrgencyPipeline } from "../ai/urgency-pipeline";
-import { EscalationService } from "../ai/escalation.service";
+import {
+  EscalationService,
+  PATIENT_FAILED_UNDERSTANDING_RESPONSE,
+} from "../ai/escalation.service";
+import { ComprehensionClassifier } from "../ai/comprehension-classifier";
 import { PATIENT_EMERGENCY_FOLLOWUP } from "../ai/urgency-messages";
 import { AbuseHandlerService } from "./abuse-handler.service";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
@@ -67,6 +71,7 @@ export class ConversationsService {
     private readonly appointmentsService: AppointmentsService,
     private readonly urgencyPipeline: UrgencyPipeline,
     private readonly escalationService: EscalationService,
+    private readonly comprehensionClassifier: ComprehensionClassifier,
     private readonly abuseHandler: AbuseHandlerService,
     private readonly securityPipeline: SecurityPipelineService,
     private readonly ghlApiService: GhlApiService,
@@ -219,7 +224,26 @@ export class ConversationsService {
       lead,
       userMessage,
     );
-    if (abuseHandled) return abuseHandled;
+    if (abuseHandled) {
+      // US-20: the abuse handler flagged the lead as having accepted the
+      // human hand-off — route it through the single escalation funnel
+      // so GHL + notifications fire exactly like any other trigger.
+      if (abuseHandled.escalationRequested) {
+        await this.escalationService
+          .escalate({
+            conversation,
+            lead,
+            clinic,
+            trigger: "abuse",
+            reason: "Abuse hand-off: lead accepted human offer",
+            patientMessage: abuseHandled.reply,
+          })
+          .catch((err) =>
+            this.logger.warn(`Abuse escalation funnel failed: ${err.message}`),
+          );
+      }
+      return abuseHandled;
+    }
 
     // Security pipeline: sanitise input, detect injection, enforce boundaries
     const securityResult = await this.securityPipeline.processInbound(
@@ -518,7 +542,7 @@ export class ConversationsService {
       );
     }
 
-    return buildAndSendReply(
+    const result = await buildAndSendReply(
       conversation,
       clinic,
       lead,
@@ -531,6 +555,99 @@ export class ConversationsService {
       leadInfo,
       replyDeps,
     );
+
+    return this.handleComprehensionOutcome(
+      conversation,
+      clinic,
+      lead,
+      userMessage,
+      resolvedUrgency,
+      result,
+    );
+  }
+
+  /**
+   * US-20: run the comprehension classifier on the AI's draft reply and
+   * either escalate (3 consecutive failures) or reset the counter.
+   *
+   * Skipped when the urgency pipeline flagged the message as urgent or
+   * emergency — the AI's standard booking-flow reply (e.g. asking for
+   * a postcode) is not a comprehension failure in a medical context.
+   * Also skipped on FALLBACK_AI_UNAVAILABLE — a Groq outage is not
+   * a comprehension failure either.
+   */
+  private async handleComprehensionOutcome(
+    conversation: ConversationDocument,
+    clinic: ClinicDocument,
+    lead: LeadDocument,
+    userMessage: string,
+    resolvedUrgency: string,
+    result: any,
+  ) {
+    if (!result?.reply) return result;
+    if (result.reply === FALLBACK_AI_UNAVAILABLE) return result;
+    // Medical urgency — the AI's booking-flow reply is intentional,
+    // not a sign that it failed to understand the lead.
+    if (resolvedUrgency === "urgent" || resolvedUrgency === "emergency") {
+      return result;
+    }
+
+    const outcome = await this.comprehensionClassifier.classify(
+      userMessage,
+      result.reply,
+    );
+
+    if (outcome === "understood") {
+      if ((conversation.failedUnderstandingCount ?? 0) > 0) {
+        await this.conversationModel.findByIdAndUpdate(conversation._id, {
+          failedUnderstandingCount: 0,
+        });
+      }
+      return result;
+    }
+
+    // Unclear — increment the counter atomically and read the new value.
+    const updated = await this.conversationModel.findByIdAndUpdate(
+      conversation._id,
+      { $inc: { failedUnderstandingCount: 1 } },
+      { new: true },
+    );
+    const count = updated?.failedUnderstandingCount ?? 0;
+    this.logger.log(
+      `Comprehension failure #${count} on conversation ${conversation._id}`,
+    );
+
+    if (count < 3) return result;
+
+    // Third strike — funnel through the single escalation entry point.
+    const escalation = await this.escalationService.escalate({
+      conversation: updated ?? conversation,
+      lead,
+      clinic,
+      trigger: "failed_understanding",
+      reason: "3 consecutive AI comprehension failures",
+      patientMessage: PATIENT_FAILED_UNDERSTANDING_RESPONSE,
+    });
+
+    // Replace the ambiguous AI reply with the hand-off message and
+    // persist it so the transcript shows the escalation cleanly.
+    await this.persistence.saveMessage(
+      conversation,
+      clinic,
+      lead,
+      "ai",
+      escalation.aiMessage,
+    );
+    await this.persistence.updateConversationMeta(
+      conversation,
+      "ai",
+      "escalated",
+    );
+
+    return {
+      ...result,
+      reply: escalation.aiMessage,
+    };
   }
 
   /** Resets a conversation by deleting all messages and resetting phase. */

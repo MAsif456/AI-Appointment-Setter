@@ -4,18 +4,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import NotificationBell from '@/components/Notifications/NotificationBell';
 import styles from './Sidebar.module.css';
 import {
   DashboardIcon, ClinicsIcon, ConversationsIcon,
   AnalyticsIcon, SettingsIcon, UserIcon, LogoutIcon, ShieldIcon,
 } from '../Icons';
 
-const navItems = [
+const baseNavItems = [
   { label: 'Dashboard', href: '/', icon: DashboardIcon },
   { label: 'Clinics', href: '/clinics', icon: ClinicsIcon },
   { label: 'Conversations', href: '/conversations', icon: ConversationsIcon },
   { label: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
 ];
+
+// Staff-only — admins never action escalations so they should not
+// see the link at all.
+const escalationItem = { label: 'Escalations', href: '/escalations', icon: ConversationsIcon };
 
 const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon };
 
@@ -29,6 +34,11 @@ export default function Sidebar() {
   const { user, logout, isAdmin } = useAuth();
   const [showLogout, setShowLogout] = useState(false);
 
+  const isStaff = user?.role === 'staff';
+  const navItems = isStaff
+    ? [...baseNavItems.slice(0, 3), escalationItem, ...baseNavItems.slice(3)]
+    : baseNavItems;
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
@@ -37,8 +47,14 @@ export default function Sidebar() {
   return (
     <>
       <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          AppointHealth <span className={styles.brandAi}>AI</span>
+        <div
+          className={styles.brand}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <span>
+            AppointHealth <span className={styles.brandAi}>AI</span>
+          </span>
+          <NotificationBell />
         </div>
 
         <nav className={styles.nav}>

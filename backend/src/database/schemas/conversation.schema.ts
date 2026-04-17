@@ -218,6 +218,12 @@ export class Conversation {
   @Prop({ default: 0 })
   injectionAttemptCount: number;
 
+  // US-20: counts consecutive AI comprehension failures. Resets to 0
+  // on any `understood` classification; at 3 the conversation is
+  // auto-escalated to a human and `phase` flips to "escalated".
+  @Prop({ default: 0 })
+  failedUnderstandingCount: number;
+
   // for closure tracking
   @Prop()
   closedAt?: Date;
