@@ -29,12 +29,15 @@
   gap: 24px;
 }
 
-/* Message history panel */
+/* Message history panel — flex column so messages scroll within */
 .messagePanel {
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
 }
 
 .panelTitle {
@@ -42,12 +45,15 @@
   font-weight: 600;
   color: #1a1a2e;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .messages {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .messageBubble {
