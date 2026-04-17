@@ -28,6 +28,7 @@ import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
 import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
+import { ConsentService } from "../gdpr/consent/consent.service";
 
 const mockSlotProvider = { getAvailableSlots: jest.fn() };
 const mockAppointmentsService = { bookAppointment: jest.fn() };
@@ -119,6 +120,7 @@ describe("OrchestratorService — generateResponse", () => {
           provide: ChatConversationsService,
           useValue: { sendMessage: jest.fn() },
         },
+        { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
       ],
     }).compile();
 

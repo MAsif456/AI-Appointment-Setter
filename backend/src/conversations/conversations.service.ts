@@ -19,7 +19,11 @@ import {
 } from "../appointments/appointments.service";
 import { UrgencyLevel } from "../ai/urgency-detector.types";
 import { UrgencyPipeline } from "../ai/urgency-pipeline";
-import { EscalationService } from "../ai/escalation.service";
+import {
+  EscalationService,
+  PATIENT_FAILED_UNDERSTANDING_RESPONSE,
+} from "../ai/escalation.service";
+import { ComprehensionClassifier } from "../ai/comprehension-classifier";
 import { PATIENT_EMERGENCY_FOLLOWUP } from "../ai/urgency-messages";
 import { AbuseHandlerService } from "./abuse-handler.service";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
@@ -29,6 +33,15 @@ import {
   DETAILS_CHANGED_KEYWORDS,
   RESCHEDULE_KEYWORDS, matchesKeywords,
 } from "../orchestrator/orchestrator.types";
+import {
+  CONSENT_GRANTED_KEYWORDS,
+  CONSENT_DECLINED_KEYWORDS,
+  CONSENT_ACKNOWLEDGED_RESPONSE,
+  CONSENT_DECLINED_RESPONSE,
+  CONSENT_DECLINED_FOLLOWUP,
+  CONSENT_STATEMENT_TEXT,
+} from "../gdpr/gdpr.types";
+import { ConsentService } from "../gdpr/consent/consent.service";
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { CancellationService } from "../cancellation/cancellation.service";
 import { ConversationsPersistenceService } from "./conversations.persistence.service";
@@ -58,6 +71,7 @@ export class ConversationsService {
     private readonly appointmentsService: AppointmentsService,
     private readonly urgencyPipeline: UrgencyPipeline,
     private readonly escalationService: EscalationService,
+    private readonly comprehensionClassifier: ComprehensionClassifier,
     private readonly abuseHandler: AbuseHandlerService,
     private readonly securityPipeline: SecurityPipelineService,
     private readonly ghlApiService: GhlApiService,
@@ -65,6 +79,7 @@ export class ConversationsService {
     private readonly persistence: ConversationsPersistenceService,
     private readonly patientHistoryService: PatientHistoryService,
     private readonly postcodeValidationService: PostcodeValidationService,
+    private readonly consentService: ConsentService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -82,15 +97,22 @@ export class ConversationsService {
   }
 
   /** Lists all conversations with basic lead/clinic info. */
-  async listConversations(clinicIds?: string[]) {
+  async listConversations(clinicIds?: string[], includeAnonymised = false) {
     // If clinicIds provided and empty → staff with no assigned clinics → return empty array
     if (clinicIds !== undefined && clinicIds.length === 0) {
       return [];
     }
-    const filter =
+    const filter: Record<string, any> =
       clinicIds && clinicIds.length > 0
         ? { clinicId: { $in: clinicIds.map((id) => new Types.ObjectId(id)) } }
-        : {}; // No filter = return all (for admins)
+        : {};
+
+    // Separate active conversations from anonymised (redacted) ones
+    if (!includeAnonymised) {
+      filter.isAnonymised = { $ne: true };
+    } else {
+      filter.isAnonymised = true;
+    }
 
     return this.conversationModel
       .find(filter)
@@ -124,22 +146,22 @@ export class ConversationsService {
     );
 
     let greeting: string | null;
-    if (conversation.isReturningPatient) {
-      const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
-      const returningPatient =
-        await this.patientHistoryService.findReturningPatient(
-          lead.phone,
-          lead.email,
-          clinicConfig.clinicId,
-          expiryDays,
-        );
-      greeting = returningPatient
-        ? await this.chatService.startReturningPatientConversation(
-            leadInfo,
-            clinicConfig,
-            returningPatient,
-          )
-        : await this.chatService.startConversation(leadInfo, clinicConfig);
+    if (conversation.isReturningPatient && conversation.returningPatientConfidence) {
+      // Reconstruct from flags already stored on the conversation — avoids
+      // a redundant PatientHistory DB query (flags were set during re-entry).
+      const returningPatient = {
+        firstName: lead.firstName ?? leadInfo.firstName ?? "",
+        lastName: lead.lastName,
+        validatedPostcode: conversation.context?.get("returningPatientPostcode"),
+        previousConversationId: conversation.previousConversationId,
+        lastBookedAt: new Date(),
+        confidence: conversation.returningPatientConfidence as "high" | "medium" | "stale",
+      };
+      greeting = await this.chatService.startReturningPatientConversation(
+        leadInfo,
+        clinicConfig,
+        returningPatient,
+      );
     } else {
       greeting = await this.chatService.startConversation(
         leadInfo,
@@ -202,7 +224,26 @@ export class ConversationsService {
       lead,
       userMessage,
     );
-    if (abuseHandled) return abuseHandled;
+    if (abuseHandled) {
+      // US-20: the abuse handler flagged the lead as having accepted the
+      // human hand-off — route it through the single escalation funnel
+      // so GHL + notifications fire exactly like any other trigger.
+      if (abuseHandled.escalationRequested) {
+        await this.escalationService
+          .escalate({
+            conversation,
+            lead,
+            clinic,
+            trigger: "abuse",
+            reason: "Abuse hand-off: lead accepted human offer",
+            patientMessage: abuseHandled.reply,
+          })
+          .catch((err) =>
+            this.logger.warn(`Abuse escalation funnel failed: ${err.message}`),
+          );
+      }
+      return abuseHandled;
+    }
 
     // Security pipeline: sanitise input, detect injection, enforce boundaries
     const securityResult = await this.securityPipeline.processInbound(
@@ -260,6 +301,49 @@ export class ConversationsService {
     if (conversation.phase === 'booked' && RESCHEDULE_KEYWORDS.some(kw => userMessage.toLowerCase().includes(kw))) {
       await this.persistence.updateConversationMeta(conversation, 'lead', 'rescheduling');
       conversation.phase = 'rescheduling';
+    }
+
+    // Consent gate — UK GDPR Art. 9(2)(a) explicit consent before processing health data.
+    // Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/
+    // Covers both LiveChat API and GHL webhook paths (orchestrator delegates here).
+    if (conversation.phase === 'consenting' || conversation.phase === 'consent_declined') {
+      const lower = userMessage.toLowerCase().trim();
+      if (matchesKeywords(lower, CONSENT_GRANTED_KEYWORDS)) {
+        await this.consentService.recordConsent(
+          (conversation.leadId as any).toString(),
+          (conversation.clinicId as any).toString(),
+          'granted',
+          conversation.channel,
+          conversationId,
+        );
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'qualifying');
+        const reply = CONSENT_ACKNOWLEDGED_RESPONSE;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      if (matchesKeywords(lower, CONSENT_DECLINED_KEYWORDS)) {
+        await this.consentService.recordConsent(
+          (conversation.leadId as any).toString(),
+          (conversation.clinicId as any).toString(),
+          'declined',
+          conversation.channel,
+          conversationId,
+        );
+        await this.persistence.updateConversationMeta(conversation, 'ai', 'consent_declined');
+        const reply = CONSENT_DECLINED_RESPONSE;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      // Unrecognised message in consent_declined — static follow-up
+      if (conversation.phase === 'consent_declined') {
+        const reply = CONSENT_DECLINED_FOLLOWUP;
+        await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+        return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+      }
+      // Unrecognised message in consenting — re-prompt for consent
+      const reply = CONSENT_STATEMENT_TEXT;
+      await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+      return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
     }
 
     // Returning patient detail confirmation — LiveChat API path.
@@ -458,7 +542,7 @@ export class ConversationsService {
       );
     }
 
-    return buildAndSendReply(
+    const result = await buildAndSendReply(
       conversation,
       clinic,
       lead,
@@ -471,6 +555,99 @@ export class ConversationsService {
       leadInfo,
       replyDeps,
     );
+
+    return this.handleComprehensionOutcome(
+      conversation,
+      clinic,
+      lead,
+      userMessage,
+      resolvedUrgency,
+      result,
+    );
+  }
+
+  /**
+   * US-20: run the comprehension classifier on the AI's draft reply and
+   * either escalate (3 consecutive failures) or reset the counter.
+   *
+   * Skipped when the urgency pipeline flagged the message as urgent or
+   * emergency — the AI's standard booking-flow reply (e.g. asking for
+   * a postcode) is not a comprehension failure in a medical context.
+   * Also skipped on FALLBACK_AI_UNAVAILABLE — a Groq outage is not
+   * a comprehension failure either.
+   */
+  private async handleComprehensionOutcome(
+    conversation: ConversationDocument,
+    clinic: ClinicDocument,
+    lead: LeadDocument,
+    userMessage: string,
+    resolvedUrgency: string,
+    result: any,
+  ) {
+    if (!result?.reply) return result;
+    if (result.reply === FALLBACK_AI_UNAVAILABLE) return result;
+    // Medical urgency — the AI's booking-flow reply is intentional,
+    // not a sign that it failed to understand the lead.
+    if (resolvedUrgency === "urgent" || resolvedUrgency === "emergency") {
+      return result;
+    }
+
+    const outcome = await this.comprehensionClassifier.classify(
+      userMessage,
+      result.reply,
+    );
+
+    if (outcome === "understood") {
+      if ((conversation.failedUnderstandingCount ?? 0) > 0) {
+        await this.conversationModel.findByIdAndUpdate(conversation._id, {
+          failedUnderstandingCount: 0,
+        });
+      }
+      return result;
+    }
+
+    // Unclear — increment the counter atomically and read the new value.
+    const updated = await this.conversationModel.findByIdAndUpdate(
+      conversation._id,
+      { $inc: { failedUnderstandingCount: 1 } },
+      { new: true },
+    );
+    const count = updated?.failedUnderstandingCount ?? 0;
+    this.logger.log(
+      `Comprehension failure #${count} on conversation ${conversation._id}`,
+    );
+
+    if (count < 3) return result;
+
+    // Third strike — funnel through the single escalation entry point.
+    const escalation = await this.escalationService.escalate({
+      conversation: updated ?? conversation,
+      lead,
+      clinic,
+      trigger: "failed_understanding",
+      reason: "3 consecutive AI comprehension failures",
+      patientMessage: PATIENT_FAILED_UNDERSTANDING_RESPONSE,
+    });
+
+    // Replace the ambiguous AI reply with the hand-off message and
+    // persist it so the transcript shows the escalation cleanly.
+    await this.persistence.saveMessage(
+      conversation,
+      clinic,
+      lead,
+      "ai",
+      escalation.aiMessage,
+    );
+    await this.persistence.updateConversationMeta(
+      conversation,
+      "ai",
+      "escalated",
+    );
+
+    return {
+      ...result,
+      reply: escalation.aiMessage,
+    };
   }
 
   /** Resets a conversation by deleting all messages and resetting phase. */

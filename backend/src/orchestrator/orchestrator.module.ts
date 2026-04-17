@@ -13,6 +13,7 @@ import { SecurityModule } from "../security/security.module";
 import { CancellationModule } from "../cancellation/cancellation.module";
 import { PatientHistoryModule } from "../patient-history/patient-history.module";
 import { ConversationsModule } from "../conversations/conversations.module";
+import { GdprModule } from "../gdpr/gdpr.module";
 import { OrchestratorService } from "./orchestrator.service";
 import { PostcodeValidationService } from "./postcode-validation.service";
 
@@ -25,6 +26,7 @@ import { PostcodeValidationService } from "./postcode-validation.service";
     CancellationModule,
     PatientHistoryModule,
     ConversationsModule,
+    GdprModule,
   ],
   providers: [OrchestratorService, PostcodeValidationService],
   exports: [OrchestratorService],

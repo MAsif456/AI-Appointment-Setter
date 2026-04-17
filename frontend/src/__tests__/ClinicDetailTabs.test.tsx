@@ -59,6 +59,13 @@ jest.mock('@/lib/ai-settings-api', () => ({
   saveAiSettings: jest.fn().mockResolvedValue({}),
 }));
 
+// Mock the new ClinicOverviewTab so the ClinicDetailTabs tests stay focused
+// on tab-switching behaviour instead of overview data-loading concerns.
+jest.mock('@/components/clinics/ClinicOverviewTab', () => ({
+  __esModule: true,
+  default: () => <div data-testid="clinic-overview-tab">Overview Tab</div>,
+}));
+
 const mockedUpdateSettings = updateClinicSettings as jest.MockedFunction<typeof updateClinicSettings>;
 
 const mockClinicData = {
@@ -93,13 +100,11 @@ describe('ClinicDetailTabs', () => {
     expect(screen.getByText('Analytics')).toBeInTheDocument();
   });
 
-  /** Verifies the Overview tab is active by default. */
+  /** Verifies the Overview tab is active by default and mounts the tab component. */
   it('shows Overview content by default', () => {
     render(<ClinicDetailTabs clinic={mockClinicData} />);
 
-    expect(
-      screen.getByText('Clinic overview would go here...'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('clinic-overview-tab')).toBeInTheDocument();
   });
 
   /** Verifies the settings form renders when isEditing is true. */
@@ -109,18 +114,14 @@ describe('ClinicDetailTabs', () => {
     expect(screen.getByTestId('settings-form')).toBeInTheDocument();
     expect(screen.getAllByText('Save Settings').length).toBeGreaterThan(0);
   });
-  /** Verifies non-settings tabs still render placeholder content. */
-  it('renders correct placeholder for non-settings tabs', () => {
+  /** Verifies tabs without dedicated components still render the placeholder. */
+  it('renders correct placeholder for the Conversations tab', () => {
     render(<ClinicDetailTabs clinic={mockClinicData} />);
 
-    const placeholderTabs = ['Overview', 'Conversations'];
-
-    for (const tab of placeholderTabs) {
-      fireEvent.click(screen.getByText(tab));
-      expect(
-        screen.getByText(`Clinic ${tab.toLowerCase()} would go here...`),
-      ).toBeInTheDocument();
-    }
+    fireEvent.click(screen.getByText('Conversations'));
+    expect(
+      screen.getByText('Clinic conversations would go here...'),
+    ).toBeInTheDocument();
   });
 
   /** Verifies the AI Configuration tab renders the AI components after loading. */

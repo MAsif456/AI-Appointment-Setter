@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
+import { EscalationNotificationProvider } from '@/contexts/EscalationNotificationContext';
 import styles from '@/app/layout.module.css';
 
 /**
@@ -26,13 +27,18 @@ export default function ConditionalLayout({
     return <>{children}</>;
   }
 
-  // Dashboard pages - with sidebar
+  // Dashboard pages - with sidebar.
+  // The escalation provider is mounted unconditionally here; it's a
+  // no-op for admins because the bell and stream hook both gate
+  // themselves on `role === "staff"`.
   return (
-    <div className={styles.layoutWrapper}>
-      <Sidebar />
-      <main className={styles.mainContent}>
-        {children}
-      </main>
-    </div>
+    <EscalationNotificationProvider>
+      <div className={styles.layoutWrapper}>
+        <Sidebar />
+        <main className={styles.mainContent}>
+          {children}
+        </main>
+      </div>
+    </EscalationNotificationProvider>
   );
 }

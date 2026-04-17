@@ -33,6 +33,9 @@ export interface ClinicConfig {
   /** Whether the clinic is currently active */
   isActive: boolean;
 
+  /** UK GDPR Art. 5(1)(e) - data retention period in months. Defaults to 12. */
+  dataRetentionMonths?: number;
+
   /** Per-clinic cancellation policy settings */
   cancellationPolicy?: {
     feeEnabled: boolean;

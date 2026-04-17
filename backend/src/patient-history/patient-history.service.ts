@@ -15,6 +15,7 @@ import {
   PatientHistory,
   PatientHistoryDocument,
 } from "../database/schemas/patient-history.schema";
+import { computeBlindIndex, deriveFieldKey } from "../gdpr/encryption/encryption.util";
 
 /** Result returned when a previous booking is found for this patient + clinic. */
 export interface ReturningPatientResult {
@@ -62,11 +63,15 @@ export class PatientHistoryService {
     try {
       const clinicObjectId = new Types.ObjectId(clinicId);
 
-      // Phase 1: phone lookup (high confidence)
+      // Phase 1: phone lookup via blind index (high confidence)
       if (phone) {
         const normalisedPhone = this.normalisePhone(phone);
+        const hash = this.computePhoneHash(normalisedPhone);
+        const query = hash
+          ? { clinicId: clinicObjectId, phoneHash: hash }
+          : { clinicId: clinicObjectId, phone: normalisedPhone };
         const record = await this.patientHistoryModel
-          .findOne({ clinicId: clinicObjectId, phone: normalisedPhone })
+          .findOne(query)
           .exec();
 
         if (record) {
@@ -118,36 +123,62 @@ export class PatientHistoryService {
     validatedPostcode: string | undefined,
     conversationId: Types.ObjectId,
   ): Promise<void> {
-    if (!phone) {
+    if (!phone && !email) {
       this.logger.warn(
-        `persistHistory called without a phone number — clinicId: ${clinicId}. Skipping.`,
+        `persistHistory called without phone or email — clinicId: ${clinicId}. Skipping.`,
       );
       return;
     }
     try {
       const clinicObjectId = new Types.ObjectId(clinicId);
-      const normalisedPhone = this.normalisePhone(phone);
+      const sharedFields = {
+        firstName,
+        lastName,
+        validatedPostcode: validatedPostcode?.toUpperCase(),
+        previousConversationId: conversationId,
+        lastBookedAt: new Date(),
+      };
 
-      await this.patientHistoryModel
-        .findOneAndUpdate(
-          { clinicId: clinicObjectId, phone: normalisedPhone },
-          {
-            $set: {
-              email: email ? email.toLowerCase().trim() : undefined,
-              firstName,
-              lastName,
-              validatedPostcode: validatedPostcode?.toUpperCase(),
-              previousConversationId: conversationId,
-              lastBookedAt: new Date(),
+      if (phone) {
+        const normalisedPhone = this.normalisePhone(phone);
+        const hash = this.computePhoneHash(normalisedPhone);
+
+        const filter = hash
+          ? { clinicId: clinicObjectId, phoneHash: hash }
+          : { clinicId: clinicObjectId, phone: normalisedPhone };
+
+        await this.patientHistoryModel
+          .findOneAndUpdate(
+            filter,
+            {
+              $set: {
+                ...sharedFields,
+                phone: normalisedPhone,
+                ...(hash ? { phoneHash: hash } : {}),
+                email: email ? email.toLowerCase().trim() : undefined,
+              },
             },
-          },
-          { upsert: true, new: true },
-        )
-        .exec();
-
-      this.logger.log(
-        `PatientHistory persisted — clinicId: ${clinicId}, phone: ${normalisedPhone}`,
-      );
+            { upsert: true, new: true },
+          )
+          .exec();
+        this.logger.log(
+          `PatientHistory persisted — clinicId: ${clinicId}, phone: ${normalisedPhone}`,
+        );
+      } else {
+        const normalisedEmail = email!.toLowerCase().trim();
+        await this.patientHistoryModel
+          .findOneAndUpdate(
+            { clinicId: clinicObjectId, email: normalisedEmail },
+            {
+              $set: { ...sharedFields, email: normalisedEmail },
+            },
+            { upsert: true, new: true },
+          )
+          .exec();
+        this.logger.log(
+          `PatientHistory persisted — clinicId: ${clinicId}, email: ${normalisedEmail}`,
+        );
+      }
     } catch (error) {
       // Never throw — a persistence failure must not block a confirmed booking
       this.logger.error(
@@ -155,6 +186,18 @@ export class PatientHistoryService {
         (error as Error).stack,
       );
     }
+  }
+
+  /**
+   * Computes a HMAC-SHA256 blind index for encrypted phone lookups.
+   * Returns null when FIELD_ENCRYPTION_KEY is not configured (graceful fallback).
+   */
+  private computePhoneHash(normalisedPhone: string): string | null {
+    const keyHex = process.env.FIELD_ENCRYPTION_KEY;
+    if (!keyHex) return null;
+    const masterKey = Buffer.from(keyHex, 'hex');
+    const fieldKey = deriveFieldKey(masterKey, 'PatientHistory.phone');
+    return computeBlindIndex(normalisedPhone, fieldKey);
   }
 
   /**

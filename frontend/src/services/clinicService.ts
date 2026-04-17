@@ -11,6 +11,7 @@ interface ClinicFormData {
   serviceAreas: string;
   servicesOffered: string;
   appointmentDuration: number;
+  dataRetentionMonths: number;
   businessHours: WeekHours;
 }
 

@@ -36,6 +36,7 @@ import { handleInboundMessageFlow } from "./orchestrator.inbound-message";
 import { generateOrchestratorResponse } from "./orchestrator.generate-response";
 import { detectOrchestratorIntent } from "./orchestrator.detect-intent";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
+import { ConsentService } from "../gdpr/consent/consent.service";
 
 export { FALLBACK_MESSAGE };
 export type { OrchestratorMessage, OrchestratorContext, IntentResult };
@@ -57,6 +58,7 @@ export class OrchestratorService {
     private readonly securityPipeline: SecurityPipelineService,
     private readonly patientHistoryService: PatientHistoryService,
     private readonly chatConversationsService: ChatConversationsService,
+    private readonly consentService: ConsentService,
   ) {}
 
   async handleNewLead(
@@ -71,6 +73,7 @@ export class OrchestratorService {
       ghlApiService: this.ghlApiService,
       patientHistoryService: this.patientHistoryService,
       securityPipeline: this.securityPipeline,
+      consentService: this.consentService,
       logger: this.logger,
       correlationId,
     });
@@ -87,6 +90,7 @@ export class OrchestratorService {
       logger: this.logger,
       correlationId,
       chatConversationsService: this.chatConversationsService,
+      patientHistoryService: this.patientHistoryService,
     });
   }
 

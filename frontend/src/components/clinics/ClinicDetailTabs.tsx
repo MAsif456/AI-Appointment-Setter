@@ -13,6 +13,7 @@ import SaveBar from '@/components/AIConfiguration/SaveBar';
 import ClinicSettingsForm, { type ClinicSettingsFormHandle } from '@/components/EditClinicsDetails/ClinicSettingsForm';
 import ClinicSettingsView from '@/components/EditClinicsDetails/ClinicSettingsView';
 import ClinicAnalyticsTab from '@/components/Analytics/ClinicAnalyticsTab';
+import ClinicOverviewTab from './ClinicOverviewTab';
 
 /** Available tabs on the clinic detail page. */
 const TABS = ['Overview', 'Settings', 'AI Configuration', 'Conversations', 'Analytics'] as const;
@@ -185,6 +186,10 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
 
     if (activeTab === 'Analytics') {
       return <ClinicAnalyticsTab clinicId={clinic._id} />;
+    }
+
+    if (activeTab === 'Overview') {
+      return <ClinicOverviewTab clinic={clinic} />;
     }
 
     return (

@@ -1,7 +1,9 @@
+import GdprPanel from './GdprPanel';
 import styles from './LiveChat.module.css';
 
 /** Lead details shown in the sidebar */
 export interface LeadDetails {
+  id?: string;
   firstName: string;
   lastName?: string;
   phone?: string;
@@ -32,6 +34,8 @@ function capitalise(text: string): string {
 /** Phase display class mapping */
 const PHASE_CLASSES: Record<string, string> = {
   greeting: styles.phaseGreeting,
+  consenting: styles.phaseQualifying,
+  consent_declined: styles.phaseDeclined,
   qualifying: styles.phaseQualifying,
   booking: styles.phaseBooking,
   confirmed: styles.phaseConfirmed,
@@ -84,6 +88,7 @@ export default function ChatSidebar({
         <InfoRow label="Messages" value={String(messageCount)} />
       </div>
 
+      {lead?.id && <GdprPanel leadId={lead.id} />}
     </div>
   );
 }
