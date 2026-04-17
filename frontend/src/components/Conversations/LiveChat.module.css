@@ -288,6 +288,7 @@
 .infoValue {
   font-size: 14px;
   color: #1a1a2e;
+  cursor: default;
 }
 
 .statusBadge {

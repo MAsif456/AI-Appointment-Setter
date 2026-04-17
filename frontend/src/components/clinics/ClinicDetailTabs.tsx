@@ -7,7 +7,8 @@ import { updateClinicSettings } from '@/lib/api/clinics';
 import { fetchAiSettings, saveAiSettings } from '@/lib/ai-settings-api';
 import ToneSelector from '@/components/AIConfiguration/ToneSelector';
 import GreetingMessage from '@/components/AIConfiguration/GreetingMessage';
-import QualificationQuestions from '@/components/AIConfiguration/QualificationQuestions';
+// QualificationQuestions hidden per AC-1 — import retained for potential future use
+// import QualificationQuestions from '@/components/AIConfiguration/QualificationQuestions';
 import CustomInstructions from '@/components/AIConfiguration/CustomInstructions';
 import SaveBar from '@/components/AIConfiguration/SaveBar';
 import ClinicSettingsForm, { type ClinicSettingsFormHandle } from '@/components/EditClinicsDetails/ClinicSettingsForm';
@@ -177,7 +178,7 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
         <div>
           <ToneSelector value={tone} onChange={setTone} />
           <GreetingMessage value={greeting} onChange={setGreeting} />
-          <QualificationQuestions questions={questions} onChange={setQuestions} />
+          {/* Qualification questions hidden per AC-1 — section not visible on AI config page */}
           <CustomInstructions value={instructions} onChange={setInstructions} />
           <SaveBar onSave={handleAiSave} saving={aiSaving} toast={aiToast} />
         </div>

@@ -32,7 +32,7 @@
 .sectionDesc { font-size: 0.875rem; color: #64748b; margin-top: 4px; }
 
 /* ─── Info card (Account Settings) ────────────────────────────────── */
-.infoCard { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; max-width: 680px; display: flex; flex-direction: column; gap: 24px; }
+.infoCard { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; max-width: 960px; display: flex; flex-direction: column; gap: 24px; }
 .infoField { display: flex; flex-direction: column; gap: 6px; }
 .infoLabel { font-size: 0.8rem; font-weight: 500; color:black; text-transform: uppercase; letter-spacing: 0.05em; }
 .infoValue { font-size: 0.95rem; color: #0f172a; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
@@ -70,12 +70,12 @@
 
 /* ─── Modal ────────────────────────────────────────────────────────── */
 .modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
-.modal { background: #fff; border-radius: 12px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
-.modalLarge { max-width: 560px; max-height: 85vh; overflow-y: auto; }
+.modal { background: #fff; border-radius: 12px; padding: 36px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+.modalLarge { max-width: 640px; max-height: 85vh; overflow-y: auto; }
 .modalHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .modalTitle { font-size: 1.1rem; font-weight: 600; color: #0f172a; }
 .modalDesc { font-size: 0.9rem; color: #64748b; margin: 8px 0 20px; line-height: 1.5; }
-.modalForm { display: flex; flex-direction: column; gap: 16px; }
+.modalForm { display: flex; flex-direction: column; gap: 20px; }
 .modalActions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
 .closeButton { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: none; border: none; color: #64748b; border-radius: 6px; cursor: pointer; }
 .closeButton:hover { background: #f1f5f9; color: #0f172a; }

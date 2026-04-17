@@ -262,11 +262,12 @@
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
-  background-color: #ffffff;
+  background-color: #f3f4f6;
   color: #111827;
   font-size: 14px;
   line-height: 1.5;
   box-sizing: border-box;
+  cursor: default;
 }
 
 /* Business hours: two boxes for open/close */
@@ -301,10 +302,11 @@
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
-  background-color: #ffffff;
+  background-color: #f3f4f6;
   color: #111827;
   font-size: 14px;
   box-sizing: border-box;
+  cursor: default;
 }
 
 .readOnlyHoursDivider {
@@ -318,6 +320,7 @@
   font-size: 14px;
   color: #6b7280;
   padding: 12px 0;
+  cursor: default;
 }
 
 .statusRow {

@@ -138,26 +138,32 @@
   flex-shrink: 0;
 }
 
-/* Phase badges — no colour fills, icon-driven distinction */
+/* Phase badges — text + coloured icon, no background bubble */
 .phaseBadge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 4px 0;
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  color: #374151;
+  background: transparent;
+  border: none;
 }
 
 .phaseIcon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #374151;
 }
+
+/* Phase-specific icon colours */
+.phaseIconBooking { color: #6d28d9; }
+.phaseIconConfirmed { color: #065f46; }
+.phaseIconQualified { color: #92400e; }
+.phaseIconDeclined { color: #991b1b; }
+.phaseIconEscalated { color: #dc2626; }
+.phaseIconDefault { color: #6b7280; }
 
 .lastMessage {
   max-width: 300px;

@@ -28,6 +28,18 @@ const PHASE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   stalled: DeclinedPhaseIcon,
 };
 
+/** Maps each phase to its coloured icon CSS class */
+const PHASE_ICON_COLOURS: Record<string, string> = {
+  booking: styles.phaseIconBooking,
+  booked: styles.phaseIconConfirmed,
+  confirmed: styles.phaseIconConfirmed,
+  qualified: styles.phaseIconQualified,
+  declined: styles.phaseIconDeclined,
+  cancelled: styles.phaseIconDeclined,
+  escalated: styles.phaseIconEscalated,
+  stalled: styles.phaseIconDefault,
+};
+
 interface Conversation {
   _id: string;
   phase: string;
@@ -268,7 +280,7 @@ export default function ConversationList() {
                     <td>{conv.channel}</td>
                     <td>
                       <span className={styles.phaseBadge}>
-                        <PhaseIcon className={styles.phaseIcon} />
+                        <PhaseIcon className={`${styles.phaseIcon} ${PHASE_ICON_COLOURS[conv.phase] ?? styles.phaseIconDefault}`} />
                         {formatPhase(conv.phase)}
                       </span>
                     </td>
