@@ -220,8 +220,8 @@ Pushes to the `development` branch on GitLab are automatically mirrored to the c
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Render backend URL |
 
-Note: Render’s free tier spins down after 15 minutes of inactivity. The first request after sleep may take 30 seconds.
-Due to limitations of the Vercel free tier, only the account owner is able to trigger production deployments. As a result, final deployments must be performed by the project owner to ensure the deployment stage of the pipeline passes successfully.
+###### Note: Render’s free tier spins down after 15 minutes of inactivity. The first request after sleep may take 30 seconds.
+###### Due to limitations of the Vercel free tier, only the account owner is able to trigger production deployments. As a result, final deployments must be performed by the project owner to ensure the deployment stage of the pipeline passes successfully.
 ---
 
 
