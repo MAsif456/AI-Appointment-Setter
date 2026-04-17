@@ -41,6 +41,9 @@ function fillRequiredFields() {
   fireEvent.change(getField('clinicName'), { target: { value: 'Test Clinic' } });
   fireEvent.change(getField('ghlLocationId'), { target: { value: 'loc_test_001' } });
   fireEvent.change(getField('ghlCalendarId'), { target: { value: 'cal_test_001' } });
+  fireEvent.change(getField('address'), { target: { value: '123 Queen Street, Cardiff' } });
+  fireEvent.change(getField('phoneNumber'), { target: { value: '029 2034 5678' } });
+  fireEvent.change(getField('serviceAreas'), { target: { value: 'CF' } });
 }
 
 /**
@@ -71,6 +74,9 @@ describe('AddClinicPage', () => {
     expect(screen.getByText('Clinic name is required')).toBeTruthy();
     expect(screen.getByText('GHL Location ID is required')).toBeTruthy();
     expect(screen.getByText('GHL Calendar ID is required')).toBeTruthy();
+    expect(screen.getByText('Address is required')).toBeTruthy();
+    expect(screen.getByText('Phone number is required')).toBeTruthy();
+    expect(screen.getByText('At least one service area is required')).toBeTruthy();
     expect(mockCreateClinic).not.toHaveBeenCalled();
   });
 

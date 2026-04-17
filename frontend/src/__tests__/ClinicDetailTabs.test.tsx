@@ -138,9 +138,35 @@ describe('ClinicDetailTabs', () => {
       expect(screen.getByTestId('tone-selector')).toBeInTheDocument();
     });
     expect(screen.getByTestId('greeting-message')).toBeInTheDocument();
-    expect(screen.getByTestId('qualification-questions')).toBeInTheDocument();
     expect(screen.getByTestId('custom-instructions')).toBeInTheDocument();
     expect(screen.getByTestId('save-bar')).toBeInTheDocument();
+  });
+
+  /** AC-1: Qualification questions section is hidden on AI Configuration tab. */
+  it('does not render qualification questions on AI Configuration tab', async () => {
+    render(<ClinicDetailTabs clinic={mockClinicData} />);
+
+    fireEvent.click(screen.getByText('AI Configuration'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tone-selector')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('qualification-questions')).not.toBeInTheDocument();
+  });
+
+  /** AC-12: Calls onTabChange when a tab is clicked. */
+  it('calls onTabChange callback when switching tabs', () => {
+    const onTabChange = jest.fn();
+    render(<ClinicDetailTabs clinic={mockClinicData} onTabChange={onTabChange} />);
+
+    fireEvent.click(screen.getByText('Settings'));
+    expect(onTabChange).toHaveBeenCalledWith('Settings');
+
+    fireEvent.click(screen.getByText('AI Configuration'));
+    expect(onTabChange).toHaveBeenCalledWith('AI Configuration');
+
+    fireEvent.click(screen.getByText('Conversations'));
+    expect(onTabChange).toHaveBeenCalledWith('Conversations');
   });
 
   /** Verifies the save flow calls onClinicUpdated and switches back to view mode. */
