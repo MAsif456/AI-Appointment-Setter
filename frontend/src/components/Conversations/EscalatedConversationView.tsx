@@ -19,7 +19,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/apiAxios';
 import { useEscalationNotifications } from '@/contexts/EscalationNotificationContext';
+import { BackArrowIcon } from '@/components/Icons';
 import ReadOnlyChatShell from './ReadOnlyChatShell';
+import styles from '../Notifications/Notifications.module.css';
 
 interface ConversationResponse {
   conversation: {
@@ -94,7 +96,10 @@ export default function EscalatedConversationView({
   return (
     <div>
       <div style={{ padding: '16px 24px 0' }}>
-        <Link href="/escalations">&larr; Back to escalations</Link>
+        <Link href="/escalations" className={styles.backLink}>
+          <BackArrowIcon className={styles.backIcon} />
+          Back to escalations
+        </Link>
       </div>
 
       <ReadOnlyChatShell
@@ -109,7 +114,6 @@ export default function EscalatedConversationView({
             display: 'flex',
             gap: 12,
             padding: '0 24px 32px',
-            maxWidth: 900,
           }}
         >
           <button

@@ -9,11 +9,17 @@
  * context as the bell so the two views never disagree.
  */
 
+import { useAuth } from '@/contexts/AuthContext';
 import { useEscalationNotifications } from '@/contexts/EscalationNotificationContext';
 import EscalationCard from '@/components/Notifications/EscalationCard';
 
 export default function EscalationsPage() {
+  const { user } = useAuth();
   const { items, acknowledge, resolve } = useEscalationNotifications();
+
+  // Admins are not part of the escalation workflow — show an
+  // explanation so the empty list is not mistaken for a bug.
+  const isAdmin = user?.role === 'admin';
 
   // Newest first so the freshest escalation is always on top.
   const sorted = [...items]
@@ -25,14 +31,28 @@ export default function EscalationsPage() {
     );
 
   return (
-    <div style={{ padding: 32, maxWidth: 720 }}>
+    <div style={{ padding: 32, maxWidth: 900 }}>
       <h1 style={{ marginBottom: 4 }}>Escalations</h1>
       <p style={{ color: '#6b7280', marginTop: 0, marginBottom: 24 }}>
         Leads the AI couldn&apos;t handle. Call each person on this
         list as soon as you can.
       </p>
 
-      {sorted.length === 0 ? (
+      {isAdmin ? (
+        <div
+          style={{
+            padding: '48px 16px',
+            textAlign: 'center',
+            color: '#6b7280',
+            border: '1px dashed #d1d5db',
+            borderRadius: 8,
+          }}
+        >
+          Escalations are handled by staff members assigned to each
+          clinic. Sign in with a staff account to view and action
+          escalations.
+        </div>
+      ) : sorted.length === 0 ? (
         <div
           style={{
             padding: '48px 16px',

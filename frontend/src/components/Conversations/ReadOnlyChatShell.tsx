@@ -36,7 +36,7 @@ export default function ReadOnlyChatShell({
     : 'READ-ONLY — NO PHONE ON FILE, CHECK GHL';
 
   return (
-    <div style={{ padding: 24, maxWidth: 900 }}>
+    <div style={{ padding: 24 }}>
       <div className={styles.readOnlyBanner} role="alert">
         {bannerText}
       </div>
