@@ -243,4 +243,6 @@ export type IntentResult =
   | { intent: "DECLINE_CANCEL" }
   | { intent: "DETAILS_UNCHANGED" }
   | { intent: "DETAILS_CHANGED" }
+  | { intent: 'CONSENT_GRANTED' }
+  | { intent: 'CONSENT_DECLINED' }
   | { intent: 'UNKNOWN' };

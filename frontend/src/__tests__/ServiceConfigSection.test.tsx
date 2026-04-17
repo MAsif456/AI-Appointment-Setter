@@ -14,6 +14,7 @@ describe('ServiceConfigSection', () => {
     serviceAreas: '',
     servicesOffered: '',
     appointmentDuration: 30,
+    dataRetentionMonths: 12,
     onChange: mockOnChange,
     errors: {} as Record<string, string>,
   };

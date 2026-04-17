@@ -70,6 +70,8 @@ export class Conversation {
     type: String,
     enum: [
       "greeting",
+      "consenting",
+      "consent_declined",
       "qualifying",
       "qualified",
       "booking",
@@ -235,6 +237,10 @@ export class Conversation {
 
   @Prop()
   flagReason?: string;
+
+  /** True when patient data has been anonymised via right-to-erasure. */
+  @Prop({ default: false })
+  isAnonymised: boolean;
 
   // Timestamps: createdAt, updatedAt
 }

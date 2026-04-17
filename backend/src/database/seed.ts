@@ -10,7 +10,7 @@ import { AppointmentSchema } from "./schemas/appointment.schema";
 import { AuditLogSchema } from "./schemas/audit-log.schema";
 import { PatientHistorySchema } from "./schemas/patient-history.schema";
 
-import { seedUsers } from "./seeds/user.seed";
+import { seedUsers, seedStaffUser } from "./seeds/user.seed";
 import { seedClinics } from "./seeds/clinic.seed";
 import { seedLeads } from "./seeds/lead.seed";
 import { seedConversations } from "./seeds/conversation.seed";
@@ -56,6 +56,7 @@ async function seedDatabase() {
 
     const adminUser = await seedUsers(UserModel);
     const clinics = await seedClinics(ClinicModel, adminUser);
+    await seedStaffUser(UserModel, clinics);
     const leads = await seedLeads(LeadModel, clinics);
     const conversations = await seedConversations(
       ConversationModel,

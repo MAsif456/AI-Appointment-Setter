@@ -11,6 +11,10 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+import {
+  Conversation,
+  ConversationDocument,
+} from "../database/schemas/conversation.schema";
 import { CreateClinicDto } from "./dto/create-clinic.dto";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 
@@ -36,6 +40,8 @@ export class ClinicsService {
   constructor(
     @InjectModel(Clinic.name)
     private readonly clinicModel: Model<ClinicDocument>,
+    @InjectModel(Conversation.name)
+    private readonly conversationModel: Model<ConversationDocument>,
   ) {}
 
   /**
@@ -60,10 +66,43 @@ export class ClinicsService {
    * Returns all clinics, optionally filtered by a case-insensitive name search.
    * @param search - partial clinic name to filter by (optional)
    */
-  async findAll(search?: string): Promise<ClinicDocument[]> {
+  async findAll(search?: string): Promise<any[]> {
     const filter = search ? { name: { $regex: search, $options: "i" } } : {};
+    const clinics = await this.clinicModel.find(filter).sort({ name: 1 }).lean().exec();
 
-    return this.clinicModel.find(filter).sort({ name: 1 }).exec();
+    // Compute live "last 7 days" lead and booking counts per clinic so
+    // the clinic cards reflect real activity rather than the static
+    // seeded `todayLeadsCount`/`todayBookingsCount`. Done in one
+    // aggregation rather than N queries.
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const counts = await this.conversationModel.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: "$clinicId",
+          leads: { $sum: 1 },
+          bookings: {
+            $sum: {
+              $cond: [{ $in: ["$phase", ["booked", "confirmed"]] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const byId = new Map<string, { leads: number; bookings: number }>();
+    for (const row of counts) {
+      byId.set(row._id.toString(), { leads: row.leads, bookings: row.bookings });
+    }
+
+    return clinics.map((clinic) => {
+      const c = byId.get((clinic._id as any).toString()) ?? { leads: 0, bookings: 0 };
+      return {
+        ...clinic,
+        todayLeadsCount: c.leads,
+        todayBookingsCount: c.bookings,
+      };
+    });
   }
 
   /**

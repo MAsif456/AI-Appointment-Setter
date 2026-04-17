@@ -15,6 +15,7 @@ import {
   PatientHistory,
   PatientHistoryDocument,
 } from "../database/schemas/patient-history.schema";
+import { computeBlindIndex, deriveFieldKey } from "../gdpr/encryption/encryption.util";
 
 /** Result returned when a previous booking is found for this patient + clinic. */
 export interface ReturningPatientResult {
@@ -62,11 +63,15 @@ export class PatientHistoryService {
     try {
       const clinicObjectId = new Types.ObjectId(clinicId);
 
-      // Phase 1: phone lookup (high confidence)
+      // Phase 1: phone lookup via blind index (high confidence)
       if (phone) {
         const normalisedPhone = this.normalisePhone(phone);
+        const hash = this.computePhoneHash(normalisedPhone);
+        const query = hash
+          ? { clinicId: clinicObjectId, phoneHash: hash }
+          : { clinicId: clinicObjectId, phone: normalisedPhone };
         const record = await this.patientHistoryModel
-          .findOne({ clinicId: clinicObjectId, phone: normalisedPhone })
+          .findOne(query)
           .exec();
 
         if (record) {
@@ -136,12 +141,20 @@ export class PatientHistoryService {
 
       if (phone) {
         const normalisedPhone = this.normalisePhone(phone);
+        const hash = this.computePhoneHash(normalisedPhone);
+
+        const filter = hash
+          ? { clinicId: clinicObjectId, phoneHash: hash }
+          : { clinicId: clinicObjectId, phone: normalisedPhone };
+
         await this.patientHistoryModel
           .findOneAndUpdate(
-            { clinicId: clinicObjectId, phone: normalisedPhone },
+            filter,
             {
               $set: {
                 ...sharedFields,
+                phone: normalisedPhone,
+                ...(hash ? { phoneHash: hash } : {}),
                 email: email ? email.toLowerCase().trim() : undefined,
               },
             },
@@ -173,6 +186,18 @@ export class PatientHistoryService {
         (error as Error).stack,
       );
     }
+  }
+
+  /**
+   * Computes a HMAC-SHA256 blind index for encrypted phone lookups.
+   * Returns null when FIELD_ENCRYPTION_KEY is not configured (graceful fallback).
+   */
+  private computePhoneHash(normalisedPhone: string): string | null {
+    const keyHex = process.env.FIELD_ENCRYPTION_KEY;
+    if (!keyHex) return null;
+    const masterKey = Buffer.from(keyHex, 'hex');
+    const fieldKey = deriveFieldKey(masterKey, 'PatientHistory.phone');
+    return computeBlindIndex(normalisedPhone, fieldKey);
   }
 
   /**

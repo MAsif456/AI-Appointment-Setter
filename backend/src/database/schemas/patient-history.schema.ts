@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
+import { fieldEncryptionPlugin } from "../../gdpr/encryption/field-encryption.plugin";
 
 export type PatientHistoryDocument = PatientHistory & Document;
 
@@ -46,15 +47,29 @@ export class PatientHistory {
   @Prop({ required: true })
   lastBookedAt: Date;
 
+  /** HMAC-SHA256 blind index of normalised phone — enables equality queries on encrypted phone. */
+  @Prop({ trim: true })
+  phoneHash?: string;
+
   // timestamps: createdAt, updatedAt (automatic)
 }
 
 export const PatientHistorySchema =
   SchemaFactory.createForClass(PatientHistory);
 
-// Primary lookup path: phone + clinic (high-confidence match).
+// Apply field-level encryption (UK GDPR Art. 5(1)(f) — integrity and confidentiality)
+// Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/the-principles/integrity-and-confidentiality-security/
+if (process.env.FIELD_ENCRYPTION_KEY) {
+  PatientHistorySchema.plugin(fieldEncryptionPlugin, {
+    fields: ['phone', 'email'],
+    encryptionKey: process.env.FIELD_ENCRYPTION_KEY,
+    modelName: 'PatientHistory',
+  });
+}
+
+// Primary lookup path: phoneHash replaces phone for encrypted-field lookups.
 // unique: true means each patient has exactly one record per clinic — re-bookings upsert.
-PatientHistorySchema.index({ clinicId: 1, phone: 1 }, { unique: true });
+PatientHistorySchema.index({ clinicId: 1, phoneHash: 1 }, { unique: true });
 
 // Secondary lookup path: email + clinic (medium-confidence match).
 // unique + sparse: deduplicates email-only records while skipping documents where email is absent.
