@@ -5,12 +5,14 @@ import { ConversationsService } from "../ghl/conversations.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { GhlInboundMessagePayload } from "../webhooks/dto/ghl-webhook.dto";
 import { getChannelAdapter } from "../ghl/channel-adapter";
-import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
+import { FALLBACK_AI_UNAVAILABLE, TERMINAL_PHASES } from "./orchestrator.types";
 import {
   mapMessageTypeToChannel,
   channelToMessageType,
 } from "./orchestrator.prompts";
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
+import { PatientHistoryService } from "../patient-history/patient-history.service";
+import { handleReentryForTerminalConversation } from "./orchestrator.reentry";
 
 export interface InboundMessageDeps {
   conversationsService: ConversationsService;
@@ -18,6 +20,7 @@ export interface InboundMessageDeps {
   logger: Logger;
   correlationId?: string;
   chatConversationsService: ChatConversationsService;
+  patientHistoryService: PatientHistoryService;
 }
 
 const EMPTY_EMAIL_FALLBACK =
@@ -76,6 +79,20 @@ export async function handleInboundMessageFlow(
     conversation.ghlConversationId = ghlConversationId;
   }
 
+  // Returning patient re-entry — terminal phase triggers reset + greeting.
+  if (TERMINAL_PHASES.includes(conversation.phase)) {
+    const greeting = await handleReentryForTerminalConversation(
+      conversation, clinicConfig, deps, correlationId,
+    );
+    if (!channel && conversation.channel) channel = conversation.channel;
+    if (!channel) channel = "sms";
+    await sendGhlResponse(
+      greeting, channel, clinicConfig, contactId, deps,
+      conversation.ghlConversationId, webhookData.message?.emailMessageId,
+    );
+    return;
+  }
+
   // Fall back to the existing conversation's channel if the webhook didn't specify one
   if (!channel && conversation.channel) {
     channel = conversation.channel;
@@ -109,19 +126,13 @@ export async function handleInboundMessageFlow(
 
   if (adapter.isEmptyAfterStrip(messageContent)) {
     await sendGhlResponse(
-      EMPTY_EMAIL_FALLBACK,
-      channel,
-      clinicConfig,
-      contactId,
-      deps,
-      conversation.ghlConversationId,
-      inboundEmailMessageId,
+      EMPTY_EMAIL_FALLBACK, channel, clinicConfig, contactId, deps,
+      conversation.ghlConversationId, inboundEmailMessageId,
     );
     return;
   }
 
   // Delegate to the full AI pipeline (urgency, slots, booking, security, escalation)
-  // Ref: Gamma et al. (1994) "Facade" pattern — https://refactoring.guru/design-patterns/facade
   let reply: string;
   try {
     const result = await deps.chatConversationsService.sendMessage(
@@ -142,15 +153,9 @@ export async function handleInboundMessageFlow(
   }
 
   await sendGhlResponse(
-    reply,
-    channel,
-    clinicConfig,
-    contactId,
-    deps,
-    conversation.ghlConversationId,
-    inboundEmailMessageId,
+    reply, channel, clinicConfig, contactId, deps,
+    conversation.ghlConversationId, inboundEmailMessageId,
   );
-
   logger.log(
     `${cid}Inbound message processed — contactId: ${contactId}, conversationId: ${ghlConversationId ?? 'unknown'}, clinicId: ${clinicConfig.clinicId}`,
   );
