@@ -11,6 +11,7 @@ import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User, UserDocument } from '../database/schemas/user.schema';
+import { Notification, NotificationDocument } from '../database/schemas/notification.schema';
 import { LoginDto } from './dto/login.dto';
 import {
   CreateUserDto,
@@ -40,6 +41,7 @@ export class AuthService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
     private jwtService: JwtService,
     private emailService: EmailService,
     private readonly authThrottleService: AuthThrottleService,
@@ -72,6 +74,25 @@ export class AuthService {
 
     await this.emailService.sendVerificationEmail(dto.email, verificationToken);
     this.logger.log(`Admin created user account for ${dto.email}`);
+
+    // Notify all active admins who have the new_user_joined preference enabled
+    this.userModel.find({ role: 'admin', isActive: true }).lean().then((admins) => {
+      const eligible = admins.filter((a) => {
+        const p = (a as any).notificationPreferences ?? {};
+        return p.generalNotifications !== false && p.newUserJoined !== false;
+      });
+      return Promise.all(
+        eligible.map((a) =>
+          this.notificationModel.create({
+            userId: (a as any)._id,
+            type: 'new_user_joined',
+            title: 'New user joined',
+            description: `${dto.name} joined as ${dto.role}`,
+          }),
+        ),
+      );
+    }).catch((err: Error) => this.logger.warn(`Failed to create new_user_joined notifications: ${err.message}`));
+
     return { message: 'Account created. A verification link has been sent to the user.' };
   }
 
