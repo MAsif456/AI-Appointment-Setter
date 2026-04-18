@@ -20,6 +20,7 @@ import { CONSENT_STATEMENT_TEXT } from "../gdpr/gdpr.types";
 import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 import { channelToMessageType } from "./orchestrator.prompts";
 import { getChannelAdapter } from "../ghl/channel-adapter";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 /** Dependencies injected by OrchestratorService. */
 export interface NewLeadDeps {
@@ -30,6 +31,7 @@ export interface NewLeadDeps {
   patientHistoryService: PatientHistoryService;
   securityPipeline: SecurityPipelineService;
   consentService: ConsentService;
+  inboxNotificationService: InboxNotificationService;
   logger: Logger;
   correlationId?: string;
 }
@@ -67,6 +69,7 @@ export async function handleNewLeadFlow(
     patientHistoryService,
     securityPipeline,
     consentService,
+    inboxNotificationService,
     logger,
     correlationId,
   } = deps;
@@ -123,6 +126,17 @@ export async function handleNewLeadFlow(
     );
     return;
   }
+
+  // Notify clinic staff of the new enquiry (fire-and-forget, non-fatal)
+  const leadName = `${first_name ?? ''} ${last_name ?? ''}`.trim() || 'Unknown';
+  inboxNotificationService.createForClinicStaff(
+    clinicConfig.clinicId,
+    'email_notification',
+    'New enquiry received',
+    `${leadName} has sent a new enquiry`,
+    conversation._id.toString(),
+    'conversation',
+  ).catch((err: Error) => logger.warn(`Failed to create inbox notification: ${err.message}`));
 
   // Check if this lead has booked with this clinic before
   const expiryDays = clinicConfig.patientDataExpiryDays ?? 365;
