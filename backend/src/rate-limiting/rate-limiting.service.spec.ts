@@ -85,6 +85,13 @@ describe("RateLimitingService", () => {
       const result = service.determineTier("/clinics/1", "DELETE");
       expect(result.tier).toBe("write");
     });
+
+    it("should return csp-report tier for /security/csp-report", () => {
+      const result = service.determineTier("/security/csp-report", "POST");
+      expect(result.tier).toBe("csp-report");
+      expect(result.limit).toBe(100);
+      expect(result.windowSeconds).toBe(60);
+    });
   });
 
   // --- buildKey ---

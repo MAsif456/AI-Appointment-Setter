@@ -10,7 +10,7 @@ export interface ClinicConfig {
   name: string;
 
   /** AI conversation tone setting */
-  tone: 'Friendly' | 'Professional';
+  tone: "Friendly" | "Professional";
 
   /** Optional custom greeting template with {{placeholder}} variables */
   greetingTemplate?: string;
@@ -32,6 +32,12 @@ export interface ClinicConfig {
 
   /** Whether the clinic is currently active */
   isActive: boolean;
+
+  /** Decrypted per-clinic GHL private integration token. Populated by WebhooksService at webhook time. */
+  ghlApiKey?: string;
+
+  /** UK GDPR Art. 5(1)(e) - data retention period in months. Defaults to 12. */
+  dataRetentionMonths?: number;
 
   /** Per-clinic cancellation policy settings */
   cancellationPolicy?: {

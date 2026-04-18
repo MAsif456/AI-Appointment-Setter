@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
 // Context-aware HTML sanitisation for SMS/WhatsApp text messages.
 // Strips dangerous HTML while preserving legitimate medical text like "pain <2 weeks".
@@ -13,7 +13,8 @@ const DANGEROUS_TAGS = /(<script\b[^>]*>[\s\S]*?<\/script\s*>)/gi;
 const STYLE_TAGS = /(<style\b[^>]*>[\s\S]*?<\/style\s*>)/gi;
 
 // Known dangerous HTML elements — these are stripped even as self-closing
-const DANGEROUS_ELEMENTS = /<\/?(script|iframe|object|embed|form|input|textarea|select|button|link|meta|base|applet)\b[^>]*>/gi;
+const DANGEROUS_ELEMENTS =
+  /<\/?(script|iframe|object|embed|form|input|textarea|select|button|link|meta|base|applet)\b[^>]*>/gi;
 
 // Event handler attributes (onclick, onerror, onload, etc.)
 const EVENT_HANDLERS = /\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
@@ -44,29 +45,29 @@ export class ContentSanitiserService {
     let result = message;
 
     // Step 1: Remove invisible/null characters first (deobfuscation)
-    result = result.replace(INVISIBLE_CHARS, '');
+    result = result.replace(INVISIBLE_CHARS, "");
 
     // Step 2: Remove <script>...</script> blocks entirely (content included)
-    result = result.replace(DANGEROUS_TAGS, '');
+    result = result.replace(DANGEROUS_TAGS, "");
 
     // Step 3: Remove <style>...</style> blocks entirely
-    result = result.replace(STYLE_TAGS, '');
+    result = result.replace(STYLE_TAGS, "");
 
     // Step 4: Remove remaining dangerous elements (even without content)
-    result = result.replace(DANGEROUS_ELEMENTS, '');
+    result = result.replace(DANGEROUS_ELEMENTS, "");
 
     // Step 5: Remove event handler attributes from any remaining tags
-    result = result.replace(EVENT_HANDLERS, '');
+    result = result.replace(EVENT_HANDLERS, "");
 
     // Step 6: Remove HTML tags with attributes (e.g., <div class="x">)
     // This catches <img src="x">, <a href="...">, etc.
-    result = result.replace(TAGS_WITH_ATTRS, '');
+    result = result.replace(TAGS_WITH_ATTRS, "");
 
     // Step 7: Remove closing tags
-    result = result.replace(CLOSING_TAGS, '');
+    result = result.replace(CLOSING_TAGS, "");
 
     // Step 8: Normalise whitespace left by stripped tags
-    result = result.replace(/\s{2,}/g, ' ').trim();
+    result = result.replace(/\s{2,}/g, " ").trim();
 
     return result;
   }

@@ -1,26 +1,36 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
+import { fieldEncryptionPlugin } from "../../gdpr/encryption/field-encryption.plugin";
 
 export type MessageDocument = Message & Document;
 
 @Schema({ timestamps: true })
 export class Message {
-  @Prop({ type: Types.ObjectId, ref: 'Conversation', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: "Conversation",
+    required: true,
+    index: true,
+  })
   conversationId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Clinic", required: true, index: true })
   clinicId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Lead', required: true })
+  @Prop({ type: Types.ObjectId, ref: "Lead", required: true })
   leadId: Types.ObjectId;
 
-  @Prop({ type: String, enum: ['lead', 'ai', 'system'], required: true })
+  @Prop({ type: String, enum: ["lead", "ai", "system"], required: true })
   sender: string;
 
   @Prop({ required: true })
   content: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website'], required: true })
+  @Prop({
+    type: String,
+    enum: ["sms", "whatsapp", "facebook", "instagram", "website", "email"],
+    required: true,
+  })
   channel: string;
 
   @Prop()
@@ -35,7 +45,7 @@ export class Message {
 
   // Message type flags
   @Prop({ default: false })
-  isFallback: boolean; 
+  isFallback: boolean;
 
   @Prop({ default: false })
   isFollowUp: boolean;
@@ -62,7 +72,11 @@ export class Message {
   responseTimeSeconds?: number; //seconds
 
   // Delivery status
-  @Prop({ type: String, enum: ['sent', 'delivered', 'read', 'failed'], default: 'sent' })
+  @Prop({
+    type: String,
+    enum: ["sent", "delivered", "read", "failed"],
+    default: "sent",
+  })
   status: string;
 
   @Prop()
@@ -82,8 +96,18 @@ MessageSchema.index({ clinicId: 1, createdAt: -1 });
 MessageSchema.index({ ghlMessageId: 1 });
 MessageSchema.index({ clinicId: 1, sender: 1, createdAt: -1 }); // For analytics
 
+// Apply field-level encryption to message content (UK GDPR Art. 5(1)(f))
+// Ref: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/the-principles/integrity-and-confidentiality-security/
+if (process.env.FIELD_ENCRYPTION_KEY) {
+  MessageSchema.plugin(fieldEncryptionPlugin, {
+    fields: ['content'],
+    encryptionKey: process.env.FIELD_ENCRYPTION_KEY,
+    modelName: 'Message',
+  });
+}
+
 // Pre-save hook to calculate processing time
-MessageSchema.pre<MessageDocument>('save', function () {
+MessageSchema.pre<MessageDocument>("save", function () {
   if (this.aiProcessingStartedAt && this.aiProcessingCompletedAt) {
     this.aiProcessingTimeMs =
       this.aiProcessingCompletedAt.getTime() -

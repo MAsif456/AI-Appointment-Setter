@@ -171,6 +171,20 @@ describe("RateLimitingGuard", () => {
     expect(mockRateLimitingService.checkAndIncrement).toHaveBeenCalled();
   });
 
+  it("should rate limit /security/csp-report (not exclude it)", async () => {
+    const ctx = createMockContext(
+      "/security/csp-report",
+      "POST",
+      "10.0.0.1",
+    );
+    await guard.canActivate(ctx);
+    expect(mockRateLimitingService.determineTier).toHaveBeenCalledWith(
+      "/security/csp-report",
+      "POST",
+    );
+    expect(mockRateLimitingService.checkAndIncrement).toHaveBeenCalled();
+  });
+
   // --- Internal service bypass ---
 
   it("should bypass rate limiting with a valid internal service key", async () => {

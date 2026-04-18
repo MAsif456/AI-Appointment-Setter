@@ -4,7 +4,7 @@
  */
 
 /** Available rate limit tiers mapped to endpoint groups. */
-export type RateLimitTier = "auth" | "read" | "write";
+export type RateLimitTier = "auth" | "read" | "write" | "csp-report";
 
 /** Configuration for a single rate limit tier. */
 export interface RateLimitConfig {

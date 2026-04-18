@@ -1,10 +1,16 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Conversation, ConversationSchema } from '../database/schemas/conversation.schema';
-import { Appointment, AppointmentSchema } from '../database/schemas/appointment.schema';
-import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
-import { GhlModule } from '../ghl/ghl.module';
-import { CancellationService } from './cancellation.service';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import {
+  Conversation,
+  ConversationSchema,
+} from "../database/schemas/conversation.schema";
+import {
+  Appointment,
+  AppointmentSchema,
+} from "../database/schemas/appointment.schema";
+import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
+import { GhlModule } from "../ghl/ghl.module";
+import { CancellationService } from "./cancellation.service";
 
 @Module({
   imports: [

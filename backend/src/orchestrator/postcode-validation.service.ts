@@ -9,10 +9,13 @@
  *   extractPrefix(postcodeOrOutward)  — leading letters only (CF10 1AA → "CF")
  *   isInServiceArea(postcode, areas)  — kept for backward compatibility
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
 /** Possible outcomes from validate(). */
-export type PostcodeValidationStatus = 'valid' | 'invalid_area' | 'invalid_format';
+export type PostcodeValidationStatus =
+  | "valid"
+  | "invalid_area"
+  | "invalid_format";
 
 export interface PostcodeValidationResult {
   status: PostcodeValidationStatus;
@@ -46,24 +49,24 @@ export class PostcodeValidationService {
   validate(message: string, serviceAreas: string[]): PostcodeValidationResult {
     const raw = this.extractFromMessage(message);
     if (!raw) {
-      return { status: 'invalid_format' };
+      return { status: "invalid_format" };
     }
 
     const postcode = this.normalise(raw);
     const prefix = this.extractPrefix(postcode);
 
     if (!serviceAreas || serviceAreas.length === 0) {
-      return { status: 'valid', postcode, prefix };
+      return { status: "valid", postcode, prefix };
     }
 
-    const outward = postcode.split(' ')[0];
+    const outward = postcode.split(" ")[0];
     const inArea = serviceAreas.some((area) =>
       outward.toUpperCase().startsWith(area.toUpperCase()),
     );
 
     return inArea
-      ? { status: 'valid', postcode, prefix }
-      : { status: 'invalid_area', postcode, prefix };
+      ? { status: "valid", postcode, prefix }
+      : { status: "invalid_area", postcode, prefix };
   }
 
   /**
@@ -88,7 +91,7 @@ export class PostcodeValidationService {
    * Examples: "cf101aa" → "CF10 1AA", "W1A1AA" → "W1A 1AA"
    */
   normalise(raw: string): string {
-    const upper = raw.toUpperCase().replace(/\s+/g, '');
+    const upper = raw.toUpperCase().replace(/\s+/g, "");
     return `${upper.slice(0, -3)} ${upper.slice(-3)}`;
   }
 
@@ -99,9 +102,9 @@ export class PostcodeValidationService {
    * Examples: "CF10 1AA" → "CF", "W1A 1AA" → "W", "SW1A" → "SW"
    */
   extractPrefix(postcodeOrOutward: string): string {
-    const outward = postcodeOrOutward.split(' ')[0];
+    const outward = postcodeOrOutward.split(" ")[0];
     const match = outward.match(/^[A-Z]+/i);
-    return match ? match[0].toUpperCase() : '';
+    return match ? match[0].toUpperCase() : "";
   }
 
   /**
@@ -116,7 +119,9 @@ export class PostcodeValidationService {
     if (!serviceAreas || serviceAreas.length === 0) {
       return true;
     }
-    const outwardCode = postcode.split(' ')[0].toUpperCase();
-    return serviceAreas.some((area) => outwardCode.startsWith(area.toUpperCase()));
+    const outwardCode = postcode.split(" ")[0].toUpperCase();
+    return serviceAreas.some((area) =>
+      outwardCode.startsWith(area.toUpperCase()),
+    );
   }
 }

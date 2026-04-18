@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
 import {
   Conversation,
   ConversationDocument,
-} from '../database/schemas/conversation.schema';
-import { Lead, LeadDocument } from '../database/schemas/lead.schema';
-import { InboundWebhookDto } from './dto/inbound-webhook.dto';
+} from "../database/schemas/conversation.schema";
+import { Lead, LeadDocument } from "../database/schemas/lead.schema";
+import { InboundWebhookDto } from "./dto/inbound-webhook.dto";
 import { mapMessageTypeToChannel } from '../orchestrator/orchestrator.prompts';
 
 @Injectable()
@@ -35,9 +35,7 @@ export class ConversationsService {
     ghlContactId: string,
     clinicId: Types.ObjectId,
   ): Promise<ConversationDocument | null> {
-    return this.conversationModel
-      .findOne({ ghlContactId, clinicId })
-      .exec();
+    return this.conversationModel.findOne({ ghlContactId, clinicId }).exec();
   }
 
   /**
@@ -56,15 +54,38 @@ export class ConversationsService {
     ghlContactId: string,
     ghlConversationId: string,
     channel: string,
-    patientInfo: { firstName: string; phone: string; leadSource: string },
+    patientInfo: {
+      firstName: string;
+      phone: string;
+      email?: string;
+      issue?: string;
+      leadSource: string;
+    },
   ): Promise<ConversationDocument> {
     let lead = await this.leadModel.findOne({ ghlContactId }).exec();
+
+    // Fallback: if the GHL contact was deleted and re-created, the contactId
+    // changes but the email/phone stays the same. Find the existing lead to
+    // avoid E11000 duplicate key violations on { clinicId, email }.
+    if (!lead && patientInfo.email) {
+      lead = await this.leadModel.findOne({ clinicId, email: patientInfo.email }).exec();
+      if (lead) {
+        lead.ghlContactId = ghlContactId;
+        lead.firstName = patientInfo.firstName;
+        if (patientInfo.phone) lead.phone = patientInfo.phone;
+        if (patientInfo.issue) lead.issue = patientInfo.issue;
+        await lead.save();
+        this.logger.log(`Re-linked existing lead to new ghlContactId: ${ghlContactId}`);
+      }
+    }
 
     if (!lead) {
       lead = await this.leadModel.create({
         clinicId,
         firstName: patientInfo.firstName,
         phone: patientInfo.phone,
+        ...(patientInfo.email ? { email: patientInfo.email } : {}),
+        ...(patientInfo.issue ? { issue: patientInfo.issue } : {}),
         leadSource: patientInfo.leadSource,
         preferredChannel: channel,
         ghlContactId,
@@ -77,7 +98,7 @@ export class ConversationsService {
       leadId: lead._id,
       ghlContactId,
       ghlConversationId,
-      phase: 'greeting',
+      phase: "greeting",
       channel,
       messageCount: 0,
       startedAt: new Date(),
@@ -99,10 +120,7 @@ export class ConversationsService {
     payload: InboundWebhookDto,
     clinicId: Types.ObjectId,
   ): Promise<ConversationDocument> {
-    const existing = await this.findByGhlContactId(
-      payload.contactId,
-      clinicId,
-    );
+    const existing = await this.findByGhlContactId(payload.contactId, clinicId);
 
     if (existing) {
       return existing;
@@ -116,9 +134,9 @@ export class ConversationsService {
       payload.conversationId,
       channel,
       {
-        firstName: 'Unknown',
-        phone: payload.from || 'unknown',
-        leadSource: 'other',
+        firstName: "Unknown",
+        phone: payload.from || "unknown",
+        leadSource: "other",
       },
     );
   }
@@ -174,9 +192,11 @@ export class ConversationsService {
       returningPatientConfidence?: string;
     },
   ): Promise<void> {
-    await this.conversationModel.findByIdAndUpdate(conversationId, { $set: flags }).exec();
+    await this.conversationModel
+      .findByIdAndUpdate(conversationId, { $set: flags })
+      .exec();
     this.logger.log(
-      `Conversation ${conversationId} flagged as returning patient (confidence: ${flags.returningPatientConfidence ?? 'unknown'})`,
+      `Conversation ${conversationId} flagged as returning patient (confidence: ${flags.returningPatientConfidence ?? "unknown"})`,
     );
   }
 
@@ -186,10 +206,37 @@ export class ConversationsService {
    * @param {string} key - The context key, e.g. "validatedPostcode".
    * @param {string} value - The value to store.
    */
-  async setContext(conversationId: Types.ObjectId, key: string, value: string): Promise<void> {
+  async setContext(
+    conversationId: Types.ObjectId,
+    key: string,
+    value: string,
+  ): Promise<void> {
     await this.conversationModel
-      .findByIdAndUpdate(conversationId, { $set: { [`context.${key}`]: value } })
+      .findByIdAndUpdate(conversationId, {
+        $set: { [`context.${key}`]: value },
+      })
       .exec();
   }
 
+  /**
+   * Updates the GHL conversation ID on an existing conversation document.
+   * Called when an inbound message arrives with a different conversationId than what is stored,
+   * which happens when a new GHL thread is opened for a returning contact.
+   */
+  async updateGhlConversationId(
+    conversationId: Types.ObjectId,
+    ghlConversationId: string,
+  ): Promise<void> {
+    await this.conversationModel
+      .findByIdAndUpdate(conversationId, { ghlConversationId })
+      .exec();
+  }
+
+  /**
+   * Looks up a lead document by its MongoDB ObjectId.
+   * Used by the orchestrator to load patient details for multi-turn prompts.
+   */
+  async findLeadById(leadId: Types.ObjectId): Promise<LeadDocument | null> {
+    return this.leadModel.findById(leadId).exec();
+  }
 }

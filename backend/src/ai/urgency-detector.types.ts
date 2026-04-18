@@ -8,10 +8,10 @@
  *   routine   > MTS Green/Blue (standard/non-urgent), NHS 111 "routine GP"
  */
 
-export type UrgencyLevel = 'routine' | 'urgent' | 'emergency';
+export type UrgencyLevel = "routine" | "urgent" | "emergency";
 
 /** Ordering used by mergeAssessments — urgency can only escalate. */
-export const URGENCY_RANK: Record<UrgencyLevel | 'unknown', number> = {
+export const URGENCY_RANK: Record<UrgencyLevel | "unknown", number> = {
   unknown: 0,
   routine: 1,
   urgent: 2,
@@ -20,7 +20,7 @@ export const URGENCY_RANK: Record<UrgencyLevel | 'unknown', number> = {
 
 export interface UrgencySignal {
   /** Where the signal originated */
-  source: 'form_data' | 'message' | 'keyword' | 'llm';
+  source: "form_data" | "message" | "keyword" | "llm";
   /** The text fragment that triggered the signal */
   text: string;
   score: number;
@@ -40,7 +40,7 @@ export interface UrgencyAssessment {
 }
 
 export interface UrgencyContext {
-  level: UrgencyLevel | 'unknown';
+  level: UrgencyLevel | "unknown";
   isEmergency: boolean;
   emergencyMessage?: string;
 }

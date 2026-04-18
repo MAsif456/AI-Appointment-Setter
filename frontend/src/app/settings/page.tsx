@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AccountSettings from './components/AccountSettings';
 import UserManagement from './components/UserManagement';
 import IntegrationsSettings from './components/IntegrationsSettings';
+import NotificationPreferences from './components/NotificationPreferences';
 import styles from './settings.module.css';
 import { User, Users, Bell, Plug } from 'lucide-react';
 
@@ -51,7 +52,7 @@ export default function SettingsPage() {
       <div className={styles.content}>
         {activeTab === 'account' && <AccountSettings />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
-        {activeTab === 'notifications' && <PlaceholderTab title="Notifications" />}
+        {activeTab === 'notifications' && <NotificationPreferences />}
         {activeTab === 'integrations' && <IntegrationsSettings />}
       </div>
       <br />

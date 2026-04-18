@@ -5,14 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import * as crypto from 'crypto';
 import { lastValueFrom } from 'rxjs';
-import {
-  IntegrationSettings,
-  IntegrationSettingsDocument,
-} from '../database/schemas/integration-settings.schema';
-import {
-  UpdateIntegrationsDto,
-  IntegrationSettingsResponse,
-} from './dto/integrations.dto';
+import { IntegrationSettings, IntegrationSettingsDocument, } from '../database/schemas/integration-settings.schema';
+import { UpdateIntegrationsDto, IntegrationSettingsResponse, } from './dto/integrations.dto';
 
 /** GHL REST API base URL used for credential validation. */
 const GHL_BASE_URL = 'https://services.leadconnectorhq.com';
@@ -112,8 +106,6 @@ export class IntegrationsService {
       .exec();
   }
 
-  // ─── Private helpers ──────────────────────────────────────────────────────
-
   /** Maps a raw document (or null) to the safe response shape. */
   private toResponse(doc: IntegrationSettings | null): IntegrationSettingsResponse {
     const hasKey = !!doc?.ghlApiKey;
@@ -131,7 +123,7 @@ export class IntegrationsService {
   async testApiKey(plainKey: string): Promise<boolean> {
     try {
       const response = await lastValueFrom(
-        this.httpService.get('/locations/search?limit=1', {
+        this.httpService.get('/calendars/', {
           baseURL: GHL_BASE_URL,
           timeout: 8000,
           headers: { Authorization: `Bearer ${plainKey}`, Version: GHL_API_VERSION },

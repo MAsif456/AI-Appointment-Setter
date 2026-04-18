@@ -1,12 +1,12 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
 
 export type ConversationDocument = Conversation & Document;
 
 /** Audit record for a cancelled appointment — preserves history for analytics. */
 @Schema({ _id: false })
 export class CancelledAppointment {
-  @Prop({ type: Types.ObjectId, ref: 'Appointment', required: true })
+  @Prop({ type: Types.ObjectId, ref: "Appointment", required: true })
   appointmentId: Types.ObjectId;
   @Prop({ required: true })
   ghlAppointmentId: string;
@@ -16,7 +16,7 @@ export class CancelledAppointment {
   displayText: string; // 'Tuesday 15th March at 2:00 PM'
   @Prop({ required: true })
   cancelledAt: Date;
-  @Prop({ default: 'lead' })
+  @Prop({ default: "lead" })
   cancelledBy: string; // 'lead' or 'clinic'
   @Prop()
   cancellationReason?: string;
@@ -32,9 +32,18 @@ export class OfferedSlot {
 }
 
 @Schema({ _id: false })
+export class ReminderSent {
+  @Prop({ required: true })
+  type: string; // e.g. '24_hour', '1_hour'
+
+  @Prop({ required: true })
+  sentAt: Date;
+}
+
+@Schema({ _id: false })
 export class PatientRating {
   @Prop({ required: true, min: 1, max: 5 })
-  stars: number; 
+  stars: number;
 
   @Prop()
   feedback?: string;
@@ -45,10 +54,10 @@ export class PatientRating {
 
 @Schema({ timestamps: true })
 export class Conversation {
-  @Prop({ type: Types.ObjectId, ref: 'Clinic', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Clinic", required: true, index: true })
   clinicId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Lead', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "Lead", required: true, index: true })
   leadId: Types.ObjectId;
 
   @Prop({ trim: true, index: true })
@@ -57,14 +66,35 @@ export class Conversation {
   @Prop({ trim: true, index: true })
   ghlConversationId?: string;
 
-  @Prop({ 
-    type: String, 
-    enum: ['greeting', 'qualifying', 'qualified', 'booking', 'booked', 'confirmed', 'cancelling', 'cancelling_warned', 'rescheduling', 'cancelled', 'declined', 'stalled', 'closed', 'escalated'],
-    default: 'greeting' 
+  @Prop({
+    type: String,
+    enum: [
+      "greeting",
+      "consenting",
+      "consent_declined",
+      "qualifying",
+      "qualified",
+      "booking",
+      "booked",
+      "confirmed",
+      "cancelling",
+      "cancelling_warned",
+      "rescheduling",
+      "cancelled",
+      "declined",
+      "stalled",
+      "closed",
+      "escalated",
+    ],
+    default: "greeting",
   })
   phase: string;
 
-  @Prop({ type: String, enum: ['sms', 'whatsapp', 'facebook', 'instagram', 'website'], required: true })
+  @Prop({
+    type: String,
+    enum: ["sms", "whatsapp", "facebook", "instagram", "website", "email"],
+    required: true,
+  })
   channel: string;
 
   @Prop({ default: 0 })
@@ -79,12 +109,12 @@ export class Conversation {
   @Prop()
   lastMessageFrom?: string; // 'lead' or 'ai'
 
-  // High Priority / Emergency Flags 
+  // High Priority / Emergency Flags
   @Prop({ default: false })
-  isHighPriority: boolean; 
+  isHighPriority: boolean;
 
   @Prop({ default: false })
-  isEmergency: boolean; 
+  isEmergency: boolean;
 
   @Prop({ default: false })
   requiresHumanIntervention: boolean;
@@ -98,11 +128,11 @@ export class Conversation {
   isReturningPatient: boolean;
 
   /** Reference to the conversation from the most recent previous booking. */
-  @Prop({ type: Types.ObjectId, ref: 'Conversation' })
+  @Prop({ type: Types.ObjectId, ref: "Conversation" })
   previousConversationId?: Types.ObjectId;
 
   /** Confidence level of the returning patient match: high, medium, or stale. */
-  @Prop({ type: String, enum: ['high', 'medium', 'stale'] })
+  @Prop({ type: String, enum: ["high", "medium", "stale"] })
   returningPatientConfidence?: string;
 
   @Prop()
@@ -114,6 +144,9 @@ export class Conversation {
   // Follow-up tracking
   @Prop({ default: 0 })
   followUpCount: number;
+
+  @Prop()
+  lastFollowUpAt?: Date;
 
   @Prop()
   nextFollowUpAt?: Date;
@@ -145,7 +178,7 @@ export class Conversation {
   @Prop()
   lastRequestedDateEnd?: Date;
 
-  @Prop({ type: Types.ObjectId, ref: 'Appointment' })
+  @Prop({ type: Types.ObjectId, ref: "Appointment" })
   appointmentId?: Types.ObjectId;
 
   /** Reason the lead gave for cancelling (optional, collected before finalising). */
@@ -166,7 +199,11 @@ export class Conversation {
 
   // Conversation context/state
   @Prop({ type: Map, of: String, default: {} })
-  context: Map<string, string>; 
+  context: Map<string, string>;
+
+  /** AC5/AC10: Track which reminders have been sent within this conversation. */
+  @Prop({ type: [ReminderSent], default: [] })
+  remindersSent: ReminderSent[];
 
   // Abuse tracking (US-19)
   // Incremented for each directed-hostile message to track escalation thresholds
@@ -180,6 +217,12 @@ export class Conversation {
   // Tracks prompt injection attempts for rate-based escalation
   @Prop({ default: 0 })
   injectionAttemptCount: number;
+
+  // US-20: counts consecutive AI comprehension failures. Resets to 0
+  // on any `understood` classification; at 3 the conversation is
+  // auto-escalated to a human and `phase` flips to "escalated".
+  @Prop({ default: 0 })
+  failedUnderstandingCount: number;
 
   // for closure tracking
   @Prop()
@@ -201,6 +244,10 @@ export class Conversation {
   @Prop()
   flagReason?: string;
 
+  /** True when patient data has been anonymised via right-to-erasure. */
+  @Prop({ default: false })
+  isAnonymised: boolean;
+
   // Timestamps: createdAt, updatedAt
 }
 
@@ -216,5 +263,8 @@ ConversationSchema.index({ flaggedForReview: 1, clinicId: 1 });
 ConversationSchema.index({ createdAt: -1 });
 ConversationSchema.index(
   { ghlContactId: 1, clinicId: 1 },
-  { unique: true, partialFilterExpression: { ghlContactId: { $type: 'string' } } },
+  {
+    unique: true,
+    partialFilterExpression: { ghlContactId: { $type: "string" } },
+  },
 );

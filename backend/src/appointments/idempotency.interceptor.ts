@@ -5,13 +5,16 @@ import {
   CallHandler,
   ConflictException,
   Logger,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Observable, from, of } from 'rxjs';
-import { switchMap, tap } from 'rxjs/operators';
-import { createHash } from 'crypto';
-import { IdempotencyKey, IdempotencyKeyDocument } from './idempotency-key.schema';
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Observable, from, of } from "rxjs";
+import { switchMap, tap } from "rxjs/operators";
+import { createHash } from "crypto";
+import {
+  IdempotencyKey,
+  IdempotencyKeyDocument,
+} from "./idempotency-key.schema";
 
 /**
  * NestJS interceptor implementing the Idempotency-Key HTTP header pattern
@@ -30,10 +33,10 @@ import { IdempotencyKey, IdempotencyKeyDocument } from './idempotency-key.schema
 export class IdempotencyInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyInterceptor.name);
 
-/**
- * Constructor for IdempotencyInterceptor.
- * @param {Model<IdempotencyKeyDocument>} idempotencyModel - Mongoose model for idempotency keys.
- */
+  /**
+   * Constructor for IdempotencyInterceptor.
+   * @param {Model<IdempotencyKeyDocument>} idempotencyModel - Mongoose model for idempotency keys.
+   */
   constructor(
     @InjectModel(IdempotencyKey.name)
     private readonly idempotencyModel: Model<IdempotencyKeyDocument>,
@@ -53,7 +56,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
    */
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    const idempotencyKey = request.headers['idempotency-key'];
+    const idempotencyKey = request.headers["idempotency-key"];
 
     if (!idempotencyKey) {
       return next.handle();
@@ -69,7 +72,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
               `Idempotency key ${idempotencyKey} reused with different payload`,
             );
             throw new ConflictException(
-              'Idempotency key has already been used with a different request body',
+              "Idempotency key has already been used with a different request body",
             );
           }
           this.logger.log(
@@ -89,7 +92,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
             } catch (err) {
               // Duplicate key race condition - safe to ignore
               if (err?.code !== 11000) {
-                this.logger.error(`Failed to store idempotency key: ${err.message}`);
+                this.logger.error(
+                  `Failed to store idempotency key: ${err.message}`,
+                );
               }
             }
           }),
@@ -105,8 +110,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
    * @returns {string} - The hashed request body as a SHA256 hexadecimal string.
    */
   private hashPayload(body: any): string {
-    return createHash('sha256')
+    return createHash("sha256")
       .update(JSON.stringify(body ?? {}))
-      .digest('hex');
+      .digest("hex");
   }
 }

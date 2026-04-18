@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import styles from './ClinicDetailTabs.module.css';
 import type { Clinic, AITone, QualificationQuestion } from '@/types/clinic';
-import { updateClinicSettings } from '@/lib/api/clinics';
+import { updateClinicSettings, getClinicById } from '@/lib/api/clinics';
 import { fetchAiSettings, saveAiSettings } from '@/lib/ai-settings-api';
 import ToneSelector from '@/components/AIConfiguration/ToneSelector';
 import GreetingMessage from '@/components/AIConfiguration/GreetingMessage';
@@ -12,9 +12,12 @@ import CustomInstructions from '@/components/AIConfiguration/CustomInstructions'
 import SaveBar from '@/components/AIConfiguration/SaveBar';
 import ClinicSettingsForm, { type ClinicSettingsFormHandle } from '@/components/EditClinicsDetails/ClinicSettingsForm';
 import ClinicSettingsView from '@/components/EditClinicsDetails/ClinicSettingsView';
+import ClinicIntegrationsPage from '@/app/clinics/[id]/integrations/page';
+import ClinicAnalyticsTab from '@/components/Analytics/ClinicAnalyticsTab';
+import ClinicOverviewTab from './ClinicOverviewTab';
 
 /** Available tabs on the clinic detail page. */
-const TABS = ['Overview', 'Settings', 'AI Configuration', 'Conversations', 'Analytics'] as const;
+const TABS = ['Overview', 'Settings', 'AI Configuration', 'Integrations', 'Conversations', 'Analytics'] as const;
 
 type Tab = (typeof TABS)[number];
 
@@ -179,6 +182,28 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
           <CustomInstructions value={instructions} onChange={setInstructions} />
           <SaveBar onSave={handleAiSave} saving={aiSaving} toast={aiToast} />
         </div>
+      );
+    }
+
+    if (activeTab === 'Analytics') {
+      return <ClinicAnalyticsTab clinicId={clinic._id} />;
+    }
+
+    if (activeTab === 'Overview') {
+      return <ClinicOverviewTab clinic={clinic} />;
+    }
+
+    if (activeTab === 'Integrations') {
+      return (
+        <ClinicIntegrationsPage
+          clinicId={clinic._id}
+          initialMaskedKey={clinic.ghlApiKey ?? ''}
+          initialWebhookUrl={clinic.webhookUrl ?? ''}
+          onUpdated={async () => {
+            const refreshed = await getClinicById(clinic._id);
+            onClinicUpdated?.(refreshed);
+          }}
+        />
       );
     }
 

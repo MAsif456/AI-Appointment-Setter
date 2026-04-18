@@ -62,17 +62,45 @@ export class WebhooksService {
     payload: Record<string, unknown>,
   ): Promise<WebhookResponse> {
     const correlationId = generateCorrelationId();
+
+    // GHL workflow webhooks put custom data keys under `customData`, not at root.
+    // Merge customData fields into the root payload so downstream code sees them.
+    const customData = payload.customData as
+      | Record<string, unknown>
+      | undefined;
+    if (customData) {
+      for (const [key, value] of Object.entries(customData)) {
+        if (value !== undefined && value !== null && value !== "") {
+          payload[key] = payload[key] ?? value;
+        }
+      }
+    }
+
+    // Normalise contact_id → id (GHL uses contact_id in standard webhook data)
+    if (!payload.id && payload.contact_id) {
+      payload.id = payload.contact_id;
+    }
+
+    // Normalise Issue → issue (GHL form field has capital I)
+    if (!payload.issue && payload.Issue) {
+      payload.issue = payload.Issue;
+    }
+
     const ghlType = typeof payload.type === "string" ? payload.type : "unknown";
     const location = payload.location as Record<string, unknown> | undefined;
     const ghlLocationId =
-      typeof location?.id === "string" ? location.id : "unknown";
+      typeof location?.id === "string"
+        ? location.id
+        : typeof payload.locationId === "string"
+          ? payload.locationId
+          : "unknown";
     this.logger.log(
       `[${correlationId}] GHL webhook received: type=${ghlType}, locationId=${ghlLocationId}`,
     );
 
     try {
       const ghlPayload = payload as GhlWebhookPayload;
-      const locationId = ghlPayload.location?.id;
+      const locationId = ghlPayload.location?.id ?? ghlPayload.locationId;
       const { type } = ghlPayload;
 
       if (!locationId) {
@@ -92,7 +120,7 @@ export class WebhooksService {
         return { success: true };
       }
 
-      const clinicConfig = this.buildClinicConfig(clinic);
+      const clinicConfig = await this.buildClinicConfig(clinic);
 
       switch (type) {
         case "ContactCreate":
@@ -163,20 +191,31 @@ export class WebhooksService {
     );
   }
 
-  private buildClinicConfig(clinic: ClinicDocument): ClinicConfig {
+  private async buildClinicConfig(clinic: ClinicDocument): Promise<ClinicConfig> {
     const tone =
       clinic.aiConfig?.tone === "professional" ? "Professional" : "Friendly";
+    const clinicId = (clinic._id as Types.ObjectId).toString();
+
+    let ghlApiKey: string | undefined;
+    try {
+      ghlApiKey = await this.clinicsService.getDecryptedApiKey(clinicId);
+    } catch {
+      // Clinic has no stored API key — GHL calls will be skipped or fail gracefully.
+    }
+
     return {
-      clinicId: (clinic._id as Types.ObjectId).toString(),
+      clinicId: clinic._id.toString(),
       name: clinic.name,
       tone,
       greetingTemplate: clinic.aiConfig?.greetingTemplate || undefined,
-      returningPatientGreetingTemplate: clinic.aiConfig?.returningPatientGreetingTemplate || undefined,
+      returningPatientGreetingTemplate:
+        clinic.aiConfig?.returningPatientGreetingTemplate || undefined,
       patientDataExpiryDays: clinic.aiConfig?.patientDataExpiryDays ?? 365,
       serviceAreas: clinic.serviceAreas?.map((sa) => sa.postcodePrefix) ?? [],
       customInstructions: clinic.aiConfig?.customInstructions || undefined,
       ghlLocationId: clinic.ghlLocationId,
       isActive: clinic.isActive,
+      ghlApiKey,
     };
   }
 }

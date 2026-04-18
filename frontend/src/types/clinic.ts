@@ -36,6 +36,14 @@ export interface ServiceArea {
   description?: string;
 }
 
+/** A service offered by the clinic (e.g. "Sports injury" · 30 min). */
+export interface Service {
+  name: string;
+  durationMinutes?: number;
+  price?: number;
+  description?: string;
+}
+
 /** Shape of a single day's business hours. */
 export interface BusinessHours {
   day: string;
@@ -50,10 +58,14 @@ export interface Clinic {
   name: string;
   ghlLocationId: string;
   ghlCalendarId: string;
+  /** Masked API key, e.g. "••••••••••••abc123". Empty string if not configured. */
+  ghlApiKey?: string;
+  webhookUrl?: string;
   address?: string;
   phone?: string;
   email?: string;
   serviceAreas: ServiceArea[];
+  services?: Service[];
   businessHours: BusinessHours[];
   todayLeadsCount: number;
   todayBookingsCount: number;
@@ -61,6 +73,7 @@ export interface Clinic {
   monthBookingsCount: number;
   isActive: boolean;
   defaultAppointmentDuration: number;
+  dataRetentionMonths?: number;
   createdAt: string;
   updatedAt: string;
 }

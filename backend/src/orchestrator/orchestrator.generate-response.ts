@@ -26,6 +26,11 @@ import {
   handleDetailsUnchanged,
   handleDetailsChanged,
 } from './orchestrator.returning-patient-handlers';
+import {
+  handleConsentGranted,
+  handleConsentDeclined,
+  ConsentHandlerDeps,
+} from '../gdpr/consent/consent.handler';
 
 export async function generateOrchestratorResponse(
   intent: IntentResult,
@@ -33,6 +38,7 @@ export async function generateOrchestratorResponse(
   clinicConfig: ClinicConfig,
   groqService: GroqService,
   cancellationService: CancellationService,
+  consentDeps?: ConsentHandlerDeps,
 ): Promise<string | null> {
   if (intent.intent === 'INVALID_POSTCODE_FORMAT') {
     return INVALID_POSTCODE_RESPONSE;
@@ -82,7 +88,7 @@ export async function generateOrchestratorResponse(
 
   if (intent.intent === 'UNKNOWN' && context.conversationId &&
       (context.phase === 'cancelling' || context.phase === 'cancelling_warned')) {
-    return handleCancellationReason(context, cancellationService);
+    return handleCancellationReason(context, clinicConfig, cancellationService);
   }
 
   if (intent.intent === 'RESCHEDULE') {
@@ -92,6 +98,13 @@ export async function generateOrchestratorResponse(
     const { appointmentDate, appointmentTime } = context.currentAppointment;
     const rescheduleContext = `The patient wants to reschedule their appointment. Their current appointment is on ${appointmentDate} at ${appointmentTime}. Confirm the current appointment details and ask when they would prefer instead.`;
     return groqService.generateResponse(buildSingleTurnPrompt(rescheduleContext, context, clinicConfig));
+  }
+
+  if (intent.intent === 'CONSENT_GRANTED' && consentDeps) {
+    return handleConsentGranted(consentDeps);
+  }
+  if (intent.intent === 'CONSENT_DECLINED' && consentDeps) {
+    return handleConsentDeclined(consentDeps);
   }
 
   if (intent.intent === 'CANCEL_RESCHEDULE') {

@@ -51,6 +51,6 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     EmailService,
     AuthThrottleService,
   ],
-  exports: [AuthService, UsersService, JwtStrategy, PassportModule],
+  exports: [AuthService, UsersService, JwtStrategy, PassportModule, JwtModule],
 })
 export class AuthModule {}

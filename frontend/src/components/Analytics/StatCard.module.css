@@ -1,0 +1,89 @@
+/* Stat card for displaying a single analytics metric */
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 24px 28px;
+  background: #ffffff;
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.title {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 400;
+}
+
+.valueRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.suffix {
+  font-size: 24px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.cornerIcon {
+  width: 24px;
+  height: 24px;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Delta ("vs yesterday") line at the bottom of the card */
+.deltaRow {
+  font-size: 13px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deltaUp {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.deltaDown {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.deltaFlat {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.deltaContext {
+  color: #6b7280;
+}

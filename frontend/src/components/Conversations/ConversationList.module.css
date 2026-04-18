@@ -6,7 +6,36 @@
   font-size: 28px;
   font-weight: 700;
   color: #1a1a2e;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab,
+.tabActive {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: #1a1a2e;
+}
+
+.tabActive {
+  color: #4361ee;
+  border-bottom-color: #4361ee;
 }
 
 /* Compact priority banner — icon colored, text grey */
