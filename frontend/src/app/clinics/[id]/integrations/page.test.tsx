@@ -84,16 +84,21 @@ describe('ClinicIntegrationsPage', () => {
         expect(screen.getByText('••••••••••••xyz789')).toBeInTheDocument();
       });
     });
+
+    it('shows "Connected" when initialMaskedKey prop is provided', async () => {
+      render(<ClinicIntegrationsPage initialMaskedKey="••••••••••••abc123" clinicId="clinic_abc" />);
+      expect(screen.getByText('Connected')).toBeInTheDocument();
+    });
   });
 
-  // ─── Save & validate ──────────────────────────────────────────────────────
+  // ─── Save ──────────────────────────────────────────────────────────────────
 
-  describe('Save & Validate', () => {
+  describe('Save', () => {
     it('shows error toast when saving with empty API key field', async () => {
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Save & Validate'));
+      await waitFor(() => screen.getByText('Save'));
 
-      fireEvent.click(screen.getByText('Save & Validate'));
+      fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
         expect(screen.getByText('Please enter an API key')).toBeInTheDocument();
@@ -103,13 +108,13 @@ describe('ClinicIntegrationsPage', () => {
 
     it('calls updateClinicIntegration with the entered key', async () => {
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Save & Validate'));
+      await waitFor(() => screen.getByText('Save'));
 
       await userEvent.type(
         screen.getByPlaceholderText(/Enter GHL/),
         'new-api-key-abc123',
       );
-      fireEvent.click(screen.getByText('Save & Validate'));
+      fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
         expect(api.updateClinicIntegration).toHaveBeenCalledWith(
@@ -122,15 +127,13 @@ describe('ClinicIntegrationsPage', () => {
 
     it('shows success toast after a successful save', async () => {
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Save & Validate'));
+      await waitFor(() => screen.getByText('Save'));
 
       await userEvent.type(screen.getByPlaceholderText(/Enter GHL/), 'valid-key-abc');
-      fireEvent.click(screen.getByText('Save & Validate'));
+      fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Integration settings saved successfully'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Integration saved')).toBeInTheDocument();
       });
     });
 
@@ -139,10 +142,10 @@ describe('ClinicIntegrationsPage', () => {
         new Error('Could not connect to GoHighLevel. Please check your API key.'),
       );
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Save & Validate'));
+      await waitFor(() => screen.getByText('Save'));
 
       await userEvent.type(screen.getByPlaceholderText(/Enter GHL/), 'bad-key');
-      fireEvent.click(screen.getByText('Save & Validate'));
+      fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
         expect(
@@ -153,7 +156,7 @@ describe('ClinicIntegrationsPage', () => {
 
     it('passes webhookUrl when provided', async () => {
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Save & Validate'));
+      await waitFor(() => screen.getByText('Save'));
 
       await userEvent.type(screen.getByPlaceholderText(/Enter GHL/), 'my-api-key');
       await userEvent.clear(screen.getByPlaceholderText(/https:\/\/your-domain/));
@@ -161,7 +164,7 @@ describe('ClinicIntegrationsPage', () => {
         screen.getByPlaceholderText(/https:\/\/your-domain/),
         'https://app.example.com/hook',
       );
-      fireEvent.click(screen.getByText('Save & Validate'));
+      fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
         expect(api.updateClinicIntegration).toHaveBeenCalledWith(
@@ -179,14 +182,14 @@ describe('ClinicIntegrationsPage', () => {
     it('is not rendered when no key is stored', async () => {
       render(<ClinicIntegrationsPage />);
       await waitFor(() => screen.getByText('Not connected'));
-      expect(screen.queryByText('Test Connection')).not.toBeInTheDocument();
+      expect(screen.queryByText('Test')).not.toBeInTheDocument();
     });
 
     it('is rendered when a key is already stored', async () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       render(<ClinicIntegrationsPage />);
       await waitFor(() => {
-        expect(screen.getByText('Test Connection')).toBeInTheDocument();
+        expect(screen.getByText('Test')).toBeInTheDocument();
       });
     });
 
@@ -194,9 +197,9 @@ describe('ClinicIntegrationsPage', () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       api.testClinicIntegration.mockResolvedValue({ connected: true });
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Test Connection'));
+      await waitFor(() => screen.getByText('Test'));
 
-      fireEvent.click(screen.getByText('Test Connection'));
+      fireEvent.click(screen.getByText('Test'));
 
       await waitFor(() => {
         expect(screen.getByText('Connection successful')).toBeInTheDocument();
@@ -207,9 +210,9 @@ describe('ClinicIntegrationsPage', () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       api.testClinicIntegration.mockResolvedValue({ connected: false });
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Test Connection'));
+      await waitFor(() => screen.getByText('Test'));
 
-      fireEvent.click(screen.getByText('Test Connection'));
+      fireEvent.click(screen.getByText('Test'));
 
       await waitFor(() => {
         expect(
@@ -222,32 +225,30 @@ describe('ClinicIntegrationsPage', () => {
   // ─── Disconnect ────────────────────────────────────────────────────────────
 
   describe('Disconnect', () => {
-    beforeEach(() => {
-      jest.spyOn(window, 'confirm').mockReturnValue(true);
-    });
-
     it('is not rendered when no key is stored', async () => {
       render(<ClinicIntegrationsPage />);
       await waitFor(() => screen.getByText('Not connected'));
       expect(screen.queryByText('Disconnect')).not.toBeInTheDocument();
     });
 
-    it('shows a confirmation dialog before disconnecting', async () => {
+    it('opens a confirmation modal when Disconnect is clicked', async () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       render(<ClinicIntegrationsPage />);
       await waitFor(() => screen.getByText('Disconnect'));
 
       fireEvent.click(screen.getByText('Disconnect'));
 
-      expect(window.confirm).toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByText('Remove integration?')).toBeInTheDocument();
     });
 
-    it('calls disconnectClinicIntegration when confirmed', async () => {
+    it('calls disconnectClinicIntegration when Remove is confirmed', async () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       render(<ClinicIntegrationsPage />);
       await waitFor(() => screen.getByText('Disconnect'));
 
       fireEvent.click(screen.getByText('Disconnect'));
+      fireEvent.click(screen.getByText('Remove'));
 
       await waitFor(() => {
         expect(api.disconnectClinicIntegration).toHaveBeenCalledWith('clinic_abc');
@@ -260,21 +261,23 @@ describe('ClinicIntegrationsPage', () => {
       await waitFor(() => screen.getByText('Disconnect'));
 
       fireEvent.click(screen.getByText('Disconnect'));
+      fireEvent.click(screen.getByText('Remove'));
 
       await waitFor(() => {
         expect(screen.getByText('Not connected')).toBeInTheDocument();
       });
     });
 
-    it('does not disconnect when confirmation is cancelled', async () => {
-      jest.spyOn(window, 'confirm').mockReturnValue(false);
+    it('does not disconnect when Cancel is clicked', async () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       render(<ClinicIntegrationsPage />);
       await waitFor(() => screen.getByText('Disconnect'));
 
       fireEvent.click(screen.getByText('Disconnect'));
+      fireEvent.click(screen.getByText('Cancel'));
 
       expect(api.disconnectClinicIntegration).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('shows error toast when disconnect fails', async () => {
@@ -284,9 +287,10 @@ describe('ClinicIntegrationsPage', () => {
       await waitFor(() => screen.getByText('Disconnect'));
 
       fireEvent.click(screen.getByText('Disconnect'));
+      fireEvent.click(screen.getByText('Remove'));
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to disconnect integration')).toBeInTheDocument();
+        expect(screen.getByText('Failed to disconnect')).toBeInTheDocument();
       });
     });
   });

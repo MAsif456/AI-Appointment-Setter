@@ -76,7 +76,7 @@ export class EscalationService {
           ...(ctx.trigger === "emergency" ? { isEmergency: true } : {}),
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     const aiMessage = ctx.patientMessage ?? this.defaultMessageFor(ctx.trigger);

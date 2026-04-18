@@ -188,6 +188,24 @@ describe("EscalationGhlService", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("falls back to empty string when decryption of clinic API key throws", async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EscalationGhlService,
+        { provide: GhlApiService, useValue: mockGhlApi },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockImplementation(() => { throw new Error('bad key'); }) } },
+        { provide: getModelToken("Lead"), useValue: mockLeadModel },
+      ],
+    }).compile();
+    const svc = module.get(EscalationGhlService);
+
+    const clinicWithKey: any = { ...baseClinic, ghlApiKey: 'corrupted' };
+    await svc.applyEscalationToGhl(baseLead, baseConversation, clinicWithKey, reason);
+
+    // GHL calls still fire with empty apiKey — the decryption error is swallowed
+    expect(mockGhlApi.addContactTag).toHaveBeenCalledWith('', 'ghl_c1', 'escalated');
+  });
+
   it("runs all three GHL calls independently", async () => {
     mockGhlApi.addContactTag.mockRejectedValue(new Error("fail 1"));
     mockGhlApi.updateContactCustomField.mockRejectedValue(

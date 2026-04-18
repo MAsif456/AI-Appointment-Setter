@@ -174,6 +174,20 @@ export class ConversationsService {
     const finalGreeting = greeting ?? FALLBACK_AI_UNAVAILABLE;
     if (!greeting)
       this.logger.warn("Greeting generation failed — using fallback");
+
+    // A new greeting signals a fresh chat session — clear any stale escalation
+    // state so the AI can respond normally. (In production the previous
+    // escalation will still be visible in the staff dashboard via notifications.)
+    if (conversation.requiresHumanIntervention) {
+      await this.conversationModel.findByIdAndUpdate(conversation._id, {
+        $set: {
+          requiresHumanIntervention: false,
+          failedUnderstandingCount: 0,
+        },
+        $unset: { escalatedAt: '', escalationReason: '', humanInterventionReason: '' },
+      });
+    }
+
     await this.persistence.saveMessage(
       conversation,
       clinic,
@@ -219,6 +233,16 @@ export class ConversationsService {
         score: urgencyAssessment.score,
       },
     );
+
+    // When the conversation is already escalated (phase OR requiresHumanIntervention —
+    // the latter is set by handleNoSlotsForUrgent without changing phase),
+    // do not run the AI pipeline. A human is handling it.
+    if (conversation.phase === 'escalated' || conversation.requiresHumanIntervention) {
+      const reply = "A team member has been notified and will be in touch shortly. Please hold on.";
+      await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+      await this.persistence.updateConversationMeta(conversation, 'ai', undefined);
+      return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
 
     const abuseHandled = await this.abuseHandler.handle(
       conversation,
@@ -617,7 +641,7 @@ export class ConversationsService {
     const updated = await this.conversationModel.findByIdAndUpdate(
       conversation._id,
       { $inc: { failedUnderstandingCount: 1 } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     const count = updated?.failedUnderstandingCount ?? 0;
     this.logger.log(

@@ -428,5 +428,26 @@ describe("SlotsService - US-12", () => {
       // Slots 2 and 4 should pass (duration filter removed)
       expect(result.length).toBe(2);
     });
+
+    it("should still fetch slots when decryption of the GHL API key fails", async () => {
+      const clinicWithKey = { ...mockClinic, ghlApiKey: 'encrypted-key' };
+      const mockCalendar = { fetchAvailableSlots: jest.fn().mockResolvedValue([]) };
+
+      const brokenModule = await Test.createTestingModule({
+        providers: [
+          SlotsService,
+          { provide: getModelToken("Clinic"), useValue: { findById: jest.fn().mockResolvedValue(clinicWithKey) } },
+          { provide: GHLCalendarService, useValue: mockCalendar },
+          { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockImplementation(() => { throw new Error('bad key'); }) } },
+        ],
+      }).compile();
+      const brokenService = brokenModule.get<SlotsService>(SlotsService);
+
+      const result = await brokenService.fetchAvailableSlots(clinicWithKey._id, new Date('2024-03-25'), new Date('2024-03-26'));
+
+      // Falls back to empty apiKey — fetchAvailableSlots is still called
+      expect(mockCalendar.fetchAvailableSlots).toHaveBeenCalled();
+      expect(result).toEqual([]);
+    });
   });
 });
