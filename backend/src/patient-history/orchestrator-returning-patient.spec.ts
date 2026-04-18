@@ -25,6 +25,7 @@ import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
 import { ClinicConfig } from "../ai/interfaces/clinic-config.interface";
 import { ConsentService } from "../gdpr/consent/consent.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 const CLINIC_A = "507f1f77bcf86cd799439011";
 const CONV_ID = new Types.ObjectId("507f1f77bcf86cd799439033");
@@ -135,6 +136,7 @@ describe("OrchestratorService - returning patient flow", () => {
           useValue: { sendMessage: jest.fn() },
         },
         { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
+        { provide: InboxNotificationService, useValue: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
