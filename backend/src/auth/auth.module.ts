@@ -12,6 +12,7 @@ import { AdminGuard } from './guards/admin.guard';
 import { EmailService } from './email.service';
 import { AuthThrottleService } from './auth-throttle.service';
 import { User, UserSchema } from '../database/schemas/user.schema';
+import { Notification, NotificationSchema } from '../database/schemas/notification.schema';
 import {
   LoginAttempt,
   LoginAttemptSchema,
@@ -30,6 +31,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: LoginAttempt.name, schema: LoginAttemptSchema },
+      { name: Notification.name, schema: NotificationSchema },
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
