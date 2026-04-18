@@ -6,6 +6,7 @@ import {
 } from '../database/schemas/conversation.schema';
 import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import { GhlModule } from '../ghl/ghl.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { FollowUpService } from './follow-up.service';
 
 @Module({
@@ -15,6 +16,7 @@ import { FollowUpService } from './follow-up.service';
       { name: Lead.name, schema: LeadSchema },
     ]),
     GhlModule,
+    NotificationsModule,
   ],
   providers: [FollowUpService],
   exports: [FollowUpService],
