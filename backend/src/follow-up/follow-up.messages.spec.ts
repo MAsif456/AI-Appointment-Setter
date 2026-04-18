@@ -8,6 +8,7 @@ import { Conversation } from '../database/schemas/conversation.schema';
 import { Lead } from '../database/schemas/lead.schema';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { InboxNotificationService } from '../notifications/inbox-notification.service';
 
 const MON_10AM = new Date('2026-04-06T10:00:00.000Z');
 
@@ -30,6 +31,7 @@ const mockConversationModel = { find: jest.fn(), findByIdAndUpdate: jest.fn() };
 const mockLeadModel = { findById: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), addContactTag: jest.fn() };
+const mockInboxNotificationService = { createForClinicStaff: jest.fn().mockResolvedValue(undefined) };
 
 describe('FollowUpService — first follow-up (followUpCount 0)', () => {
   let service: FollowUpService;
@@ -42,6 +44,7 @@ describe('FollowUpService — first follow-up (followUpCount 0)', () => {
         { provide: getModelToken(Lead.name), useValue: mockLeadModel },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: InboxNotificationService, useValue: mockInboxNotificationService },
       ],
     }).compile();
 
@@ -119,6 +122,7 @@ describe('FollowUpService — second follow-up (followUpCount 1)', () => {
         { provide: getModelToken(Lead.name), useValue: mockLeadModel },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: InboxNotificationService, useValue: mockInboxNotificationService },
       ],
     }).compile();
 
