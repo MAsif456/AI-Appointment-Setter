@@ -6,6 +6,7 @@ import { Conversation, ConversationDocument } from '../database/schemas/conversa
 import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ReminderTrackerService } from './reminder-tracker.service';
+import { InboxNotificationService } from '../notifications/inbox-notification.service';
 import { generateReminderMessage, generateReminderEmailHtml, shouldSendReminder } from './reminder.handler';
 
 /**
@@ -26,6 +27,7 @@ export class ReminderService {
     private clinicModel: Model<ClinicDocument>,
     private ghlApiService: GhlApiService,
     private reminderTrackerService: ReminderTrackerService,
+    private inboxNotificationService: InboxNotificationService,
   ) {}
 
   /**
@@ -145,6 +147,16 @@ export class ReminderService {
       }
 
       await this.reminderTrackerService.trackSent(appointment, conversation, clinic, reminderType, message);
+
+      this.inboxNotificationService.createForClinicStaff(
+        appointment.clinicId.toString(),
+        'appointment_reminder',
+        'Appointment reminder sent',
+        `Reminder sent for appointment on ${appointment.appointmentDate.toDateString()}`,
+        appointment._id.toString(),
+        'appointment',
+      ).catch((err: Error) => this.logger.warn(`Failed to create reminder notification: ${err.message}`));
+
       return true;
     } catch (error) {
       const body = error?.response?.data;
