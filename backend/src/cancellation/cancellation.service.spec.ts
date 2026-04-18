@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import { Logger } from "@nestjs/common";
 import { CancellationService } from "./cancellation.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 import { Conversation } from "../database/schemas/conversation.schema";
 import { Appointment } from "../database/schemas/appointment.schema";
 import { Clinic } from "../database/schemas/clinic.schema";
@@ -41,6 +42,7 @@ describe("CancellationService", () => {
     _id: appointmentId,
     ghlAppointmentId: "ghl_apt_123",
     appointmentDate: futureDate,
+    clinicId,
     status: "confirmed",
   };
 
@@ -58,6 +60,7 @@ describe("CancellationService", () => {
         },
         { provide: getModelToken(Clinic.name), useValue: mockClinicModel },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: InboxNotificationService, useValue: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
