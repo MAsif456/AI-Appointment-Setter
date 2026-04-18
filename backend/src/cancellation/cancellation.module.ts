@@ -10,6 +10,7 @@ import {
 } from "../database/schemas/appointment.schema";
 import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
 import { GhlModule } from "../ghl/ghl.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { CancellationService } from "./cancellation.service";
 
 @Module({
@@ -20,6 +21,7 @@ import { CancellationService } from "./cancellation.service";
       { name: Clinic.name, schema: ClinicSchema },
     ]),
     GhlModule,
+    NotificationsModule,
   ],
   providers: [CancellationService],
   exports: [CancellationService],
