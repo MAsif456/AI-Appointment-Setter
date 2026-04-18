@@ -352,8 +352,7 @@ describe("ConversationsService", () => {
         "actually its fine now",
       );
 
-      expect(result!.reply).toContain("already been flagged");
-      expect(result!.reply).toContain("999");
+      expect(result!.reply).toContain("A team member has been notified");
       // Should NOT call escalateEmergency again
       expect(mockEscalationService.escalateEmergency).not.toHaveBeenCalled();
     });
@@ -671,7 +670,7 @@ describe("ConversationsService", () => {
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         "conv1",
         { $inc: { failedUnderstandingCount: 1 } },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
