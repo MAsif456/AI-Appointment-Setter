@@ -48,6 +48,7 @@ describe('AuthService', () => {
       findOne: jest.fn(),
       findById: jest.fn(),
       create: jest.fn(),
+      find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
     };
 
     mockThrottle = {
@@ -74,6 +75,7 @@ describe('AuthService', () => {
         },
         { provide: AuthThrottleService, useValue: mockThrottle },
         { provide: AnalyticsService, useValue: mockAnalytics },
+        { provide: getModelToken('Notification'), useValue: { create: jest.fn().mockResolvedValue({}) } },
       ],
     }).compile();
 
