@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import NotificationBell from '@/components/Notifications/NotificationBell';
+import { fetchUnreadCount } from '@/lib/api/notifications';
 import styles from './Sidebar.module.css';
 import {
   DashboardIcon, ClinicsIcon, ConversationsIcon,
@@ -18,21 +19,38 @@ const baseNavItems = [
   { label: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
 ];
 
-// Staff-only — admins never action escalations so they should not
-// see the link at all.
 const escalationItem = { label: 'Escalations', href: '/escalations', icon: ConversationsIcon };
-
 const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon };
+
+function InboxIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
 
 /**
  * Fixed sidebar for the dashboard.
- * Staff members see the same nav but are restricted from admin-only pages
- * via route protection in AuthContext.
+ * Includes an Inbox nav item (between Analytics and Settings) with an
+ * unread-count badge that polls every 30 seconds.
  */
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout, isAdmin } = useAuth();
   const [showLogout, setShowLogout] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Poll unread count every 30 seconds; stop when component unmounts.
+  useEffect(() => {
+    let active = true;
+    const refresh = () =>
+      fetchUnreadCount().then((c) => { if (active) setUnreadCount(c); });
+    refresh();
+    const interval = setInterval(refresh, 30_000);
+    return () => { active = false; clearInterval(interval); };
+  }, []);
 
   const isStaff = user?.role === 'staff';
   const navItems = isStaff
@@ -68,6 +86,7 @@ export default function Sidebar() {
               {item.label}
             </Link>
           ))}
+
           {isAdmin && (
             <Link
               href="/data-protection"
@@ -77,6 +96,40 @@ export default function Sidebar() {
               Data Protection
             </Link>
           )}
+
+          {/* Inbox — visible to all authenticated users, above Settings */}
+          <Link
+            href="/notifications"
+            className={`${styles.navLink} ${isActive('/notifications') ? styles.navLinkActive : ''}`}
+            style={{ position: 'relative' }}
+          >
+            <InboxIcon className={styles.navIcon} />
+            Inbox
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: '#ef4444',
+                  color: '#fff',
+                  borderRadius: '9999px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  minWidth: '18px',
+                  height: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  lineHeight: 1,
+                }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
         </nav>
 
         <Link
