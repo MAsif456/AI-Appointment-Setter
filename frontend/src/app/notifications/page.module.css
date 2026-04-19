@@ -174,15 +174,6 @@
   background: #dbeafe;
 }
 
-.unreadDot {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #2563eb;
-}
 
 .iconWrap {
   width: 36px;
@@ -199,6 +190,7 @@
 .iconEscalated { background: #fee2e2; color: #dc2626; }
 .iconCancelled { background: #fce7f3; color: #db2777; }
 .iconUser { background: #ede9fe; color: #7c3aed; }
+.iconGdpr { background: #cffafe; color: #0891b2; }
 
 .icon {
   width: 18px;
