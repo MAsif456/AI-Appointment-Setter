@@ -134,6 +134,7 @@ export class UsersService {
       bookingCancelled: prefs.bookingCancelled ?? true,
       newUserJoined: prefs.newUserJoined ?? true,
       appointmentReminders: prefs.appointmentReminders ?? true,
+      gdprDataDeletion: prefs.gdprDataDeletion ?? true,
     };
   }
 
@@ -158,6 +159,7 @@ export class UsersService {
       bookingCancelled: dto.bookingCancelled ?? current.bookingCancelled ?? true,
       newUserJoined: dto.newUserJoined ?? current.newUserJoined ?? true,
       appointmentReminders: dto.appointmentReminders ?? current.appointmentReminders ?? true,
+      gdprDataDeletion: dto.gdprDataDeletion ?? current.gdprDataDeletion ?? true,
     };
 
     await this.userModel.findByIdAndUpdate(userId, { $set: { notificationPreferences: updated } });
