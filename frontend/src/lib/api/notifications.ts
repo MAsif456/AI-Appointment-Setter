@@ -2,7 +2,7 @@ import api from '@/lib/apiAxios';
 
 export interface InboxNotification {
   _id: string;
-  type: 'email_notification' | 'stalled_conversation' | 'appointment_reminder' | 'escalated_conversation' | 'booking_cancelled' | 'new_user_joined';
+  type: 'email_notification' | 'stalled_conversation' | 'appointment_reminder' | 'escalated_conversation' | 'booking_cancelled' | 'new_user_joined' | 'gdpr_data_deletion';
   title: string;
   description: string;
   isRead: boolean;
