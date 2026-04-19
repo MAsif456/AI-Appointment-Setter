@@ -110,6 +110,7 @@ export class CancellationService {
     contactId: string,
     apiKey: string,
     reason?: string,
+    locationId?: string,
   ): Promise<CancellationResult> {
     const appointment = await this.appointmentModel
       .findById(appointmentId)
@@ -159,7 +160,7 @@ export class CancellationService {
     await this.ghlApiService.removeContactTag(apiKey, contactId, "appointment-booked");
 
     // Notify the clinic about the cancellation
-    await this.sendClinicNotification(conversationId, contactId, `${date} at ${time}`, apiKey, reason);
+    await this.sendClinicNotification(conversationId, contactId, `${date} at ${time}`, apiKey, reason, locationId);
 
     this.logger.log(
       `Appointment ${appointmentId} cancelled for contact ${contactId}`,
@@ -206,6 +207,7 @@ export class CancellationService {
     dateTimeStr: string,
     apiKey: string,
     reason?: string,
+    locationId?: string,
   ): Promise<void> {
     const conversation = await this.conversationModel
       .findById(conversationId)
@@ -219,6 +221,7 @@ export class CancellationService {
       await this.ghlApiService.sendMessageWithRetry(apiKey, {
         type: "SMS",
         contactId,
+        locationId,
         message,
       });
     } catch {
