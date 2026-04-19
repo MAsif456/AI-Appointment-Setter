@@ -41,6 +41,7 @@ export class User {
       bookingCancelled: { type: Boolean, default: true },
       newUserJoined: { type: Boolean, default: true },
       appointmentReminders: { type: Boolean, default: true },
+      gdprDataDeletion: { type: Boolean, default: true },
     },
     default: {
       generalNotifications: true,
@@ -50,6 +51,7 @@ export class User {
       bookingCancelled: true,
       newUserJoined: true,
       appointmentReminders: true,
+      gdprDataDeletion: true,
     },
   })
   notificationPreferences: {
@@ -60,6 +62,7 @@ export class User {
     bookingCancelled: boolean;
     newUserJoined: boolean;
     appointmentReminders: boolean;
+    gdprDataDeletion: boolean;
   };
 
   @Prop({ default: false })
