@@ -32,7 +32,7 @@ describe('JwtStrategy', () => {
       select: jest.fn().mockResolvedValue(user),
     });
 
-    const result = await strategy.validate({ sub: '1' });
+    const result = await strategy.validate({ sub: '1', type: 'access' });
     
     expect(result.email).toBe(user.email);
     expect(result.name).toBe(user.name);
@@ -78,7 +78,7 @@ describe('JwtStrategy', () => {
     const selectMock = jest.fn().mockResolvedValue(user);
     mockUserModel.findById.mockReturnValue({ select: selectMock });
 
-    await strategy.validate({ sub: '1' });
+    await strategy.validate({ sub: '1', type: 'access' });
 
     expect(selectMock).toHaveBeenCalledWith('-passwordHash');
   });
@@ -90,7 +90,7 @@ describe('JwtStrategy', () => {
       select: jest.fn().mockResolvedValue(user),
     });
 
-    await strategy.validate({ sub: '123', email: 'test@test.com', iat: 1234567890 });
+    await strategy.validate({ sub: '123', email: 'test@test.com', iat: 1234567890, type: 'access' });
 
     expect(mockUserModel.findById).toHaveBeenCalledWith('123');
   });
@@ -104,5 +104,27 @@ describe('JwtStrategy', () => {
       UnauthorizedException,
     );
     await expect(strategy.validate({ sub: '1' })).rejects.toThrow('Session expired');
+  });
+
+  it('should throw if tokenVersion in token is lower than current user tokenVersion', async () => {
+    const user = { _id: '1', email: 'test@test.com', isActive: true, tokenVersion: 3 };
+    mockUserModel.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue(user),
+    });
+
+    await expect(
+      strategy.validate({ sub: '1', tokenVersion: 1, type: 'access' }),
+    ).rejects.toThrow('Your permissions have changed. Please log in again.');
+  });
+
+  it('should throw if token type is not "access"', async () => {
+    const user = { _id: '1', email: 'test@test.com', isActive: true, tokenVersion: 0 };
+    mockUserModel.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue(user),
+    });
+
+    await expect(
+      strategy.validate({ sub: '1', tokenVersion: 0, type: 'refresh' }),
+    ).rejects.toThrow('Invalid token type');
   });
 });

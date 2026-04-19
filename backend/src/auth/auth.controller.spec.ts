@@ -171,6 +171,59 @@ describe('AuthController', () => {
     });
   });
 
+  // refresh
+  describe('refresh', () => {
+    const baseReq = {
+      cookies: { refresh_token: 'raw-token' },
+      headers: { authorization: 'Bearer old-jwt', 'user-agent': 'jest' },
+      ip: '127.0.0.1',
+    } as any;
+
+    it('throws 401 when no refresh cookie present', async () => {
+      const req = { cookies: {}, headers: {}, ip: '127.0.0.1' } as any;
+      await expect(controller.refresh(req, mockRes as any)).rejects.toThrow('No refresh token');
+    });
+
+    it('throws 401 when decoded token has no sub', async () => {
+      mockAuthService.decodeToken.mockReturnValueOnce(null);
+      await expect(controller.refresh(baseReq, mockRes as any)).rejects.toThrow('Invalid access token');
+    });
+
+    it('throws 401 when user is not found', async () => {
+      mockAuthService.decodeToken.mockReturnValueOnce({ sub: 'user-id' });
+      mockUsersService.findById.mockRejectedValueOnce(new Error('not found'));
+      await expect(controller.refresh(baseReq, mockRes as any)).rejects.toThrow('User not found');
+    });
+
+    it('happy path: rotates token, sets cookie, returns new accessToken', async () => {
+      const user = { _id: { toString: () => 'user-id' }, email: 'a@b.com', role: 'staff', tokenVersion: 0 };
+      mockAuthService.decodeToken.mockReturnValueOnce({ sub: 'user-id' });
+      mockUsersService.findById.mockResolvedValueOnce(user);
+      mockRefreshTokenService.rotate = jest.fn().mockResolvedValue({ accessToken: 'rotated-jwt', rawRefreshToken: 'new-raw' });
+
+      const result = await controller.refresh(baseReq, mockRes as any);
+
+      expect(mockRefreshTokenService.rotate).toHaveBeenCalledTimes(1);
+      expect(mockRes.cookie).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ accessToken: 'rotated-jwt' });
+    });
+  });
+
+  // revokeAll
+  describe('revokeAll', () => {
+    it('throws 403 when caller is not admin', async () => {
+      const req = { user: { role: 'staff', _id: 'admin-id' } } as any;
+      await expect(controller.revokeAll(req, 'target-id')).rejects.toThrow('Forbidden');
+    });
+
+    it('revokes all sessions for userId and returns confirmation', async () => {
+      const req = { user: { role: 'admin', _id: 'admin-id' } } as any;
+      const result = await controller.revokeAll(req, 'target-id');
+      expect(mockRefreshTokenService.revokeAll).toHaveBeenCalledWith('target-id');
+      expect(result).toEqual({ message: 'All sessions revoked', revokedUserId: 'target-id' });
+    });
+  });
+
   // logout
   describe('logout', () => {
     it('revokes tokens, clears cookie, and returns confirmation', async () => {

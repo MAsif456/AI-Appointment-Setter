@@ -97,7 +97,7 @@ export class RefreshTokenService {
     if (record.used) {
       await this.refreshTokenModel.deleteMany({ family: record.family });
       this.logger.warn(
-        `Token reuse detected: userId=${record.userId}, family=${record.family}, ip=${ipAddress}`,
+        `Token reuse detected: userId=${record.userId}, family=${record.family}, ip=${ipAddress}, timestamp=${new Date().toISOString()}`,
       );
       throw new UnauthorizedException('Token reuse detected — please log in again');
     }

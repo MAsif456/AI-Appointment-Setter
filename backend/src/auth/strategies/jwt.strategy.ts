@@ -51,6 +51,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
     }
 
+    // Prevent refresh tokens (type: 'refresh' or missing type) from being used as Bearer tokens
+    if (payload.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
     return user;
   }
 }
