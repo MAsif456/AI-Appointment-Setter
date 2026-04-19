@@ -8,12 +8,12 @@ import {
   RefreshToken,
   RefreshTokenDocument,
 } from '../database/schemas/refresh-token.schema';
+import { User, UserDocument } from '../database/schemas/user.schema';
 
+/** AC1: payload contains only userId, role, and expiry — no PII, no tokenVersion. */
 export interface AccessTokenPayload {
-  sub: string;
-  email: string;
+  userId: string;
   role: string;
-  tokenVersion: number;
 }
 
 export interface TokenPair {
@@ -30,6 +30,8 @@ export class RefreshTokenService {
   constructor(
     @InjectModel(RefreshToken.name)
     private readonly refreshTokenModel: Model<RefreshTokenDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -41,9 +43,8 @@ export class RefreshTokenService {
 
   /**
    * Issues a new 15-minute access token and a 7-day refresh token.
-   * Optionally accepts existingFamily to continue a rotation chain rather than starting a new one.
-   * The caller (controller) is responsible for setting rawRefreshToken as an HttpOnly cookie —
-   * this service never touches the HTTP response object.
+   * Payload contains only userId and role — no email or tokenVersion (AC1).
+   * The caller (controller) is responsible for setting rawRefreshToken as an HttpOnly cookie.
    */
   async generateTokenPair(
     payload: AccessTokenPayload,
@@ -52,14 +53,14 @@ export class RefreshTokenService {
     existingFamily?: string,
   ): Promise<TokenPair> {
     const accessToken = this.jwtService.sign(
-      { ...payload, type: 'access' },
+      { userId: payload.userId, role: payload.role, type: 'access' },
       { expiresIn: '15m' },
     );
     const rawRefreshToken = crypto.randomBytes(64).toString('hex');
     const family = existingFamily ?? crypto.randomUUID();
 
     await this.refreshTokenModel.create({
-      userId: new Types.ObjectId(payload.sub),
+      userId: new Types.ObjectId(payload.userId),
       tokenHash: this.hash(rawRefreshToken),
       family,
       expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
@@ -72,12 +73,12 @@ export class RefreshTokenService {
   }
 
   /**
-   * Rotates a refresh token: validates the current token, marks it used, and issues a fresh pair.
-   * Reuse of an already-used token signals theft — the entire family is revoked immediately.
+   * Rotates a refresh token: validates, marks used, fetches current user from DB, issues new pair.
+   * userId comes from the stored token record — no old access token needed (AC4).
+   * Reuse of an already-used token signals theft — the entire family is revoked immediately (AC3).
    */
   async rotate(
     raw: string,
-    payload: AccessTokenPayload,
     ipAddress?: string,
     userAgent?: string,
   ): Promise<TokenPair> {
@@ -96,8 +97,9 @@ export class RefreshTokenService {
 
     if (record.used) {
       await this.refreshTokenModel.deleteMany({ family: record.family });
+      // TODO: Route security alerts to dedicated channel (see future security audit story)
       this.logger.warn(
-        `Token reuse detected: userId=${record.userId}, family=${record.family}, ip=${ipAddress}, timestamp=${new Date().toISOString()}`,
+        `[SECURITY ALERT] Token reuse detected: userId=${record.userId}, family=${record.family}, ip=${ipAddress}, timestamp=${new Date().toISOString()}`,
       );
       throw new UnauthorizedException('Token reuse detected — please log in again');
     }
@@ -105,12 +107,38 @@ export class RefreshTokenService {
     record.used = true;
     await record.save();
 
-    return this.generateTokenPair(payload, ipAddress, userAgent, record.family);
+    const user = await this.userModel.findById(record.userId).select('-passwordHash');
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    return this.generateTokenPair(
+      { userId: record.userId.toString(), role: user.role },
+      ipAddress,
+      userAgent,
+      record.family,
+    );
   }
 
   /**
-   * Deletes all refresh tokens for a given user.
-   * Called on explicit logout or admin-initiated session revocation.
+   * Deletes only the specific refresh token for the current device (AC2).
+   * Logging out on one device does not invalidate sessions on other devices.
+   */
+  async revokeSingle(raw: string): Promise<void> {
+    if (!raw) {
+      this.logger.warn('Logout attempted without refresh token');
+      return;
+    }
+    const result = await this.refreshTokenModel.deleteOne({
+      tokenHash: this.hash(raw),
+    });
+    if (result.deletedCount === 0) {
+      this.logger.warn('Logout attempted with non-existent refresh token');
+    }
+  }
+
+  /**
+   * Deletes all refresh tokens for a user — used by admin revocation only (AC5).
    */
   async revokeAll(userId: string): Promise<void> {
     const result = await this.refreshTokenModel.deleteMany({
@@ -123,7 +151,6 @@ export class RefreshTokenService {
 
   /**
    * Belt-and-suspenders cleanup of expired tokens as a fallback to the MongoDB TTL index.
-   * Returns the number of documents deleted.
    */
   async cleanupExpired(): Promise<number> {
     const result = await this.refreshTokenModel.deleteMany({

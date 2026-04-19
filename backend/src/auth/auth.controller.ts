@@ -12,11 +12,9 @@ import {
   Res,
   Logger,
   UnauthorizedException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RefreshTokenService } from './refresh-token.service';
-import { UsersService } from './users.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import { SensitiveData } from '../security-headers/sensitive-data.decorator';
@@ -51,7 +49,6 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly refreshTokenService: RefreshTokenService,
-    private readonly usersService: UsersService,
   ) {}
 
   /** Admin creates a new staff or admin account and sends a verification link. */
@@ -79,7 +76,7 @@ export class AuthController {
 
   /**
    * Authenticates a verified user.
-   * Returns a 15-minute access token in the body and sets a 7-day HttpOnly refresh token cookie.
+   * Returns a 15-minute access token (userId + role only, AC1) and sets a 7-day HttpOnly refresh cookie.
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -91,13 +88,12 @@ export class AuthController {
     const ip = req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
     this.logger.log(`Login attempt for ${loginDto.email} from IP ${ip}`);
 
-    const { user, accessToken: legacyToken } = await this.authService.login(loginDto, ip);
-    const decoded = this.authService.decodeToken(legacyToken) as any;
+    const { user } = await this.authService.login(loginDto, ip);
 
     const { accessToken, rawRefreshToken } = await this.refreshTokenService.generateTokenPair(
-      { sub: user._id, email: user.email, role: user.role, tokenVersion: decoded?.tokenVersion ?? 0 },
+      { userId: user._id, role: user.role },
       ip,
-      req.headers['user-agent'] as string,
+      req.headers['user-agent'],
     );
 
     res.cookie(REFRESH_COOKIE, rawRefreshToken, COOKIE_OPTIONS);
@@ -106,9 +102,8 @@ export class AuthController {
 
   /**
    * Issues a new access token by rotating the HttpOnly refresh token cookie.
-   * No auth guard — the refresh token cookie is the security proof.
-   * The (possibly expired) access token in the Authorization header is decoded without
-   * signature verification solely to retrieve the userId for a fresh DB lookup.
+   * No auth guard and no old access token required — the refresh cookie is the sole proof (AC4).
+   * userId is retrieved from the stored token record, not decoded from a header.
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -119,21 +114,8 @@ export class AuthController {
     const raw = req.cookies?.[REFRESH_COOKIE];
     if (!raw) throw new UnauthorizedException('No refresh token');
 
-    const authHeader = (req.headers?.['authorization'] as string) ?? '';
-    const oldToken = authHeader.replace('Bearer ', '');
-    const decoded = this.authService.decodeToken(oldToken) as any;
-    if (!decoded?.sub) throw new UnauthorizedException('Invalid access token');
-
-    let user: any;
-    try {
-      user = await this.usersService.findById(decoded.sub);
-    } catch {
-      throw new UnauthorizedException('User not found');
-    }
-
     const { accessToken, rawRefreshToken } = await this.refreshTokenService.rotate(
       raw,
-      { sub: user._id.toString(), email: user.email, role: user.role, tokenVersion: user.tokenVersion ?? 0 },
       req.ip,
       req.headers['user-agent'],
     );
@@ -164,7 +146,10 @@ export class AuthController {
     return this.authService.changePassword(req.user._id.toString(), dto);
   }
 
-  /** Revokes all refresh tokens for the current user and clears the cookie. */
+  /**
+   * Revokes only the current device's refresh token and clears the cookie (AC2).
+   * Other active sessions (other devices) are unaffected.
+   */
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -172,17 +157,17 @@ export class AuthController {
     @Req() req: any,
     @Res({ passthrough: true }) res: any,
   ) {
-    await this.refreshTokenService.revokeAll(req.user._id.toString());
+    const raw = req.cookies?.[REFRESH_COOKIE];
+    await this.refreshTokenService.revokeSingle(raw);
     res.cookie(REFRESH_COOKIE, '', { ...COOKIE_OPTIONS, maxAge: 0 });
     return { message: 'Logged out successfully' };
   }
 
-  /** Admin-only: revokes all sessions for any user by ID. */
+  /** Admin-only: revokes all sessions for any user by ID. AdminGuard enforces the role check (AC3). */
   @Post('revoke-all/:userId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async revokeAll(@Req() req: any, @Param('userId') userId: string) {
-    if (req.user.role !== 'admin') throw new ForbiddenException();
     await this.refreshTokenService.revokeAll(userId);
     this.logger.log(
       `All sessions revoked for userId=${userId} by adminId=${req.user._id} at ${new Date().toISOString()}`,
