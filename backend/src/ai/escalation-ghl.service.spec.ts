@@ -26,8 +26,8 @@ describe("EscalationGhlService", () => {
     ghlContactId: "ghl_c1",
     ghlTags: [],
   };
-  const baseConversation: any = { _id: "conv_1", ghlContactId: "ghl_c1" };
-  const baseClinic: any = { _id: "clinic_1", name: "Smile Dental Bristol" };
+  const baseConversation: any = { _id: "conv_1", ghlContactId: "ghl_c1", channel: "sms" };
+  const baseClinic: any = { _id: "clinic_1", name: "Smile Dental Bristol", ghlLocationId: "loc_001" };
   const reason = "3 consecutive AI comprehension failures";
 
   beforeEach(async () => {
@@ -97,6 +97,7 @@ describe("EscalationGhlService", () => {
       "ghl_c1",
       "escalation_reason",
       reason,
+      "loc_001",
     );
   });
 
@@ -113,6 +114,7 @@ describe("EscalationGhlService", () => {
       expect.objectContaining({
         type: "SMS",
         contactId: "ghl_c1",
+        locationId: "loc_001",
       }),
     );
   });
