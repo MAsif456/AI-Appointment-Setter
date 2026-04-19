@@ -68,7 +68,7 @@ describe('SettingsPage', () => {
       expect(screen.getByRole('button', { name: 'Account Settings' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'User Management' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Notifications' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Integrations' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Integrations' })).not.toBeInTheDocument();
     });
 
     it('shows Account Settings content by default', () => {

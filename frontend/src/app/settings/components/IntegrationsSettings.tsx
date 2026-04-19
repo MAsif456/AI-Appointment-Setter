@@ -1,256 +1,207 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Wifi, WifiOff, Loader } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/apiAxios';
-import styles from '../settings.module.css';
+// Shares the same CSS module as the per-clinic integrations page so both
+// pages are visually identical.
+import styles from '../../clinics/[id]/integrations/integrations.module.css';
 
-interface IntegrationSettings {
-  ghlApiKey: string;
-  webhookUrl: string;
-  ghlConnectionStatus: 'connected' | 'disconnected';
-}
-
-/** Validates that a URL is a valid HTTPS URL. */
-function isValidHttpsUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
+type ConnectionStatus = 'connected' | 'disconnected' | 'testing';
 
 /**
- * Integrations tab — allows staff to manage the GoHighLevel API key
- * and webhook URL. Shows live connection status and supports
- * Save / Cancel / Disconnect actions.
+ * Integrations tab (admin only) — manages the global GoHighLevel API key
+ * and webhook URL. Identical layout to the per-clinic integrations page.
  */
 export default function IntegrationsSettings() {
-  const [saved, setSaved] = useState<IntegrationSettings | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [maskedKey, setMaskedKey] = useState('');
+  const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await api.get<IntegrationSettings>('/api/integrations');
-      setSaved(data);
-      setApiKey('');           // never pre-fill — masked value is display only
-      setWebhookUrl(data.webhookUrl);
-    } catch {
-      setError('Failed to load integration settings. Please refresh the page.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  /** True when the user has changed at least one field from its saved state. */
-  const isDirty =
-    apiKey.length > 0 || webhookUrl !== (saved?.webhookUrl ?? '');
-
-  /** Client-side validation before sending to the backend. */
-  function validate(): string {
-    if (apiKey && apiKey.length < 10) return 'API key must be at least 10 characters.';
-    if (webhookUrl && !isValidHttpsUrl(webhookUrl)) return 'Webhook URL must be a valid HTTPS URL.';
-    return '';
+  function showToast(type: 'success' | 'error', message: string) {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 7000);
   }
 
-  const handleSave = async () => {
-    const validationError = validate();
-    if (validationError) { setError(validationError); return; }
-
-    setSaving(true);
-    setError('');
-    setSuccess('');
+  async function load() {
     try {
-      const body: Record<string, string> = {};
-      if (apiKey) body.ghlApiKey = apiKey;
-      if (webhookUrl !== saved?.webhookUrl) body.webhookUrl = webhookUrl;
+      const { data } = await api.get('/api/integrations');
+      setMaskedKey(data.ghlApiKey ?? '');
+      setWebhookUrl(data.webhookUrl ?? '');
+      setStatus(data.ghlConnectionStatus === 'connected' ? 'connected' : 'disconnected');
+    } catch {
+      showToast('error', 'Failed to load integration settings. Please refresh the page.');
+    } finally {
+      setLoaded(true);
+    }
+  }
 
-      const { data } = await api.put<IntegrationSettings>('/api/integrations', body);
-      setSaved(data);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSave() {
+    if (!apiKey.trim()) { showToast('error', 'Please enter an API key'); return; }
+    setSaving(true);
+    try {
+      const body: Record<string, string> = { ghlApiKey: apiKey.trim() };
+      if (webhookUrl.trim()) body.webhookUrl = webhookUrl.trim();
+      const { data } = await api.put('/api/integrations', body);
+      setMaskedKey(data.ghlApiKey ?? '');
+      setWebhookUrl(data.webhookUrl ?? '');
+      setStatus(data.ghlConnectionStatus === 'connected' ? 'connected' : 'disconnected');
       setApiKey('');
-      setWebhookUrl(data.webhookUrl);
-      setSuccess('Settings saved successfully.');
+      showToast('success', 'Integration saved');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save settings.');
+      showToast('error', err.response?.data?.message || 'Failed to save settings.');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleCancel = () => {
-    setApiKey('');
-    setWebhookUrl(saved?.webhookUrl ?? '');
-    setError('');
-    setSuccess('');
-  };
-
-  const handleTest = async () => {
-    setTesting(true);
-    setError('');
-    setSuccess('');
+  async function handleTest() {
+    setStatus('testing');
     try {
-      const { data } = await api.post<{ connected: boolean }>('/api/integrations/test-connection');
-      await load(); // reload first so load()'s setError('') runs before we set our message
-      if (data.connected) {
-        setSuccess('Connection successful — GoHighLevel is reachable.');
-      } else {
-        setError('Connection failed — check your API key.');
-      }
+      const { data } = await api.post('/api/integrations/test-connection');
+      setStatus(data.connected ? 'connected' : 'disconnected');
+      showToast(
+        data.connected ? 'success' : 'error',
+        data.connected ? 'Connection successful' : 'Connection failed — check your API key',
+      );
     } catch {
-      setError('Could not reach the server. Please try again.');
-    } finally {
-      setTesting(false);
+      setStatus('disconnected');
+      showToast('error', 'Could not reach the server');
     }
-  };
+  }
 
-  const handleDisconnect = async () => {
-    setDisconnecting(true);
-    setError('');
+  async function handleDisconnect() {
     try {
       await api.post('/api/integrations/disconnect');
-      await load();
-      setSuccess('GoHighLevel integration disconnected.');
+      setMaskedKey('');
+      setWebhookUrl('');
+      setApiKey('');
+      setStatus('disconnected');
+      setConfirmOpen(false);
+      showToast('success', 'Integration disconnected');
     } catch {
-      setError('Failed to disconnect. Please try again.');
-    } finally {
-      setDisconnecting(false);
-      setShowDisconnectConfirm(false);
+      setConfirmOpen(false);
+      showToast('error', 'Failed to disconnect');
     }
-  };
+  }
 
-  if (loading) return <div className={styles.loadingState}>Loading integration settings…</div>;
-
-  const isConnected = saved?.ghlConnectionStatus === 'connected';
+  const dotClass =
+    status === 'connected' ? styles.dotConnected :
+    status === 'testing'   ? styles.dotTesting :
+                             styles.dotDisconnected;
+  const statusLabel =
+    status === 'connected' ? 'Connected' :
+    status === 'testing'   ? 'Testing…' :
+                             'Not connected';
 
   return (
-    <div className={styles.section}>
-      <div className={styles.sectionHeader}>
-        <div>
-          <h2 className={styles.sectionTitle}>GoHighLevel Integration</h2>
-          <p className={styles.sectionDesc}>
-            Manage the API credentials and webhook URL powering the AI booking system.
-          </p>
-        </div>
-        {/* Connection status badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {isConnected
-            ? <Wifi size={16} color="#16a34a" />
-            : <WifiOff size={16} color="#dc2626" />}
-          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: isConnected ? '#16a34a' : '#dc2626' }}>
-            {isConnected ? 'Connected' : 'Not Connected'}
-          </span>
-        </div>
+    <div className={styles.container}>
+
+      <div className={styles.header}>
+        <h2 className={styles.title}>GoHighLevel Integration</h2>
+        <p className={styles.desc}>
+          Manage the global API credentials and webhook URL powering the AI booking system.
+        </p>
       </div>
 
-      <div className={styles.infoCard}>
-        {error && <div className={styles.errorAlert}>{error}</div>}
-        {success && <div className={styles.successAlert}>{success}</div>}
-
-        {/* API Key field */}
-        <div className={styles.formGroup}>
-          <label className={styles.label}>GHL Private Integration Token</label>
-          <p className={styles.labelDesc}>
-            Authenticates all communication with GoHighLevel. Rotate every 90 days.
-          </p>
-          <div className={styles.passwordWrapper}>
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={apiKey || (!showKey && saved?.ghlApiKey ? saved.ghlApiKey : apiKey)}
-              onChange={(e) => setApiKey(e.target.value)}
-              onFocus={() => { if (!apiKey) setApiKey(''); }}
-              placeholder={saved?.ghlApiKey ? 'Enter new token to replace current' : 'Enter your GHL Private Integration Token'}
-              className={styles.input}
-              autoComplete="off"
-            />
-            <button type="button" className={styles.eyeButton} onClick={() => setShowKey(!showKey)}>
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Webhook URL field */}
-        <div className={styles.formGroup}>
-          <label className={styles.label}>Webhook URL</label>
-          <p className={styles.labelDesc}>
-            The HTTPS URL where GoHighLevel delivers ContactCreate and InboundMessage events.
-          </p>
-          <input
-            type="url"
-            value={webhookUrl}
-            onChange={(e) => setWebhookUrl(e.target.value)}
-            placeholder="https://your-domain.com/webhooks/ghl"
-            className={styles.input}
-          />
-        </div>
-
-        {/* Save / Cancel / Test */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            className={styles.primaryButton}
-            onClick={handleSave}
-            disabled={saving || !isDirty}
-          >
-            {saving ? <><Loader size={14} /> Saving…</> : 'Save Changes'}
-          </button>
-          {isDirty && (
-            <button className={styles.outlineButton} onClick={handleCancel} disabled={saving}>
-              Cancel
-            </button>
-          )}
-          {isConnected && !isDirty && (
-            <button className={styles.outlineButton} onClick={handleTest} disabled={testing}>
-              {testing ? <><Loader size={14} /> Testing…</> : 'Test Connection'}
-            </button>
-          )}
-        </div>
-
-        {/* Disconnect */}
-        {isConnected && (
-          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
-            {!showDisconnectConfirm ? (
-              <button className={styles.dangerButton} onClick={() => setShowDisconnectConfirm(true)}>
-                Disconnect
-              </button>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <p style={{ fontSize: '0.875rem', color: '#dc2626' }}>
-                  Are you sure? This will stop all AI booking services.
-                </p>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button className={styles.dangerButton} onClick={handleDisconnect} disabled={disconnecting}>
-                    {disconnecting ? 'Disconnecting…' : 'Yes, Disconnect'}
-                  </button>
-                  <button className={styles.outlineButton} onClick={() => setShowDisconnectConfirm(false)}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+      <div className={styles.statusRow}>
+        {loaded ? (
+          <>
+            <span className={`${styles.statusDot} ${dotClass}`} />
+            <span className={styles.statusLabel}>{statusLabel}</span>
+            {maskedKey && <span className={styles.maskedKey}>{maskedKey}</span>}
+          </>
+        ) : (
+          <span className={styles.loadingText}>Loading…</span>
         )}
-
-        {/* Calendly placeholder */}
-        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>
-            Calendly Integration
-          </h3>
-          <p className={styles.sectionDesc}>Coming soon.</p>
-        </div>
       </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.label}>GHL Private Integration Token</label>
+        <input
+          type="password"
+          className={styles.input}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={maskedKey ? 'Enter new token to replace current' : 'Enter your GHL Private Integration Token'}
+          autoComplete="off"
+        />
+        <p className={styles.fieldHint}>Settings → Private Integrations in your GHL sub-account.</p>
+      </div>
+
+      <div className={styles.formGroupLast}>
+        <label className={styles.label}>
+          Webhook URL <span className={styles.labelOptional}>(optional)</span>
+        </label>
+        <input
+          type="url"
+          className={styles.input}
+          value={webhookUrl}
+          onChange={(e) => setWebhookUrl(e.target.value)}
+          placeholder="https://your-domain.com/webhooks/ghl"
+        />
+      </div>
+
+      <div className={styles.actions}>
+        <button className={styles.btnPrimary} onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        {maskedKey && (
+          <>
+            <button
+              className={styles.btnOutline}
+              onClick={handleTest}
+              disabled={status === 'testing'}
+            >
+              {status === 'testing' ? 'Testing…' : 'Test Connection'}
+            </button>
+            <button className={styles.btnDanger} onClick={() => setConfirmOpen(true)}>
+              Disconnect
+            </button>
+          </>
+        )}
+      </div>
+
+      {toast && (
+        <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
+          <span className={styles.toastIcon}>{toast.type === 'success' ? '✓' : '!'}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Calendly placeholder */}
+      <div className={styles.divider}>
+        <h3 className={styles.dividerTitle}>Calendly Integration</h3>
+        <p className={styles.dividerDesc}>Coming soon.</p>
+      </div>
+
+      {/* Disconnect confirmation modal */}
+      {confirmOpen && (
+        <div className={styles.overlay} role="dialog" aria-modal="true">
+          <div className={styles.backdrop} onClick={() => setConfirmOpen(false)} />
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>Remove integration?</h3>
+            <p className={styles.panelDesc}>
+              Are you sure? This will stop all AI booking services. You can reconnect at any time.
+            </p>
+            <div className={styles.panelActions}>
+              <button className={styles.btnConfirmCancel} onClick={() => setConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button className={styles.btnConfirmDanger} onClick={handleDisconnect}>
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

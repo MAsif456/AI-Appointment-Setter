@@ -26,7 +26,9 @@ export default function SettingsPage() {
       { key: 'users' as Tab, label: 'User Management', icon: Users },
     ] : []),
     { key: 'notifications' as Tab, label: 'Notifications', icon: Bell },
-    { key: 'integrations' as Tab, label: 'Integrations', icon: Plug },
+    ...(isAdmin ? [
+      { key: 'integrations' as Tab, label: 'Integrations', icon: Plug },
+    ] : []),
   ];
 
   return (
@@ -53,7 +55,7 @@ export default function SettingsPage() {
         {activeTab === 'account' && <AccountSettings />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'notifications' && <NotificationPreferences />}
-        {activeTab === 'integrations' && <IntegrationsSettings />}
+        {activeTab === 'integrations' && isAdmin && <IntegrationsSettings />}
       </div>
       <br />
     </div>
