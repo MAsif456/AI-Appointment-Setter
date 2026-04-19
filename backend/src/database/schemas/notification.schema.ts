@@ -8,7 +8,8 @@ export type NotificationType =
   | "appointment_reminder"
   | "escalated_conversation"
   | "booking_cancelled"
-  | "new_user_joined";
+  | "new_user_joined"
+  | "gdpr_data_deletion";
 export type RelatedEntityType = "conversation" | "appointment" | "user";
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
@@ -25,6 +26,7 @@ export class Notification {
       "escalated_conversation",
       "booking_cancelled",
       "new_user_joined",
+      "gdpr_data_deletion",
     ],
     required: true,
   })
