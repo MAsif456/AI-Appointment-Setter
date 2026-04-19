@@ -23,6 +23,7 @@ import { Lead, LeadDocument } from '../../database/schemas/lead.schema';
 import { Clinic, ClinicDocument } from '../../database/schemas/clinic.schema';
 import { AuditLog, AuditLogDocument } from '../../database/schemas/audit-log.schema';
 import { ErasureService } from './erasure.service';
+import { InboxNotificationService } from '../../notifications/inbox-notification.service';
 
 @Injectable()
 export class ErasureRequestService {
@@ -38,6 +39,7 @@ export class ErasureRequestService {
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLogDocument>,
     private readonly erasureService: ErasureService,
+    private readonly inboxNotificationService: InboxNotificationService,
   ) {}
 
   /** Staff creates a new erasure request. */
@@ -82,6 +84,19 @@ export class ErasureRequestService {
         reason,
       },
     });
+
+    const patientName = `${lead.firstName} ${lead.lastName ?? ''}`.trim();
+    this.inboxNotificationService
+      .createForAdmins(
+        'gdpr_data_deletion',
+        'Data deletion request',
+        `${requestedBy} has requested erasure of patient data for ${patientName}`,
+        request._id.toString(),
+        'user',
+      )
+      .catch((err: Error) =>
+        this.logger.warn(`Failed to create GDPR deletion notification: ${err.message}`),
+      );
 
     this.logger.log(
       `ERASURE_REQUESTED leadId=${leadId} by=${requestedBy}`,
