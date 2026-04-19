@@ -6,6 +6,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -39,6 +40,8 @@ function assertValidObjectId(id: string): void {
  */
 @Injectable()
 export class ClinicsService {
+  private readonly logger = new Logger(ClinicsService.name);
+
   constructor(
     @InjectModel(Clinic.name)
     private readonly clinicModel: Model<ClinicDocument>,
@@ -248,7 +251,7 @@ export class ClinicsService {
       throw new NotFoundException(`Clinic with id "${clinicId}" not found`);
     }
 
-    console.log(`[updateIntegrations] saved — clinicId=${clinicId} hasKey=${!!updated.ghlApiKey}`);
+    this.logger.log(`Integration updated — clinicId=${clinicId} hasKey=${!!updated.ghlApiKey}`);
   }
 
   /**

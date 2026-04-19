@@ -182,14 +182,14 @@ describe('ClinicIntegrationsPage', () => {
     it('is not rendered when no key is stored', async () => {
       render(<ClinicIntegrationsPage />);
       await waitFor(() => screen.getByText('Not connected'));
-      expect(screen.queryByText('Test')).not.toBeInTheDocument();
+      expect(screen.queryByText('Test Connection')).not.toBeInTheDocument();
     });
 
     it('is rendered when a key is already stored', async () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       render(<ClinicIntegrationsPage />);
       await waitFor(() => {
-        expect(screen.getByText('Test')).toBeInTheDocument();
+        expect(screen.getByText('Test Connection')).toBeInTheDocument();
       });
     });
 
@@ -197,9 +197,9 @@ describe('ClinicIntegrationsPage', () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       api.testClinicIntegration.mockResolvedValue({ connected: true });
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Test'));
+      await waitFor(() => screen.getByText('Test Connection'));
 
-      fireEvent.click(screen.getByText('Test'));
+      fireEvent.click(screen.getByText('Test Connection'));
 
       await waitFor(() => {
         expect(screen.getByText('Connection successful')).toBeInTheDocument();
@@ -210,14 +210,27 @@ describe('ClinicIntegrationsPage', () => {
       api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
       api.testClinicIntegration.mockResolvedValue({ connected: false });
       render(<ClinicIntegrationsPage />);
-      await waitFor(() => screen.getByText('Test'));
+      await waitFor(() => screen.getByText('Test Connection'));
 
-      fireEvent.click(screen.getByText('Test'));
+      fireEvent.click(screen.getByText('Test Connection'));
 
       await waitFor(() => {
         expect(
           screen.getByText('Connection failed — check your API key'),
         ).toBeInTheDocument();
+      });
+    });
+
+    it('shows server error toast when testClinicIntegration throws', async () => {
+      api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
+      api.testClinicIntegration.mockRejectedValue(new Error('Network error'));
+      render(<ClinicIntegrationsPage />);
+      await waitFor(() => screen.getByText('Test Connection'));
+
+      fireEvent.click(screen.getByText('Test Connection'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Could not reach the server')).toBeInTheDocument();
       });
     });
   });
@@ -277,6 +290,22 @@ describe('ClinicIntegrationsPage', () => {
       fireEvent.click(screen.getByText('Cancel'));
 
       expect(api.disconnectClinicIntegration).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('closes the modal when the backdrop is clicked', async () => {
+      api.getClinicById.mockResolvedValue(makeClinic({ ghlApiKey: '••••••••••••abc123' }));
+      render(<ClinicIntegrationsPage />);
+      await waitFor(() => screen.getByText('Disconnect'));
+
+      fireEvent.click(screen.getByText('Disconnect'));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      // Click the backdrop (the sibling div behind the panel)
+      const overlay = screen.getByRole('dialog');
+      // The backdrop is the first child of the overlay
+      fireEvent.click(overlay.firstElementChild!);
+
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 

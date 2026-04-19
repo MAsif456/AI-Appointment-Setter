@@ -166,7 +166,8 @@ export class IntegrationsService {
    */
   private deriveEncryptionKey(): Buffer {
     const raw = this.configService.get<string>('ENCRYPTION_KEY');
-    if (!raw) throw new Error('ENCRYPTION_KEY environment variable is not configured');
+    if (!raw || raw.length < 32)
+      throw new Error('ENCRYPTION_KEY environment variable must be set and at least 32 characters long');
     return crypto.createHash('sha256').update(raw).digest();
   }
 }

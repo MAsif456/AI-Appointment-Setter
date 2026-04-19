@@ -33,6 +33,7 @@ export default function IntegrationsSettings() {
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -95,6 +96,25 @@ export default function IntegrationsSettings() {
     setWebhookUrl(saved?.webhookUrl ?? '');
     setError('');
     setSuccess('');
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setError('');
+    setSuccess('');
+    try {
+      const { data } = await api.post<{ connected: boolean }>('/api/integrations/test-connection');
+      await load(); // reload first so load()'s setError('') runs before we set our message
+      if (data.connected) {
+        setSuccess('Connection successful — GoHighLevel is reachable.');
+      } else {
+        setError('Connection failed — check your API key.');
+      }
+    } catch {
+      setError('Could not reach the server. Please try again.');
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -177,7 +197,7 @@ export default function IntegrationsSettings() {
           />
         </div>
 
-        {/* Save / Cancel */}
+        {/* Save / Cancel / Test */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
             className={styles.primaryButton}
@@ -189,6 +209,11 @@ export default function IntegrationsSettings() {
           {isDirty && (
             <button className={styles.outlineButton} onClick={handleCancel} disabled={saving}>
               Cancel
+            </button>
+          )}
+          {isConnected && !isDirty && (
+            <button className={styles.outlineButton} onClick={handleTest} disabled={testing}>
+              {testing ? <><Loader size={14} /> Testing…</> : 'Test Connection'}
             </button>
           )}
         </div>

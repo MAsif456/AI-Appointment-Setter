@@ -2,12 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import {
-  updateClinicIntegration,
-  testClinicIntegration,
-  disconnectClinicIntegration,
-  getClinicById,
-} from '@/lib/api/clinics';
+import { updateClinicIntegration, testClinicIntegration, disconnectClinicIntegration, getClinicById, } from '@/lib/api/clinics';
+import styles from './integrations.module.css';
 
 interface Props {
   clinicId?: string;
@@ -33,7 +29,6 @@ export default function ClinicIntegrationsPage({
   const [status, setStatus] = useState<ConnectionStatus>(
     initialMaskedKey ? 'connected' : 'disconnected',
   );
-  // True once we have definitive data (either from props or the fetch)
   const [loaded, setLoaded] = useState(!!initialMaskedKey);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -48,13 +43,13 @@ export default function ClinicIntegrationsPage({
 
   useEffect(() => {
     if (initialMaskedKey || !id) return;
-    getClinicById(id).then((clinic) => {
-      if (clinic.ghlApiKey) {
-        setMaskedKey(clinic.ghlApiKey);
-        setStatus('connected');
-      }
-      if (clinic.webhookUrl) setWebhookUrl(clinic.webhookUrl);
-    }).catch(() => {}).finally(() => setLoaded(true));
+    getClinicById(id)
+      .then((clinic) => {
+        if (clinic.ghlApiKey) { setMaskedKey(clinic.ghlApiKey); setStatus('connected'); }
+        if (clinic.webhookUrl) setWebhookUrl(clinic.webhookUrl);
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, [id, initialMaskedKey]);
 
   function showToast(type: 'success' | 'error', message: string) {
@@ -99,11 +94,8 @@ export default function ClinicIntegrationsPage({
   async function handleDisconnect() {
     try {
       await disconnectClinicIntegration(id);
-      setMaskedKey('');
-      setWebhookUrl('');
-      setApiKey('');
-      setStatus('disconnected');
-      setConfirmOpen(false);
+      setMaskedKey(''); setWebhookUrl(''); setApiKey('');
+      setStatus('disconnected'); setConfirmOpen(false);
       showToast('success', 'Integration disconnected');
       onUpdated?.();
     } catch {
@@ -112,267 +104,102 @@ export default function ClinicIntegrationsPage({
     }
   }
 
-  const dot = status === 'connected' ? '#16a34a' : status === 'testing' ? '#d97706' : '#9ca3af';
-  const label = status === 'connected' ? 'Connected' : status === 'testing' ? 'Testing…' : 'Not connected';
+  const dotClass =
+    status === 'connected' ? styles.dotConnected :
+    status === 'testing'   ? styles.dotTesting :
+                             styles.dotDisconnected;
+  const label =
+    status === 'connected' ? 'Connected' :
+    status === 'testing'   ? 'Testing…' :
+                             'Not connected';
 
   return (
-    <div style={{ maxWidth: 560, padding: '28px 0' }}>
+    <div className={styles.container}>
 
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 6px' }}>
-          GoHighLevel Integration
-        </h2>
-        <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>
+      <div className={styles.header}>
+        <h2 className={styles.title}>GoHighLevel Integration</h2>
+        <p className={styles.desc}>
           Connect this clinic to GoHighLevel to enable AI-powered booking and messaging.
         </p>
       </div>
 
-      {/* Status row */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          background: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: 10,
-          padding: '14px 18px',
-          marginBottom: 24,
-          minHeight: 48,
-        }}
-      >
+      <div className={styles.statusRow}>
         {loaded ? (
           <>
-            <span
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: '50%',
-                backgroundColor: dot,
-                flexShrink: 0,
-                marginRight: 10,
-              }}
-            />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151' }}>{label}</span>
-            {maskedKey && (
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  fontFamily: 'monospace',
-                  fontSize: '0.8125rem',
-                  color: '#9ca3af',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {maskedKey}
-              </span>
-            )}
+            <span className={`${styles.statusDot} ${dotClass}`} />
+            <span className={styles.statusLabel}>{label}</span>
+            {maskedKey && <span className={styles.maskedKey}>{maskedKey}</span>}
           </>
         ) : (
-          <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Loading…</span>
+          <span className={styles.loadingText}>Loading…</span>
         )}
       </div>
 
-      {/* API key field */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: 6, color: '#374151' }}>
-          GHL API Key
-        </label>
+      <div className={styles.formGroup}>
+        <label className={styles.label}>GHL API Key</label>
         <input
           type="password"
+          className={styles.input}
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder={maskedKey ? 'Enter new key to replace' : 'Enter GHL private integration token'}
-          style={{
-            width: '100%',
-            padding: '10px 14px',
-            border: '1px solid #d1d5db',
-            borderRadius: 8,
-            fontSize: '0.875rem',
-            boxSizing: 'border-box',
-            outline: 'none',
-            color: '#111827',
-          }}
         />
-        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '5px 0 0' }}>
-          Settings → Private Integrations in your GHL sub-account.
-        </p>
+        <p className={styles.fieldHint}>Settings → Private Integrations in your GHL sub-account.</p>
       </div>
 
-      {/* Webhook URL field */}
-      <div style={{ marginBottom: 28 }}>
-        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: 6, color: '#374151' }}>
-          Webhook URL{' '}
-          <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+      <div className={styles.formGroupLast}>
+        <label className={styles.label}>
+          Webhook URL <span className={styles.labelOptional}>(optional)</span>
         </label>
         <input
           type="url"
+          className={styles.input}
           value={webhookUrl}
           onChange={(e) => setWebhookUrl(e.target.value)}
           placeholder="https://your-domain.com/webhooks/ghl"
-          style={{
-            width: '100%',
-            padding: '10px 14px',
-            border: '1px solid #d1d5db',
-            borderRadius: 8,
-            fontSize: '0.875rem',
-            boxSizing: 'border-box',
-            outline: 'none',
-            color: '#111827',
-          }}
         />
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            padding: '9px 18px',
-            background: '#2563eb',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: saving ? 'not-allowed' : 'pointer',
-            opacity: saving ? 0.65 : 1,
-          }}
-        >
+      <div className={styles.actions}>
+        <button className={styles.btnPrimary} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
-
         {maskedKey && (
           <>
             <button
+              className={styles.btnOutline}
               onClick={handleTest}
               disabled={status === 'testing'}
-              style={{
-                padding: '9px 18px',
-                background: '#fff',
-                color: '#374151',
-                border: '1px solid #d1d5db',
-                borderRadius: 8,
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                cursor: status === 'testing' ? 'not-allowed' : 'pointer',
-              }}
             >
-              Test
+              Test Connection
             </button>
-            <button
-              onClick={() => setConfirmOpen(true)}
-              style={{
-                padding: '9px 18px',
-                background: '#fff',
-                color: '#dc2626',
-                border: '1px solid #fca5a5',
-                borderRadius: 8,
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
+            <button className={styles.btnDanger} onClick={() => setConfirmOpen(true)}>
               Disconnect
             </button>
           </>
         )}
       </div>
 
-      {/* Toast */}
       {toast && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-            marginTop: 20,
-            padding: '12px 16px',
-            borderRadius: 8,
-            fontSize: '0.875rem',
-            background: toast.type === 'success' ? '#f0fdf4' : '#fef2f2',
-            color: toast.type === 'success' ? '#15803d' : '#b91c1c',
-            border: `1px solid ${toast.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
-          }}
-        >
-          <span style={{ flexShrink: 0, fontWeight: 600 }}>
-            {toast.type === 'success' ? '✓' : '!'}
-          </span>
+        <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
+          <span className={styles.toastIcon}>{toast.type === 'success' ? '✓' : '!'}</span>
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Disconnect confirmation modal */}
       {confirmOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          {/* Backdrop */}
-          <div
-            onClick={() => setConfirmOpen(false)}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(0,0,0,0.35)',
-            }}
-          />
-          {/* Panel */}
-          <div
-            style={{
-              position: 'relative',
-              background: '#fff',
-              borderRadius: 12,
-              padding: '28px 28px 24px',
-              width: 360,
-              maxWidth: '90vw',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#111827' }}>
-              Remove integration?
-            </h3>
-            <p style={{ margin: '0 0 24px', fontSize: '0.875rem', color: '#6b7280' }}>
-              The GHL API key will be removed for this clinic. You can reconnect at any time.
+        <div className={styles.overlay} role="dialog" aria-modal="true">
+          <div className={styles.backdrop} onClick={() => setConfirmOpen(false)} />
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>Remove integration?</h3>
+            <p className={styles.panelDesc}>
+              Are you sure? This will stop all AI booking services for this clinic. You can reconnect at any time.
             </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button
-                onClick={() => setConfirmOpen(false)}
-                style={{
-                  padding: '8px 16px',
-                  background: '#fff',
-                  color: '#374151',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 8,
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
+            <div className={styles.panelActions}>
+              <button className={styles.btnConfirmCancel} onClick={() => setConfirmOpen(false)}>
                 Cancel
               </button>
-              <button
-                onClick={handleDisconnect}
-                style={{
-                  padding: '8px 16px',
-                  background: '#dc2626',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
+              <button className={styles.btnConfirmDanger} onClick={handleDisconnect}>
                 Remove
               </button>
             </div>
