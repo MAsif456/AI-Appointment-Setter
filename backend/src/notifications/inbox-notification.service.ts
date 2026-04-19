@@ -19,6 +19,7 @@ const PREF_KEY: Partial<Record<NotificationType, keyof UserDocument["notificatio
   escalated_conversation: "escalatedConversations",
   booking_cancelled: "bookingCancelled",
   new_user_joined: "newUserJoined",
+  gdpr_data_deletion: "gdprDataDeletion",
 };
 
 @Injectable()
