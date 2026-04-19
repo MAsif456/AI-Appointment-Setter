@@ -32,23 +32,23 @@ describe("GHLCalendarService", () => {
   describe("fetchAvailableSlots - Real GHL API", () => {
     it("should parse GHL response correctly with 30-minute appointment duration", async () => {
       const mockGHLResponse = {
-        "2026-03-25": {
+        '2026-03-25': {
           slots: [
-            "2026-03-25T08:00:00Z",
-            "2026-03-25T08:10:00Z",
-            "2026-03-25T08:20:00Z",
+            '2026-03-25T08:00:00Z',
+            '2026-03-25T08:10:00Z',
+            '2026-03-25T08:20:00Z',
           ],
         },
-        "2026-03-26": {
-          slots: ["2026-03-26T09:00:00Z"],
+        '2026-03-26': {
+          slots: ['2026-03-26T09:00:00Z'],
         },
-        traceId: "test-trace-id",
+        traceId: 'test-trace-id',
       };
 
       const axiosResponse: AxiosResponse = {
         data: mockGHLResponse,
         status: 200,
-        statusText: "OK",
+        statusText: 'OK',
         headers: {},
         config: {} as any,
       };

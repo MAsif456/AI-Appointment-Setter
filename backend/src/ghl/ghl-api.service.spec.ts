@@ -7,7 +7,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 
 const TEST_API_KEY = 'test-clinic-api-key';
 
-describe('GhlApiService', () => {
+describe("GhlApiService", () => {
   let service: GhlApiService;
   let httpService: { post: jest.Mock; get: jest.Mock; put: jest.Mock; delete: jest.Mock };
 

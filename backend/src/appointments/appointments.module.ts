@@ -2,15 +2,9 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { HttpModule } from "@nestjs/axios";
 import { ConfigModule } from "@nestjs/config";
-import {
-  Appointment,
-  AppointmentSchema,
-} from "../database/schemas/appointment.schema";
+import { Appointment, AppointmentSchema, } from "../database/schemas/appointment.schema";
 import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
-import {
-  Conversation,
-  ConversationSchema,
-} from "../database/schemas/conversation.schema";
+import { Conversation, ConversationSchema, } from "../database/schemas/conversation.schema";
 import { Lead, LeadSchema } from "../database/schemas/lead.schema";
 import { IdempotencyKey, IdempotencyKeySchema } from "./idempotency-key.schema";
 import { GhlModule } from "../ghl/ghl.module";

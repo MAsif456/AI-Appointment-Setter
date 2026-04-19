@@ -1,11 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import {
   Appointment,
   AppointmentDocument,
-} from "../database/schemas/appointment.schema";
-import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+} from '../database/schemas/appointment.schema';
+import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import {
   Conversation,
   ConversationDocument,
