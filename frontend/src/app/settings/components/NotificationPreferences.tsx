@@ -13,6 +13,7 @@ interface NotificationPrefs {
   bookingCancelled: boolean;
   newUserJoined: boolean;
   appointmentReminders: boolean;
+  gdprDataDeletion: boolean;
 }
 
 const DEFAULTS: NotificationPrefs = {
@@ -23,6 +24,7 @@ const DEFAULTS: NotificationPrefs = {
   bookingCancelled: true,
   newUserJoined: true,
   appointmentReminders: true,
+  gdprDataDeletion: true,
 };
 
 type ToggleConfig = { key: keyof Omit<NotificationPrefs, 'generalNotifications'>; label: string; description: string; adminOnly?: boolean };
@@ -34,6 +36,7 @@ const TOGGLES: ToggleConfig[] = [
   { key: 'bookingCancelled', label: 'Booking cancelled', description: 'Notify when a patient cancels a booked appointment' },
   { key: 'newUserJoined', label: 'New user joined', description: 'Notify when a new staff account is created', adminOnly: true },
   { key: 'appointmentReminders', label: 'Appointment reminders', description: 'Get notified about upcoming scheduled appointments' },
+  { key: 'gdprDataDeletion', label: 'Data deletion requests', description: 'Notify when a staff member requests erasure of a patient\'s data', adminOnly: true },
 ];
 
 /**
