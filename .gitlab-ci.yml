@@ -29,7 +29,6 @@ test:backend:
     - npm ci
   script:
     - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
-  coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
   artifacts:
     when: always
     reports:
@@ -48,7 +47,6 @@ test:frontend:
     - npm ci
   script:
     - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
-  coverage: '/All files\s*\|\s*(\d+\.?\d*)\s*\|/'
   artifacts:
     when: always
     reports:
@@ -84,6 +82,8 @@ deploy:vercel:
     - development
   script:
     - npm install --global vercel
+    - export VERCEL_GIT_COMMIT_AUTHOR_LOGIN=$VERCEL_GIT_COMMIT_AUTHOR_LOGIN
+    - export VERCEL_GIT_COMMIT_AUTHOR_NAME=$VERCEL_GIT_COMMIT_AUTHOR_NAME
     - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
     - vercel build --prod --token=$VERCEL_TOKEN
     - vercel deploy --prebuilt --prod --force --token=$VERCEL_TOKEN
@@ -96,7 +96,7 @@ deploy:render:
   script:
     - |
       if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-        echo "Render Deploy Hook URL is missing!"
+        echo "Error: RENDER_DEPLOY_HOOK_URL not found in CI/CD Variables."
         exit 1
       fi
     - curl -X POST "$RENDER_DEPLOY_HOOK_URL"

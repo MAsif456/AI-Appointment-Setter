@@ -120,7 +120,7 @@ export async function buildSlotContext(
       const offeredKeys = new Set(
         previouslyOfferedSlots.map((o) => {
           const dt = new Date(o.dateTime);
-          return `${dt.toISOString().split("T")[0]}_${dt.toTimeString().substring(0, 5)}`;
+          return `${dt.toISOString().split("T")[0]}_${dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" })}`;
         }),
       );
       const fresh = slots.filter(
@@ -179,7 +179,7 @@ export async function buildSlotContext(
       const offeredKeys = new Set(
         previouslyOfferedSlots.map((o) => {
           const dt = new Date(o.dateTime);
-          return `${dt.toISOString().split("T")[0]}_${dt.toTimeString().substring(0, 5)}`;
+          return `${dt.toISOString().split("T")[0]}_${dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" })}`;
         }),
       );
       const offeredTimes = previouslyOfferedSlots.map((o) =>

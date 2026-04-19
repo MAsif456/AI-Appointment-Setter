@@ -8,12 +8,14 @@ import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
 import { UrgencyPipeline } from "../ai/urgency-pipeline";
 import { EscalationService } from "../ai/escalation.service";
+import { ComprehensionClassifier } from "../ai/comprehension-classifier";
 import { AbuseHandlerService } from "./abuse-handler.service";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { CancellationService } from "../cancellation/cancellation.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { PostcodeValidationService } from "../orchestrator/postcode-validation.service";
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { ConsentService } from "../gdpr/consent/consent.service";
 
 describe("ConversationsService", () => {
   let service: ConversationsService;
@@ -102,10 +104,19 @@ describe("ConversationsService", () => {
   };
 
   const mockEscalationService = {
+    escalate: jest.fn().mockResolvedValue({
+      aiMessage: "Escalated.",
+      escalationReason: "test",
+      notificationId: "notif_1",
+    }),
     escalateEmergency: jest.fn(),
     handleNoSlotsForUrgent: jest.fn(),
     notifyClinicStaff: jest.fn(),
     updateGhlTags: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockComprehensionClassifier = {
+    classify: jest.fn().mockResolvedValue("understood"),
   };
 
   const mockCancellationService = {
@@ -175,6 +186,7 @@ describe("ConversationsService", () => {
         { provide: AppointmentsService, useValue: mockAppointmentsService },
         { provide: UrgencyPipeline, useValue: mockUrgencyPipeline },
         { provide: EscalationService, useValue: mockEscalationService },
+        { provide: ComprehensionClassifier, useValue: mockComprehensionClassifier },
         { provide: SecurityPipelineService, useValue: mockSecurityPipeline },
         { provide: GhlApiService, useValue: { cancelAppointment: jest.fn().mockResolvedValue({}) } },
         { provide: CancellationService, useValue: mockCancellationService },
@@ -190,6 +202,7 @@ describe("ConversationsService", () => {
           },
         },
         PostcodeValidationService,
+        { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
       ],
     }).compile();
 
@@ -601,6 +614,134 @@ describe("ConversationsService", () => {
       expect(
         mockPersistenceService.updateConversationMeta,
       ).toHaveBeenCalledWith(expect.anything(), "ai", "booking");
+    });
+  });
+
+  describe("US-20: comprehension outcome and escalation wiring", () => {
+    beforeEach(() => {
+      mockConversationModel.findById.mockResolvedValue({
+        ...mockConversation,
+        failedUnderstandingCount: 0,
+      });
+      mockMessageModel.find.mockReturnValue({
+        sort: jest.fn().mockResolvedValue([]),
+      });
+      mockClinicModel.findById.mockResolvedValue(mockClinic);
+      mockLeadModel.findById.mockResolvedValue(mockLead);
+      mockChatService.sendMessage.mockResolvedValue("Here are some slots.");
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({});
+    });
+
+    it("resets failedUnderstandingCount when AI understood", async () => {
+      mockConversationModel.findById.mockResolvedValue({
+        ...mockConversation,
+        failedUnderstandingCount: 2,
+      });
+      mockComprehensionClassifier.classify.mockResolvedValue("understood");
+
+      await service.sendMessage("conv1", "I need a filling");
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "conv1",
+        { failedUnderstandingCount: 0 },
+      );
+    });
+
+    it("skips counter reset when count is already 0", async () => {
+      mockComprehensionClassifier.classify.mockResolvedValue("understood");
+
+      await service.sendMessage("conv1", "I need a filling");
+
+      const resetCalls = mockConversationModel.findByIdAndUpdate.mock.calls.filter(
+        ([, update]) => update?.failedUnderstandingCount === 0,
+      );
+      expect(resetCalls).toHaveLength(0);
+    });
+
+    it("increments failedUnderstandingCount on unclear", async () => {
+      mockComprehensionClassifier.classify.mockResolvedValue("unclear");
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({
+        failedUnderstandingCount: 1,
+      });
+
+      await service.sendMessage("conv1", "asdf");
+
+      expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "conv1",
+        { $inc: { failedUnderstandingCount: 1 } },
+        { new: true },
+      );
+    });
+
+    it("escalates at failedUnderstandingCount >= 3", async () => {
+      mockComprehensionClassifier.classify.mockResolvedValue("unclear");
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({
+        failedUnderstandingCount: 3,
+      });
+
+      const result = await service.sendMessage("conv1", "asdf");
+
+      expect(mockEscalationService.escalate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          trigger: "failed_understanding",
+          reason: "3 consecutive AI comprehension failures",
+        }),
+      );
+      expect(result!.reply).toBe("Escalated.");
+    });
+
+    it("does not escalate when count is below 3", async () => {
+      mockComprehensionClassifier.classify.mockResolvedValue("unclear");
+      mockConversationModel.findByIdAndUpdate.mockResolvedValue({
+        failedUnderstandingCount: 2,
+      });
+
+      await service.sendMessage("conv1", "asdf");
+
+      expect(mockEscalationService.escalate).not.toHaveBeenCalled();
+    });
+
+    it("skips comprehension check on FALLBACK_AI_UNAVAILABLE reply", async () => {
+      mockChatService.sendMessage.mockResolvedValue(null);
+
+      await service.sendMessage("conv1", "hello");
+
+      expect(mockComprehensionClassifier.classify).not.toHaveBeenCalled();
+    });
+
+    it("routes abuse escalation through escalate() funnel", async () => {
+      mockAbuseHandler.handle.mockResolvedValue({
+        reply: "Connecting you with a team member.",
+        offeredSlots: [],
+        slotSelection: null,
+        bookingResult: null,
+        abuseFlagged: true,
+        escalationRequested: true,
+      });
+
+      await service.sendMessage("conv1", "you're useless, get me a human");
+
+      expect(mockEscalationService.escalate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          trigger: "abuse",
+          reason: expect.stringContaining("Abuse hand-off"),
+        }),
+      );
+    });
+
+    it("does not call escalate when abuse handler returns escalationRequested: false", async () => {
+      mockAbuseHandler.handle.mockResolvedValue({
+        reply: "I understand you're frustrated.",
+        offeredSlots: [],
+        slotSelection: null,
+        bookingResult: null,
+        abuseFlagged: true,
+        escalationRequested: false,
+      });
+
+      await service.sendMessage("conv1", "this is stupid");
+
+      expect(mockEscalationService.escalate).not.toHaveBeenCalled();
     });
   });
 });

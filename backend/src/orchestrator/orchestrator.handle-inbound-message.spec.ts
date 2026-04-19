@@ -25,6 +25,7 @@ import { PatientHistoryService } from "../patient-history/patient-history.servic
 import { ConversationsService as ChatConversationsService } from "../conversations/conversations.service";
 import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
+import { ConsentService } from "../gdpr/consent/consent.service";
 import { FALLBACK_AI_UNAVAILABLE } from "./orchestrator.types";
 
 const mockSlotProvider = { getAvailableSlots: jest.fn() };
@@ -51,6 +52,8 @@ const mockGhlConversationsService = {
   flagForHumanIntervention: jest.fn(),
   setContext: jest.fn(),
   findLeadById: jest.fn(),
+  updateReturningPatientFlags: jest.fn(),
+  updateGhlConversationId: jest.fn(),
 };
 const mockMessagesService = {
   addMessage: jest.fn(),
@@ -65,7 +68,11 @@ const mockSecurityPipeline = {
   processInbound: jest.fn(),
   validateOutput: jest.fn(),
 };
-const mockChatConversationsService = { sendMessage: jest.fn() };
+const mockChatConversationsService = {
+  sendMessage: jest.fn(),
+  resetConversation: jest.fn(),
+  startConversation: jest.fn().mockResolvedValue("Welcome back!"),
+};
 
 const clinicConfig: ClinicConfig = {
   clinicId: "507f1f77bcf86cd799439013",
@@ -114,6 +121,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
           provide: ChatConversationsService,
           useValue: mockChatConversationsService,
         },
+        { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
       ],
     }).compile();
 
@@ -361,5 +369,167 @@ describe("OrchestratorService — handleInboundMessage", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalled();
+  });
+
+  // --- Returning patient re-entry tests ---
+
+  describe("terminal phase re-entry", () => {
+    const terminalConversation = {
+      ...mockConversation,
+      phase: "booked",
+      channel: "email",
+      ghlConversationId: "conv_001",
+      ghlContactId: "contact_001",
+    };
+
+    const mockLead = {
+      _id: mockConversation.leadId,
+      phone: "07700 900123",
+      email: "sarah@example.com",
+      firstName: "Sarah",
+    };
+
+    const mockReturningPatient = {
+      firstName: "Sarah",
+      validatedPostcode: "CF10 1AA",
+      previousConversationId: new Types.ObjectId(),
+      lastBookedAt: new Date(),
+      confidence: "high",
+    };
+
+    beforeEach(() => {
+      mockGhlConversationsService.findByGhlContactId.mockResolvedValue(
+        terminalConversation,
+      );
+      mockGhlConversationsService.findLeadById.mockResolvedValue(mockLead);
+    });
+
+    it("should trigger re-entry and skip normal AI pipeline for booked conversation", async () => {
+      (
+        service as any
+      ).patientHistoryService.findReturningPatient.mockResolvedValue(
+        mockReturningPatient,
+      );
+
+      await service.handleInboundMessage(
+        {
+          type: "InboundMessage",
+          location: { id: "loc_001" },
+          id: "contact_001",
+          message: { body: "Hi again", type: "Email" },
+        } as any,
+        clinicConfig,
+      );
+
+      expect(mockChatConversationsService.resetConversation).toHaveBeenCalled();
+      expect(
+        mockChatConversationsService.startConversation,
+      ).toHaveBeenCalled();
+      expect(mockChatConversationsService.sendMessage).not.toHaveBeenCalled();
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalled();
+    });
+
+    it("should reset as new patient when no history match found", async () => {
+      (
+        service as any
+      ).patientHistoryService.findReturningPatient.mockResolvedValue(null);
+
+      await service.handleInboundMessage(
+        {
+          type: "InboundMessage",
+          location: { id: "loc_001" },
+          id: "contact_001",
+          message: { body: "Hi again", type: "Email" },
+        } as any,
+        clinicConfig,
+      );
+
+      expect(
+        mockGhlConversationsService.updateReturningPatientFlags,
+      ).not.toHaveBeenCalled();
+      expect(mockChatConversationsService.resetConversation).toHaveBeenCalled();
+      expect(
+        mockChatConversationsService.startConversation,
+      ).toHaveBeenCalled();
+      expect(mockChatConversationsService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("should not trigger re-entry for active phase conversations", async () => {
+      mockGhlConversationsService.findByGhlContactId.mockResolvedValue({
+        ...mockConversation,
+        phase: "qualifying",
+      });
+
+      await service.handleInboundMessage(
+        {
+          type: "InboundMessage",
+          location: { id: "loc_001" },
+          id: "contact_001",
+          message: { body: "Hi" },
+        } as any,
+        clinicConfig,
+      );
+
+      expect(
+        mockChatConversationsService.resetConversation,
+      ).not.toHaveBeenCalled();
+      expect(mockChatConversationsService.sendMessage).toHaveBeenCalled();
+    });
+
+    it("should preserve GHL conversation threading during re-entry", async () => {
+      (
+        service as any
+      ).patientHistoryService.findReturningPatient.mockResolvedValue(
+        mockReturningPatient,
+      );
+
+      await service.handleInboundMessage(
+        {
+          type: "InboundMessage",
+          location: { id: "loc_001" },
+          id: "contact_001",
+          conversationId: "conv_001",
+          message: {
+            body: "Hello",
+            type: "Email",
+            emailMessageId: "msg-id-123",
+          },
+        } as any,
+        clinicConfig,
+      );
+
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationId: "conv_001",
+          emailMessageId: "msg-id-123",
+        }),
+      );
+    });
+
+    it.each(["booked", "confirmed", "cancelled", "declined", "closed", "escalated"])(
+      "should trigger re-entry for terminal phase: %s",
+      async (phase) => {
+        mockGhlConversationsService.findByGhlContactId.mockResolvedValue({
+          ...terminalConversation,
+          phase,
+        });
+        (
+          service as any
+        ).patientHistoryService.findReturningPatient.mockResolvedValue(null);
+
+        await service.handleInboundMessage(
+          {
+            type: "InboundMessage",
+            location: { id: "loc_001" },
+            id: "contact_001",
+            message: { body: "Hi", type: "Email" },
+          } as any,
+          clinicConfig,
+        );
+
+        expect(mockChatConversationsService.resetConversation).toHaveBeenCalled();
+        expect(mockChatConversationsService.sendMessage).not.toHaveBeenCalled();
+      },
+    );
   });
 });

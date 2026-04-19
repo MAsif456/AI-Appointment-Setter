@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/apiAxios';
 import ConversationDetail from '@/components/Conversations/ConversationDetail';
 import LiveChat from '@/components/Conversations/LiveChat';
+import EscalatedConversationView from '@/components/Conversations/EscalatedConversationView';
 
 
 interface ConversationData {
@@ -87,8 +88,15 @@ export default function ConversationDetailPage() {
     );
   }
 
-  // Show chat for booking, qualifying, and greeting phases
-  if (['booking', 'qualifying', 'greeting'].includes(data.conversation.phase)) {
+  // Escalated conversations always land on the read-only view —
+  // no composer is rendered and the backend also rejects any
+  // stray POST to messages on this phase (defence in depth).
+  if (data.conversation.phase === 'escalated') {
+    return <EscalatedConversationView conversationId={id} />;
+  }
+
+  // Show chat for active phases (including consent phases)
+  if (['booking', 'qualifying', 'greeting', 'consenting', 'consent_declined'].includes(data.conversation.phase)) {
     return <LiveChat conversationId={id} />;
   }
 
@@ -120,5 +128,5 @@ export default function ConversationDetailPage() {
     })),
   };
 
-  return <ConversationDetail conversation={conversationDetail} />;
+  return <ConversationDetail conversation={conversationDetail} leadId={data.lead?.id} />;
 }

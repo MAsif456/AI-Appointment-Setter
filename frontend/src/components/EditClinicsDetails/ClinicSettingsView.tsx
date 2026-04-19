@@ -77,6 +77,16 @@ export default function ClinicSettingsView({ clinic, saveSuccess }: Props) {
       </div>
 
       <div className={styles.settingsCard}>
+        <h2 className={styles.settingsCardTitle}>Data Protection</h2>
+        <div className={styles.readOnlyField}>
+          <span className={styles.readOnlyLabel}>Data Retention Period</span>
+          <span className={styles.readOnlyValue}>
+            {clinic.dataRetentionMonths ?? 12} months
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.settingsCard}>
         <div className={styles.statusRow}>
           <div>
             <div className={styles.statusLabel}>Clinic Status</div>

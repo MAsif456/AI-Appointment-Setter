@@ -1,3 +1,11 @@
+/**
+ * Load .env BEFORE any other imports so process.env vars are available
+ * when schema files are imported (needed for field-encryption plugin guard).
+ * Without this, `if (process.env.FIELD_ENCRYPTION_KEY)` in schema files
+ * evaluates to false because ConfigModule.forRoot() hasn't run yet.
+ */
+import 'dotenv/config';
+
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
