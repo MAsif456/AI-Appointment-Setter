@@ -49,6 +49,7 @@ export async function handleCancellationIntercept(
     urgencyData?: { level: string; score: number },
   ) => Promise<any>,
   updateMeta: (lastFrom: string, phase?: string) => Promise<void>,
+  apiKey: string = '',
 ): Promise<CancellationResult> {
   const phase = conversation.phase;
   const lower = userMessage.toLowerCase();
@@ -105,8 +106,9 @@ export async function handleCancellationIntercept(
         if (appointment) {
           const result = await cancellationService.executeCancellation(
             convId,
-            appointment._id,
+            appointment._id as Types.ObjectId,
             lead.ghlContactId ?? "",
+            apiKey,
           );
           reply = result.message;
           newPhase = "cancelled";
@@ -128,8 +130,9 @@ export async function handleCancellationIntercept(
         if (appointment) {
           const result = await cancellationService.executeCancellation(
             convId,
-            appointment._id,
+            appointment._id as Types.ObjectId,
             lead.ghlContactId ?? "",
+            apiKey,
             userMessage,
           );
           reply = result.message;

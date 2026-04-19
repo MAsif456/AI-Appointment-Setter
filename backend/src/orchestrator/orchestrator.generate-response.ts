@@ -88,7 +88,7 @@ export async function generateOrchestratorResponse(
 
   if (intent.intent === 'UNKNOWN' && context.conversationId &&
       (context.phase === 'cancelling' || context.phase === 'cancelling_warned')) {
-    return handleCancellationReason(context, cancellationService);
+    return handleCancellationReason(context, clinicConfig, cancellationService);
   }
 
   if (intent.intent === 'RESCHEDULE') {

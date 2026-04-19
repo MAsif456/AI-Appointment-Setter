@@ -6,6 +6,7 @@ import { Conversation } from '../database/schemas/conversation.schema';
 import { Clinic } from '../database/schemas/clinic.schema';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ReminderTrackerService } from './reminder-tracker.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
 
 /** Shared 15-min window helpers — keeps tests readable */
 const makeAppointmentInWindow = (intervalHours: number) => {
@@ -54,6 +55,7 @@ describe('ReminderService', () => {
         { provide: getModelToken(Clinic.name), useValue: mockClinicModel },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: ReminderTrackerService, useValue: mockReminderTrackerService },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();
 
@@ -205,6 +207,7 @@ describe('ReminderService', () => {
 
       expect(result).toBe(true);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           type: 'SMS',
           contactId: 'contact123',
@@ -224,6 +227,7 @@ describe('ReminderService', () => {
       await service.sendReminder(baseAppointment, '1_hour', 1);
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({ type: 'WhatsApp', conversationId: 'ghl_conv_123' }),
       );
     });
@@ -237,6 +241,7 @@ describe('ReminderService', () => {
       await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({ type: 'FB', conversationId: 'ghl_conv_123' }),
       );
     });
@@ -250,6 +255,7 @@ describe('ReminderService', () => {
       await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({ type: 'IG', conversationId: 'ghl_conv_123' }),
       );
     });
@@ -315,12 +321,13 @@ describe('ReminderService', () => {
       expect(result).toBe(true);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({ type: 'Email', subject: expect.stringContaining('Test Clinic') }),
       );
       expect(mockReminderTrackerService.trackSent).toHaveBeenCalled();
     });
 
-    it('should also send an email reminder when the lead has an email and primary channel succeeds', async () => {
+    it('should only send the primary channel (not email) when primary channel succeeds and lead has an email', async () => {
       const convWithLeadEmail = {
         ...makeConversation('sms'),
         leadId: { _id: 'lead123', email: 'patient@example.com' },
@@ -333,13 +340,11 @@ describe('ReminderService', () => {
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(result).toBe(true);
-      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
+      // Email is only sent as a fallback when the primary channel fails — not additionally.
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'Email',
-          conversationId: 'ghl_conv_123',
-          subject: expect.stringContaining('Test Clinic'),
-        }),
+        expect.any(String),
+        expect.objectContaining({ type: 'SMS' }),
       );
     });
 
@@ -393,6 +398,7 @@ describe('ReminderService', () => {
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({ type: 'Email' }),
       );
     });

@@ -108,6 +108,7 @@ export class CancellationService {
     conversationId: Types.ObjectId,
     appointmentId: Types.ObjectId,
     contactId: string,
+    apiKey: string,
     reason?: string,
   ): Promise<CancellationResult> {
     const appointment = await this.appointmentModel
@@ -118,9 +119,7 @@ export class CancellationService {
     }
 
     // Cancel in GHL (null-on-failure — log but continue)
-    const ghlResult = await this.ghlApiService.cancelAppointment(
-      appointment.ghlAppointmentId,
-    );
+    const ghlResult = await this.ghlApiService.cancelAppointment(apiKey, appointment.ghlAppointmentId);
     if (!ghlResult) {
       this.logger.warn(
         `GHL cancellation returned null for appointment ${appointmentId}. Proceeding with local update.`,
@@ -156,16 +155,11 @@ export class CancellationService {
     });
 
     // Update GHL contact tags (fire-and-forget, failures are logged internally)
-    await this.ghlApiService.addContactTag(contactId, "cancelled");
-    await this.ghlApiService.removeContactTag(contactId, "appointment-booked");
+    await this.ghlApiService.addContactTag(apiKey, contactId, "cancelled");
+    await this.ghlApiService.removeContactTag(apiKey, contactId, "appointment-booked");
 
     // Notify the clinic about the cancellation
-    await this.sendClinicNotification(
-      conversationId,
-      contactId,
-      `${date} at ${time}`,
-      reason,
-    );
+    await this.sendClinicNotification(conversationId, contactId, `${date} at ${time}`, apiKey, reason);
 
     this.logger.log(
       `Appointment ${appointmentId} cancelled for contact ${contactId}`,
@@ -210,6 +204,7 @@ export class CancellationService {
     conversationId: Types.ObjectId,
     contactId: string,
     dateTimeStr: string,
+    apiKey: string,
     reason?: string,
   ): Promise<void> {
     const conversation = await this.conversationModel
@@ -221,7 +216,7 @@ export class CancellationService {
     const message = `Cancellation notice: Lead (contact ${contactId}) cancelled their appointment on ${dateTimeStr}.${reasonLine}`;
 
     try {
-      await this.ghlApiService.sendMessageWithRetry({
+      await this.ghlApiService.sendMessageWithRetry(apiKey, {
         type: "SMS",
         contactId,
         message,

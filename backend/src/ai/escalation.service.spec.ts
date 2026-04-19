@@ -69,7 +69,7 @@ describe("EscalationService", () => {
             phase: "escalated",
           }),
         }),
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
