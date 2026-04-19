@@ -48,6 +48,7 @@ describe('API Client', () => {
     expect(mockedAxios.create).toHaveBeenCalledWith({
       baseURL: 'http://localhost:3001',
       headers: { 'Content-Type': 'application/json' },
+      withCredentials: true,
     });
   });
 
@@ -71,11 +72,14 @@ describe('API Client', () => {
     expect(result.headers.Authorization).toBeUndefined();
   });
 
-  it('should clear storage and redirect on 401 error', async () => {
+  it('should clear storage and redirect on 401 error when refresh also fails', async () => {
     jest.isolateModules(() => require('./apiAxios'));
-    const error = { response: { status: 401 } };
+    // Simulate the refresh endpoint itself failing (no valid cookie)
+    mockedAxios.post = jest.fn().mockRejectedValue(new Error('refresh failed'));
 
-    await expect(responseErrorInterceptor(error)).rejects.toEqual(error);
+    const error = { response: { status: 401 }, config: { url: '/some/protected' } };
+
+    await expect(responseErrorInterceptor(error)).rejects.toThrow();
 
     expect(localStorage.removeItem).toHaveBeenCalledWith('accessToken');
     expect(localStorage.removeItem).toHaveBeenCalledWith('user');
