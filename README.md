@@ -192,6 +192,70 @@ Change these if your ports or URLs differ. For frontend calls to the API from th
 
 ---
 
+## Email configuration
+
+The backend sends transactional emails (account verification, password reset). The transport security mode is determined automatically from `EMAIL_PORT`, so you only need to set the right port for your environment.
+
+### Development
+
+Use [Mailhog](https://github.com/mailhog/MailHog) (a local mail catcher) so emails never leave your machine:
+
+```bash
+# Install and run Mailhog (one-off)
+brew install mailhog   # macOS
+mailhog                # starts SMTP on 1025, web UI on http://localhost:8025
+```
+
+Add to `backend/.env`:
+
+```env
+EMAIL_HOST=localhost
+EMAIL_PORT=1025
+EMAIL_USER=
+EMAIL_PASS=
+EMAIL_FROM=noreply@appointhealth.com
+```
+
+Port 1025 is the only port that skips TLS enforcement — this is intentional and safe for local-only use. Emails are captured by Mailhog and never sent to real inboxes.
+
+Alternatively, [Mailtrap](https://mailtrap.io/) provides a free hosted sandbox. Use port `587` with the credentials they give you.
+
+### Production
+
+All production email must travel over an encrypted connection. Set **one** of the following port options:
+
+**Option A — Port 587 (STARTTLS, most common):**
+
+```env
+EMAIL_HOST=smtp.gmail.com   # or your provider’s SMTP host
+EMAIL_PORT=587
+EMAIL_USER=your-smtp-user@example.com
+EMAIL_PASS=your-app-password
+EMAIL_FROM=noreply@appointhealth.com
+```
+
+Port 587 automatically enables `requireTLS: true`, which forces the connection to upgrade to TLS and blocks STARTTLS-stripping attacks. This is correct for Gmail, SendGrid, Mailgun, and most providers.
+
+**Option B — Port 465 (implicit TLS):**
+
+```env
+EMAIL_HOST=smtp.example.com
+EMAIL_PORT=465
+EMAIL_USER=your-smtp-user@example.com
+EMAIL_PASS=your-app-password
+EMAIL_FROM=noreply@appointhealth.com
+```
+
+Port 465 automatically enables `secure: true` (implicit TLS from the start). Use this if your provider specifically requires it.
+
+> **Never use `EMAIL_PORT=25` in production.** The backend logs an error on startup if port 25 is detected outside of a development environment, as it transmits credentials in plaintext.
+
+#### Gmail setup note
+
+Gmail requires an **App Password** (not your account password) when 2-factor authentication is enabled. Generate one at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) and use it as `EMAIL_PASS`.
+
+---
+
 ## Deployment
 
 The app is deployed using **Render** (backend) and **Vercel** (frontend), with the GitLab repo mirrored to GitHub to enable OAuth integration.
@@ -213,6 +277,12 @@ Pushes to the `development` branch on GitLab are automatically mirrored to the c
 |---|---|
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `FRONTEND_URL` | Vercel frontend URL (for CORS) |
+| `EMAIL_HOST` | Your SMTP provider host (e.g. `smtp.gmail.com`) |
+| `EMAIL_PORT` | `587` (STARTTLS) or `465` (implicit TLS) |
+| `EMAIL_USER` | SMTP username |
+| `EMAIL_PASS` | SMTP password or app password |
+| `EMAIL_FROM` | Sender address shown in emails |
+| `NODE_ENV` | `production` |
 
 **Vercel (frontend):**
 

@@ -1,26 +1,74 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 /**
  * Handles all transactional emails for the auth flow.
  * Uses token-based links instead of numeric codes for verification and password reset.
+ *
+ * Transport security is controlled by environment variables:
+ *   EMAIL_PORT=465  → implicit TLS (secure: true)
+ *   EMAIL_PORT=587  → STARTTLS enforced (requireTLS: true)
+ *   EMAIL_SECURE=true  → override to implicit TLS regardless of port
+ *   EMAIL_REQUIRE_TLS=true → override to force STARTTLS regardless of port
+ * Local dev (e.g. Mailhog on port 1025) uses neither flag — plaintext is
+ * acceptable inside a local network but must never reach production.
  */
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter;
 
   constructor(private readonly configService: ConfigService) {
+    const host = this.configService.get<string>('EMAIL_HOST') || 'smtp.gmail.com';
+    const port = parseInt(this.configService.get<string>('EMAIL_PORT') || '587', 10);
+    const secureEnv = this.configService.get<string>('EMAIL_SECURE');
+    const requireTlsEnv = this.configService.get<string>('EMAIL_REQUIRE_TLS');
+
+    // Determine TLS mode — explicit env vars take precedence over port heuristics
+    let secure = false;
+    let requireTLS = false;
+
+    if (secureEnv === 'true') {
+      secure = true;
+    } else if (requireTlsEnv === 'true') {
+      requireTLS = true;
+    } else if (port === 465) {
+      // Port 465 is the implicit-TLS SMTPS port
+      secure = true;
+    } else if (port === 587) {
+      // Port 587 is the submission port; STARTTLS must be required (not optional)
+      // to prevent STARTTLS-stripping downgrade attacks
+      requireTLS = true;
+    }
+    // Ports outside 25/465/587 (e.g. 1025 for local Mailhog) get neither flag,
+    // which is intentional for local-dev-only use.
+
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get('EMAIL_HOST') || 'smtp.gmail.com',
-      port: parseInt(this.configService.get('EMAIL_PORT') || '587'),
-      secure: false,
+      host,
+      port,
+      secure,
+      requireTLS,
       auth: {
-        user: this.configService.get('EMAIL_USER'),
-        pass: this.configService.get('EMAIL_PASS'),
+        user: this.configService.get<string>('EMAIL_USER'),
+        pass: this.configService.get<string>('EMAIL_PASS'),
       },
     });
+  }
+
+  /**
+   * Startup validation — logs an error if EMAIL_PORT=25 is used outside of
+   * development/test environments, where plaintext SMTP is never acceptable.
+   */
+  onModuleInit(): void {
+    const port = parseInt(this.configService.get<string>('EMAIL_PORT') || '587', 10);
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    if (port === 25 && nodeEnv !== 'development' && nodeEnv !== 'test') {
+      this.logger.error(
+        'EMAIL_PORT=25 transmits credentials and message content in plaintext. ' +
+        'Use port 587 (STARTTLS) or port 465 (implicit TLS) in production.',
+      );
+    }
   }
 
   /**
