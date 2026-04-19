@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { EmailService } from './email.service';
 
 /** Mock nodemailer */
@@ -41,7 +42,7 @@ describe('EmailService', () => {
         EMAIL_USER: 'user',
         EMAIL_PASS: 'pass',
       });
-      
+
       expect(createTransportMock).toHaveBeenCalledWith(
         expect.objectContaining({
           host: 'smtp.test.com',
@@ -53,13 +54,94 @@ describe('EmailService', () => {
 
     it('should use default values if config missing', async () => {
       await buildService({});
-      
+
       expect(createTransportMock).toHaveBeenCalledWith(
           expect.objectContaining({
           host: 'smtp.gmail.com',
           port: 587,
         }),
       );
+    });
+
+    // AC: port 465 → implicit TLS (secure: true)
+    it('sets secure=true and requireTLS=false when EMAIL_PORT=465', async () => {
+      await buildService({ EMAIL_PORT: '465' });
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 465, secure: true, requireTLS: false }),
+      );
+    });
+
+    // AC: port 587 → STARTTLS enforced (requireTLS: true) to prevent stripping attacks
+    it('sets requireTLS=true and secure=false when EMAIL_PORT=587', async () => {
+      await buildService({ EMAIL_PORT: '587' });
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 587, secure: false, requireTLS: true }),
+      );
+    });
+
+    // AC: default (no EMAIL_PORT) → falls back to port 587 with requireTLS=true
+    it('defaults to port 587 with requireTLS=true when EMAIL_PORT is not set', async () => {
+      await buildService({});
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 587, secure: false, requireTLS: true }),
+      );
+    });
+
+    // AC: EMAIL_SECURE=true overrides port heuristic
+    it('sets secure=true when EMAIL_SECURE=true regardless of port', async () => {
+      await buildService({ EMAIL_PORT: '587', EMAIL_SECURE: 'true' });
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ secure: true, requireTLS: false }),
+      );
+    });
+
+    // AC: EMAIL_REQUIRE_TLS=true overrides port heuristic
+    it('sets requireTLS=true when EMAIL_REQUIRE_TLS=true regardless of port', async () => {
+      await buildService({ EMAIL_PORT: '465', EMAIL_REQUIRE_TLS: 'true' });
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ secure: false, requireTLS: true }),
+      );
+    });
+
+    // AC: local dev (port 1025 / Mailhog) uses neither flag
+    it('sets secure=false and requireTLS=false for local dev port 1025', async () => {
+      await buildService({ EMAIL_PORT: '1025' });
+      expect(createTransportMock).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 1025, secure: false, requireTLS: false }),
+      );
+    });
+  });
+
+  describe('onModuleInit', () => {
+    let loggerErrorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      loggerErrorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => loggerErrorSpy.mockRestore());
+
+    // AC: EMAIL_PORT=25 in production triggers error log
+    it('logs an error when EMAIL_PORT=25 in production', async () => {
+      const service = await buildService({ EMAIL_PORT: '25', NODE_ENV: 'production' });
+      service.onModuleInit();
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('EMAIL_PORT=25'),
+      );
+    });
+
+    // AC: EMAIL_PORT=25 in development does NOT log an error
+    it('does not log an error when EMAIL_PORT=25 in development', async () => {
+      const service = await buildService({ EMAIL_PORT: '25', NODE_ENV: 'development' });
+      service.onModuleInit();
+      expect(loggerErrorSpy).not.toHaveBeenCalled();
+    });
+
+    // AC: no warning on valid production port
+    it('does not log an error when EMAIL_PORT=587 in production', async () => {
+      const service = await buildService({ EMAIL_PORT: '587', NODE_ENV: 'production' });
+      service.onModuleInit();
+      expect(loggerErrorSpy).not.toHaveBeenCalled();
     });
   });
 
