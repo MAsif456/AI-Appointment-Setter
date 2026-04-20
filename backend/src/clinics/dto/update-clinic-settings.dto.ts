@@ -1,5 +1,4 @@
-/**
- * DTOs for the PATCH /clinics/:id/settings endpoint.
+/** DTOs for the PATCH /clinics/:id/settings endpoint.
  *
  * All fields are optional for partial updates, but validated when present.
  * Name, address, phone, and service areas must not be empty if provided.
@@ -12,9 +11,15 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  IsIn,
+  IsNumber,
+  Min,
+  Max,
   Matches,
   ValidateNested,
 } from "class-validator";
+
+const VALID_DURATIONS = [15, 20, 30, 45, 60, 75, 90, 105, 120];
 
 /** Shape of a single day's opening hours inside the request body. */
 export class UpdateBusinessHoursDto {
@@ -31,6 +36,25 @@ export class UpdateBusinessHoursDto {
   @IsOptional()
   @IsString()
   closeTime?: string;
+}
+
+/** Shape of a single service entry inside the request body. */
+export class UpdateServiceDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsNumber()
+  @IsOptional()
+  durationMinutes?: number;
+
+  @IsNumber()
+  @IsOptional()
+  price?: number;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 }
 
 /** Shape of a single service area entry inside the request body. */
@@ -73,10 +97,36 @@ export class UpdateClinicSettingsDto {
   ghlLocationId?: string;
 
   @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message: "GHL Calendar ID must be alphanumeric",
+  })
+  ghlCalendarId?: string;
+
+  @IsOptional()
+  @IsIn(VALID_DURATIONS, {
+    message:
+      "Appointment duration must be 15, 20, 30, 45, 60, 75, 90, 105, or 120 minutes",
+  })
+  defaultAppointmentDuration?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(120)
+  dataRetentionMonths?: number;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => UpdateServiceAreaDto)
   serviceAreas?: UpdateServiceAreaDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateServiceDto)
+  services?: UpdateServiceDto[];
 
   @IsOptional()
   @IsArray()

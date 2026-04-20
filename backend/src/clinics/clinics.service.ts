@@ -180,18 +180,31 @@ export class ClinicsService {
     update: UpdateClinicSettingsDto,
   ): Promise<Clinic> {
     assertValidObjectId(id);
-    const { name, address, phone, ghlLocationId, serviceAreas, businessHours } =
-      update;
+    const {
+      name,
+      address,
+      phone,
+      ghlLocationId,
+      ghlCalendarId,
+      serviceAreas,
+      services,
+      businessHours,
+      defaultAppointmentDuration,
+      dataRetentionMonths,
+    } = update;
 
     const updatePayload: Partial<Clinic> = {};
 
     if (typeof name === "string") updatePayload.name = name;
     if (address !== undefined) updatePayload.address = address;
     if (phone !== undefined) updatePayload.phone = phone;
-    if (ghlLocationId !== undefined)
-      updatePayload.ghlLocationId = ghlLocationId;
+    if (ghlLocationId !== undefined) updatePayload.ghlLocationId = ghlLocationId;
+    if (ghlCalendarId !== undefined) updatePayload.ghlCalendarId = ghlCalendarId;
     if (serviceAreas) updatePayload.serviceAreas = serviceAreas;
+    if (services) updatePayload.services = services as unknown as Clinic['services'];
     if (businessHours) updatePayload.businessHours = businessHours;
+    if (defaultAppointmentDuration !== undefined) updatePayload.defaultAppointmentDuration = defaultAppointmentDuration;
+    if (dataRetentionMonths !== undefined) updatePayload.dataRetentionMonths = dataRetentionMonths;
 
     const clinic = await this.clinicModel
       .findByIdAndUpdate(id, updatePayload, { new: true })
