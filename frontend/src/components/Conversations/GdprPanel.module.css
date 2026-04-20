@@ -105,46 +105,75 @@
   cursor: not-allowed;
 }
 
-.confirmBox {
-  border: 1px solid #fca5a5;
-  border-radius: 8px;
-  padding: 12px;
-  background: #fef2f2;
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
 }
 
-.confirmText {
-  font-size: 13px;
-  color: #991b1b;
-  margin-bottom: 12px;
-  line-height: 1.4;
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 12px;
+}
+
+.modalText {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 20px;
+  line-height: 1.5;
 }
 
 .reasonInput {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  font-size: 13px;
-  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 20px;
   resize: vertical;
   font-family: inherit;
-  background: var(--bg-input);
-  color: var(--text-primary);
+  background: #fff;
+  color: #111827;
 }
 
-.confirmActions {
+:global([data-theme="dark"]) .reasonInput {
+  background: #2a2a38;
+  border-color: #3a3a4a;
+  color: #f4f4f7;
+}
+
+.modalActions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .confirmBtn {
-  flex: 1;
-  padding: 8px;
+  padding: 10px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #dc2626;
   color: #fff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -176,24 +205,41 @@
   background-color: rgba(244, 114, 182, 0.08);
 }
 
-:global([data-theme="dark"]) .confirmBox {
-  border-color: #3a3a4a;
-  background: #1a1a24;
+:global([data-theme="dark"]) .overlay {
+  background: rgba(0, 0, 0, 0.7);
 }
 
-:global([data-theme="dark"]) .confirmText {
+:global([data-theme="dark"]) .modal {
+  background: #1a1a24;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+:global([data-theme="dark"]) .modalTitle {
+  color: #f4f4f7;
+}
+
+:global([data-theme="dark"]) .modalText {
+  color: #a0a0b0;
+}
+
+:global([data-theme="dark"]) .cancelBtn {
+  background: #2a2a38;
+  border-color: #3a3a4a;
   color: #c0c0d0;
 }
 
+:global([data-theme="dark"]) .cancelBtn:hover {
+  background: #32323f;
+}
+
 .cancelBtn {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-card);
-  font-size: 13px;
+  padding: 10px 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: #374151;
   cursor: pointer;
 }
 

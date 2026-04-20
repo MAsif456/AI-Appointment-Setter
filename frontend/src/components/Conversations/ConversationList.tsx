@@ -144,10 +144,12 @@ export default function ConversationList() {
     ...new Set(conversations.map((c) => c.clinicId?.name || 'Unknown Clinic')),
   ];
 
-  // Extract unique lead statuses (phases) for filter dropdown
+  // Extract unique lead statuses (phases) for filter dropdown — always include escalated
+  const KNOWN_PHASES = ['greeting', 'qualifying', 'qualified', 'booking', 'confirmed', 'declined', 'escalated'];
   const phases = [
     'All Statuses',
-    ...new Set(conversations.map((c) => c.phase)),
+    ...KNOWN_PHASES,
+    ...new Set(conversations.map((c) => c.phase).filter((p) => !KNOWN_PHASES.includes(p))),
   ];
 
   const handleRowClick = (conv: Conversation) => {
