@@ -1,11 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import {
   Appointment,
   AppointmentDocument,
-} from "../database/schemas/appointment.schema";
-import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
+} from '../database/schemas/appointment.schema';
+import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import {
   Conversation,
   ConversationDocument,
@@ -13,6 +13,7 @@ import {
 import { Lead, LeadDocument } from "../database/schemas/lead.schema";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { PatientHistoryService } from "../patient-history/patient-history.service";
+import { EncryptionService } from "../common/encryption/encryption.service";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import {
   buildConfirmationMessage,
@@ -52,6 +53,7 @@ export class AppointmentsService {
     private readonly leadModel: Model<LeadDocument>,
     private readonly ghlApiService: GhlApiService,
     private readonly patientHistoryService: PatientHistoryService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   /**
@@ -72,9 +74,19 @@ export class AppointmentsService {
     const duration = this.resolveDuration(clinic, dto.serviceType);
     const endTime = this.calculateEndTime(dto.startTime, duration);
 
+    let apiKey = '';
+    if (clinic.ghlApiKey) {
+      try {
+        apiKey = this.encryptionService.decrypt(clinic.ghlApiKey);
+      } catch {
+        this.logger.error(`Failed to decrypt GHL API key for clinic ${dto.clinicId}`);
+      }
+    }
+
     let ghlResponse: any;
     try {
       ghlResponse = await this.ghlApiService.createAppointment(
+        apiKey,
         clinic.ghlCalendarId,
         clinic.ghlLocationId,
         dto.contactId,

@@ -152,6 +152,9 @@ export class Clinic {
   ghlApiKey?: string;
 
   @Prop({ trim: true })
+  webhookUrl?: string;
+
+  @Prop({ trim: true })
   address?: string;
 
   @Prop({ trim: true })

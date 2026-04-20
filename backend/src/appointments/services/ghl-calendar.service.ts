@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { HttpService } from "@nestjs/axios";
-import { ConfigService } from "@nestjs/config";
 import { firstValueFrom } from "rxjs";
 
 export interface GHLSlot {
@@ -13,25 +12,16 @@ export interface GHLSlot {
 @Injectable()
 export class GHLCalendarService {
   private readonly logger = new Logger(GHLCalendarService.name);
-  private readonly ghlApiKey: string;
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const token = this.configService.get<string>("GHL_PRIVATE_TOKEN")!;
-
-    if (!token) {
-      this.logger.error("GHL_PRIVATE_TOKEN not found in environment variables");
-      throw new Error("GHL_PRIVATE_TOKEN is required");
-    }
-    this.ghlApiKey = token;
-  }
+  constructor(private readonly httpService: HttpService) {}
 
   /**
-   * Fetch available slots from GHL Calendar API
+   * Fetch available slots from GHL Calendar API.
+   *
+   * @param {string} apiKey - The per-clinic GHL private integration token.
    */
   async fetchAvailableSlots(
+    apiKey: string,
     calendarId: string,
     startDate: Date,
     endDate: Date,
@@ -42,17 +32,15 @@ export class GHLCalendarService {
     );
 
     try {
-      // Convert dates to Unix timestamps (milliseconds)
       const startTimestamp = startDate.getTime();
       const endTimestamp = endDate.getTime();
 
-      // Correct GHL endpoint
       const url = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots`;
 
       const response = await firstValueFrom(
         this.httpService.get(url, {
           headers: {
-            Authorization: `Bearer ${this.ghlApiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
             Version: "2021-07-28",
           },
@@ -66,27 +54,23 @@ export class GHLCalendarService {
 
       this.logger.log(`GHL API Response received`);
 
-      // Parse the response structure with clinic's appointment duration
       const slots = this.parseGHLResponse(response.data, appointmentDuration);
-
       this.logger.log(`Parsed ${slots.length} slots from GHL`);
       return slots;
     } catch (error) {
       this.logger.error(`Failed to fetch slots from GHL: ${error.message}`);
       this.logger.warn("GHL API failed, returning empty array");
-      // Return empty array on error (don't return mock data)
       return [];
     }
   }
 
   /**
-   * Parse GHL response format into standard slot format
+   * Parse GHL response format into standard slot format.
    * GHL returns: { '2026-03-25': { slots: ['2026-03-25T08:00:00Z', ...] }, ... }
    */
   private parseGHLResponse(data: any, appointmentDuration: number): GHLSlot[] {
     const slots: GHLSlot[] = [];
 
-    // Iterate over date keys (ignore traceId)
     Object.keys(data).forEach((dateKey) => {
       if (dateKey === "traceId") return;
 
@@ -95,7 +79,6 @@ export class GHLCalendarService {
         return;
       }
 
-      // Convert each slot string to GHLSlot object
       dayData.slots.forEach((slotTime: string) => {
         const startTime = new Date(slotTime);
         const endTime = new Date(startTime);
@@ -113,9 +96,12 @@ export class GHLCalendarService {
   }
 
   /**
-   * Create appointment in GHL Calendar
+   * Create appointment in GHL Calendar.
+   *
+   * @param {string} apiKey - The per-clinic GHL private integration token.
    */
   async createAppointment(
+    apiKey: string,
     calendarId: string,
     contactId: string,
     slotId: string,
@@ -130,13 +116,10 @@ export class GHLCalendarService {
       const response = await firstValueFrom(
         this.httpService.post(
           url,
-          {
-            contactId,
-            slotId,
-          },
+          { contactId, slotId },
           {
             headers: {
-              Authorization: `Bearer ${this.ghlApiKey}`,
+              Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
               Version: "2021-07-28",
             },
@@ -149,8 +132,6 @@ export class GHLCalendarService {
       return { appointmentId: response.data.id };
     } catch (error) {
       this.logger.error(`Failed to create appointment: ${error.message}`);
-
-      // Throw error instead of returning mock data
       throw error;
     }
   }

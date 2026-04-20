@@ -1,20 +1,15 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { HttpService } from "@nestjs/axios";
-import { ConfigService } from "@nestjs/config";
-import { of, throwError } from "rxjs";
-import { AxiosResponse, AxiosHeaders } from "axios";
-import { GhlApiService } from "./ghl-api.service";
-import { SendMessageDto } from "./dto/send-message.dto";
+import { Test, TestingModule } from '@nestjs/testing';
+import { HttpService } from '@nestjs/axios';
+import { of, throwError } from 'rxjs';
+import { AxiosResponse, AxiosHeaders } from 'axios';
+import { GhlApiService } from './ghl-api.service';
+import { SendMessageDto } from './dto/send-message.dto';
+
+const TEST_API_KEY = 'test-clinic-api-key';
 
 describe("GhlApiService", () => {
   let service: GhlApiService;
-  let httpService: {
-    post: jest.Mock;
-    get: jest.Mock;
-    put: jest.Mock;
-    delete: jest.Mock;
-  };
-  let configService: { get: jest.Mock };
+  let httpService: { post: jest.Mock; get: jest.Mock; put: jest.Mock; delete: jest.Mock };
 
   /**
    * Returns a mock AxiosResponse object with the given data.
@@ -41,15 +36,10 @@ describe("GhlApiService", () => {
       delete: jest.fn(),
     };
 
-    configService = {
-      get: jest.fn().mockReturnValue("test-private-token"),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GhlApiService,
         { provide: HttpService, useValue: httpService },
-        { provide: ConfigService, useValue: configService },
       ],
     }).compile();
 
@@ -67,23 +57,14 @@ describe("GhlApiService", () => {
       const responseData = { messageId: "msg_001" };
       httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.sendMessageWithRetry(dto);
+      const result = await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       expect(result).toEqual(responseData);
       expect(httpService.post).toHaveBeenCalledTimes(1);
       expect(httpService.post).toHaveBeenCalledWith(
-        "/conversations/messages",
-        {
-          type: "SMS",
-          contactId: "contact_123",
-          message: dto.message,
-          status: "pending",
-        },
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer test-private-token",
-          }),
-        }),
+        '/conversations/messages',
+        { type: 'SMS', contactId: 'contact_123', message: dto.message, status: 'pending' },
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: `Bearer ${TEST_API_KEY}` }) }),
       );
     });
 
@@ -91,9 +72,7 @@ describe("GhlApiService", () => {
       const error = new Error("Network error");
       httpService.post.mockReturnValue(throwError(() => error));
 
-      await expect(service.sendMessageWithRetry(dto)).rejects.toThrow(
-        "Network error",
-      );
+      await expect(service.sendMessageWithRetry(TEST_API_KEY, dto)).rejects.toThrow('Network error');
       expect(httpService.post).toHaveBeenCalledTimes(3);
     }, 15000);
 
@@ -105,7 +84,7 @@ describe("GhlApiService", () => {
         .mockReturnValueOnce(throwError(() => error))
         .mockReturnValueOnce(of(mockAxiosResponse(responseData)));
 
-      const result = await service.sendMessageWithRetry(dto);
+      const result = await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       expect(result).toEqual(responseData);
       expect(httpService.post).toHaveBeenCalledTimes(2);
@@ -117,7 +96,7 @@ describe("GhlApiService", () => {
       const responseData = { id: "conv_123", contactId: "contact_123" };
       httpService.get.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.getConversation("conv_123");
+      const result = await service.getConversation(TEST_API_KEY, 'conv_123');
 
       expect(result).toEqual(responseData);
       expect(httpService.get).toHaveBeenCalledWith(
@@ -134,7 +113,7 @@ describe("GhlApiService", () => {
       const responseData = { id: "conv_new", contactId: "contact_123" };
       httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.createConversation("contact_123", "loc_001");
+      const result = await service.createConversation(TEST_API_KEY, 'contact_123', 'loc_001');
 
       expect(result).toEqual(responseData);
       expect(httpService.post).toHaveBeenCalledWith(
@@ -151,11 +130,9 @@ describe("GhlApiService", () => {
       httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
 
       const result = await service.createAppointment(
-        "cal_001",
-        "loc_001",
-        "contact_123",
-        "2026-03-17T14:00:00Z",
-        "2026-03-17T14:30:00Z",
+        TEST_API_KEY,
+        'cal_001', 'loc_001', 'contact_123',
+        '2026-03-17T14:00:00Z', '2026-03-17T14:30:00Z',
       );
 
       expect(result).toEqual(responseData);
@@ -171,7 +148,7 @@ describe("GhlApiService", () => {
         },
         expect.objectContaining({
           headers: expect.objectContaining({
-            Authorization: "Bearer test-private-token",
+            Authorization: `Bearer ${TEST_API_KEY}`,
           }),
         }),
       );
@@ -183,11 +160,9 @@ describe("GhlApiService", () => {
 
       await expect(
         service.createAppointment(
-          "cal_001",
-          "loc_001",
-          "contact_123",
-          "2026-03-17T14:00:00Z",
-          "2026-03-17T14:30:00Z",
+          TEST_API_KEY,
+          'cal_001', 'loc_001', 'contact_123',
+          '2026-03-17T14:00:00Z', '2026-03-17T14:30:00Z',
         ),
       ).rejects.toThrow("Calendar API error");
     });
@@ -198,16 +173,14 @@ describe("GhlApiService", () => {
       const responseData = { succeeded: true };
       httpService.put.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.cancelAppointment("apt_123");
+      const result = await service.cancelAppointment(TEST_API_KEY, 'apt_123');
 
       expect(result).toEqual(responseData);
       expect(httpService.put).toHaveBeenCalledWith(
         "/calendars/events/appointments/apt_123",
         { appointmentStatus: "cancelled" },
         expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer test-private-token",
-          }),
+          headers: expect.objectContaining({ Authorization: `Bearer ${TEST_API_KEY}` }),
         }),
       );
     });
@@ -217,7 +190,7 @@ describe("GhlApiService", () => {
         throwError(() => new Error("GHL down")),
       );
 
-      const result = await service.cancelAppointment("apt_123");
+      const result = await service.cancelAppointment(TEST_API_KEY, 'apt_123');
 
       expect(result).toBeNull();
     });
@@ -228,7 +201,7 @@ describe("GhlApiService", () => {
       const responseData = { tags: ["cancelled"] };
       httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.addContactTag("contact_123", "cancelled");
+      const result = await service.addContactTag(TEST_API_KEY, 'contact_123', 'cancelled');
 
       expect(result).toEqual(responseData);
       expect(httpService.post).toHaveBeenCalledWith(
@@ -245,7 +218,7 @@ describe("GhlApiService", () => {
         throwError(() => new Error("Tag error")),
       );
 
-      const result = await service.addContactTag("contact_123", "cancelled");
+      const result = await service.addContactTag(TEST_API_KEY, 'contact_123', 'cancelled');
 
       expect(result).toBeNull();
     });
@@ -262,7 +235,7 @@ describe("GhlApiService", () => {
       const responseData = { messageId: "msg_email_001" };
       httpService.post.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.sendMessageWithRetry(emailDto);
+      const result = await service.sendMessageWithRetry(TEST_API_KEY, emailDto);
 
       expect(result).toEqual(responseData);
       expect(httpService.post).toHaveBeenCalledWith(
@@ -289,7 +262,7 @@ describe("GhlApiService", () => {
       };
       httpService.post.mockReturnValue(of(mockAxiosResponse({ messageId: "msg_002" })));
 
-      await service.sendMessageWithRetry(emailDto);
+      await service.sendMessageWithRetry(TEST_API_KEY, emailDto);
 
       const calledPayload = httpService.post.mock.calls[0][1];
       expect(calledPayload.html).toBe("<p>Reminder</p>");
@@ -301,13 +274,13 @@ describe("GhlApiService", () => {
     it("should PUT custom field update to GHL contacts API", async () => {
       httpService.put.mockReturnValue(of(mockAxiosResponse({ updated: true })));
 
-      await service.updateContactCustomField("contact_123", "last_postcode", "CF10 2BX");
+      await service.updateContactCustomField(TEST_API_KEY, "contact_123", "last_postcode", "CF10 2BX");
 
       expect(httpService.put).toHaveBeenCalledWith(
         "/contacts/contact_123",
         { customFields: [{ key: "last_postcode", value: "CF10 2BX" }] },
         expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: "Bearer test-private-token" }),
+          headers: expect.objectContaining({ Authorization: `Bearer ${TEST_API_KEY}` }),
         }),
       );
     });
@@ -316,7 +289,7 @@ describe("GhlApiService", () => {
       httpService.put.mockReturnValue(throwError(() => new Error("GHL field error")));
 
       await expect(
-        service.updateContactCustomField("contact_123", "last_postcode", "CF10 2BX"),
+        service.updateContactCustomField(TEST_API_KEY, "contact_123", "last_postcode", "CF10 2BX"),
       ).rejects.toThrow("GHL field error");
     });
   });
@@ -335,19 +308,14 @@ describe("GhlApiService", () => {
       const responseData = { tags: [] };
       httpService.delete.mockReturnValue(of(mockAxiosResponse(responseData)));
 
-      const result = await service.removeContactTag(
-        "contact_123",
-        "appointment-booked",
-      );
+      const result = await service.removeContactTag(TEST_API_KEY, 'contact_123', 'appointment-booked');
 
       expect(result).toEqual(responseData);
       expect(httpService.delete).toHaveBeenCalledWith(
         "/contacts/contact_123/tags",
         expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer test-private-token",
-          }),
-          data: { tags: ["appointment-booked"] },
+          headers: expect.objectContaining({ Authorization: `Bearer ${TEST_API_KEY}` }),
+          data: { tags: ['appointment-booked'] },
         }),
       );
     });
@@ -357,10 +325,7 @@ describe("GhlApiService", () => {
         throwError(() => new Error("Remove error")),
       );
 
-      const result = await service.removeContactTag(
-        "contact_123",
-        "appointment-booked",
-      );
+      const result = await service.removeContactTag(TEST_API_KEY, 'contact_123', 'appointment-booked');
 
       expect(result).toBeNull();
     });
@@ -379,7 +344,7 @@ describe("GhlApiService", () => {
         subject: "Test subject",
         conversationId: "conv_abc",
       };
-      await service.sendMessageWithRetry(dto);
+      await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       expect(httpService.post).toHaveBeenCalledWith(
         "/conversations/messages",
@@ -397,7 +362,7 @@ describe("GhlApiService", () => {
         contactId: "contact_123",
         message: "Hi",
       };
-      await service.sendMessageWithRetry(dto);
+      await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       const payload = httpService.post.mock.calls[0][1];
       expect(payload).not.toHaveProperty("conversationId");
@@ -415,7 +380,7 @@ describe("GhlApiService", () => {
         html: "<p>Rich content</p>",
         subject: "Appointment enquiry",
       };
-      await service.sendMessageWithRetry(dto);
+      await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       const payload = httpService.post.mock.calls[0][1];
       expect(payload.html).toBe("<p>Rich content</p>");
@@ -433,7 +398,7 @@ describe("GhlApiService", () => {
         contactId: "contact_123",
         message: "Fallback text",
       };
-      await service.sendMessageWithRetry(dto);
+      await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       const payload = httpService.post.mock.calls[0][1];
       expect(payload.html).toBe("Fallback text");
@@ -449,7 +414,7 @@ describe("GhlApiService", () => {
         contactId: "contact_123",
         message: "SMS text",
       };
-      await service.sendMessageWithRetry(dto);
+      await service.sendMessageWithRetry(TEST_API_KEY, dto);
 
       const payload = httpService.post.mock.calls[0][1];
       expect(payload.message).toBe("SMS text");

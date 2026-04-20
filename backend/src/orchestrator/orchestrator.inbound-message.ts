@@ -183,7 +183,7 @@ async function sendGhlResponse(
       clinicConfig.name,
       false,
     );
-    await ghlApiService.sendMessageWithRetry({
+    await ghlApiService.sendMessageWithRetry(clinicConfig.ghlApiKey ?? '', {
       type: channelToMessageType(channel),
       contactId,
       message: response,

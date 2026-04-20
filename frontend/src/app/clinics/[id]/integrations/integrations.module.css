@@ -1,0 +1,161 @@
+/* ─── Container ─────────────────────────────────────────────────────── */
+.container { max-width: 560px; padding: 28px 0; }
+
+/* ─── Header ────────────────────────────────────────────────────────── */
+.header { margin-bottom: 32px; }
+.title { font-size: 1.125rem; font-weight: 600; margin: 0 0 6px; color: #111827; }
+.desc { color: #6b7280; font-size: 0.875rem; margin: 0; }
+
+/* ─── Status row ────────────────────────────────────────────────────── */
+.statusRow {
+  display: flex;
+  align-items: center;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  min-height: 48px;
+}
+.statusDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+.dotConnected    { background-color: #16a34a; }
+.dotTesting      { background-color: #d97706; }
+.dotDisconnected { background-color: #9ca3af; }
+.statusLabel { font-size: 0.875rem; font-weight: 500; color: #374151; }
+.maskedKey {
+  margin-left: auto;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+}
+.loadingText { font-size: 0.875rem; color: #9ca3af; }
+
+/* ─── Form fields ───────────────────────────────────────────────────── */
+.formGroup { margin-bottom: 16px; }
+.formGroupLast { margin-bottom: 28px; }
+.label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; color: #374151; }
+.labelOptional { color: #9ca3af; font-weight: 400; }
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  outline: none;
+  color: #111827;
+}
+.input:focus { border-color: #2563eb; }
+.fieldHint { font-size: 0.75rem; color: #9ca3af; margin: 5px 0 0; }
+
+/* ─── Action buttons ────────────────────────────────────────────────── */
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btnPrimary {
+  padding: 9px 18px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnPrimary:hover:not(:disabled) { background: #1d4ed8; }
+.btnPrimary:disabled { opacity: 0.65; cursor: not-allowed; }
+.btnOutline {
+  padding: 9px 18px;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnOutline:hover:not(:disabled) { background: #f9fafb; }
+.btnOutline:disabled { opacity: 0.65; cursor: not-allowed; }
+.btnDanger {
+  padding: 9px 18px;
+  background: #fff;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnDanger:hover { background: #fef2f2; }
+
+/* ─── Toast ─────────────────────────────────────────────────────────── */
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+.toastSuccess { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.toastError   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.toastIcon { flex-shrink: 0; font-weight: 600; }
+
+/* ─── Confirm modal ─────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+.panel {
+  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 28px 24px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+}
+.panelTitle { margin: 0 0 8px; font-size: 1rem; font-weight: 600; color: #111827; }
+.panelDesc  { margin: 0 0 24px; font-size: 0.875rem; color: #6b7280; }
+.panelActions { display: flex; justify-content: flex-end; gap: 8px; }
+.btnConfirmDanger {
+  padding: 8px 16px;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnConfirmDanger:hover { background: #b91c1c; }
+.btnConfirmCancel {
+  padding: 8px 16px;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ─── Calendly / coming-soon divider (used in settings view) ────────── */
+.divider { border-top: 1px solid #e5e7eb; margin-top: 28px; padding-top: 20px; }
+.dividerTitle { font-size: 1rem; font-weight: 600; color: #111827; margin: 0 0 4px; }
+.dividerDesc  { font-size: 0.875rem; color: #6b7280; margin: 0; }

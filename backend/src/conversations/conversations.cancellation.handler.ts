@@ -48,6 +48,7 @@ export async function handleCancellationIntercept(
     urgencyData?: { level: string; score: number },
   ) => Promise<any>,
   updateMeta: (lastFrom: string, phase?: string) => Promise<void>,
+  apiKey: string = '',
 ): Promise<CancellationResult> {
   const phase = conversation.phase;
   const lower = userMessage.toLowerCase();

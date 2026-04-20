@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Clinic, ClinicDocument } from "../../database/schemas/clinic.schema";
 import { GHLCalendarService, GHLSlot } from "./ghl-calendar.service";
+import { EncryptionService } from "../../common/encryption/encryption.service";
 
 /** Typed error thrown when the GHL Calendar API is unreachable. */
 export class CalendarUnavailableError extends Error {
@@ -26,6 +27,7 @@ export class SlotsService {
   constructor(
     @InjectModel(Clinic.name) private clinicModel: Model<ClinicDocument>,
     private ghlCalendarService: GHLCalendarService,
+    private encryptionService: EncryptionService,
   ) {}
 
   /**
@@ -49,8 +51,18 @@ export class SlotsService {
         `Fetching slots with appointment duration: ${clinic.defaultAppointmentDuration} minutes`,
       );
 
+      let apiKey = '';
+      if (clinic.ghlApiKey) {
+        try {
+          apiKey = this.encryptionService.decrypt(clinic.ghlApiKey);
+        } catch {
+          this.logger.error(`Failed to decrypt GHL API key for clinic ${clinicId}`);
+        }
+      }
+
       // Fetch slots from GHL
       const ghlSlots = await this.ghlCalendarService.fetchAvailableSlots(
+        apiKey,
         clinic.ghlCalendarId,
         startDate,
         endDate,

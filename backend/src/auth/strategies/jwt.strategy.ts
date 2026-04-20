@@ -34,21 +34,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    */
   async validate(payload: any): Promise<UserDocument> {
     const user = await this.userModel
-      .findById(payload.sub)
+      .findById(payload.userId)
       .select('-passwordHash');
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Session expired');
     }
 
-    // Reject tokens issued before a role change
-    const currentVersion = user.tokenVersion ?? 0;
-    const tokenVersion = payload.tokenVersion ?? 0;
-
-    if (tokenVersion < currentVersion) {
-      throw new UnauthorizedException(
-        'Your permissions have changed. Please log in again.',
-      );
+    // Prevent refresh tokens (type: 'refresh' or missing type) from being used as Bearer tokens
+    if (payload.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type');
     }
 
     return user;

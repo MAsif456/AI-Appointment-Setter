@@ -209,7 +209,7 @@ describe('handleReschedulingSlotFlow', () => {
     it('should cancel the old GHL appointment', async () => {
       const deps = buildDeps();
       await handleReschedulingSlotFlow('The first one please', convWithSlots, 'contact_001', baseContext, clinicConfig, deps);
-      expect(deps.ghlApiService.cancelAppointment).toHaveBeenCalledWith('ghl_old_001');
+      expect(deps.ghlApiService.cancelAppointment).toHaveBeenCalledWith(expect.any(String), 'ghl_old_001');
     });
 
     it('should book the new appointment after successful cancellation', async () => {
@@ -227,13 +227,14 @@ describe('handleReschedulingSlotFlow', () => {
     it('should add the "rescheduled" tag to the contact', async () => {
       const deps = buildDeps();
       await handleReschedulingSlotFlow('The first one please', convWithSlots, 'contact_001', baseContext, clinicConfig, deps);
-      expect(deps.ghlApiService.addContactTag).toHaveBeenCalledWith('contact_001', 'rescheduled');
+      expect(deps.ghlApiService.addContactTag).toHaveBeenCalledWith(expect.any(String), 'contact_001', 'rescheduled');
     });
 
     it('should update the appointment_date custom field', async () => {
       const deps = buildDeps();
       await handleReschedulingSlotFlow('The first one please', convWithSlots, 'contact_001', baseContext, clinicConfig, deps);
       expect(deps.ghlApiService.updateContactCustomField).toHaveBeenCalledWith(
+        expect.any(String),
         'contact_001',
         'appointment_date',
         expect.any(String),

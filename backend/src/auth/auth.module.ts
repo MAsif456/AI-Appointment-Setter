@@ -11,25 +11,32 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { AdminGuard } from './guards/admin.guard';
 import { EmailService } from './email.service';
 import { AuthThrottleService } from './auth-throttle.service';
+import { RefreshTokenService } from './refresh-token.service';
+import { RefreshTokenCleanupService } from './refresh-token-cleanup.service';
 import { User, UserSchema } from '../database/schemas/user.schema';
 import {
   LoginAttempt,
   LoginAttemptSchema,
 } from './schemas/login-attempt.schema';
+import {
+  RefreshToken,
+  RefreshTokenSchema,
+} from '../database/schemas/refresh-token.schema';
 import { AnalyticsModule } from '../analytics/analytics.module';
 
 /**
  * Authentication module.
  *
  * Provides JWT-based auth with email verification, password reset,
- * admin-managed user creation, and IP + account-level brute force
- * protection via AuthThrottleService.
+ * admin-managed user creation, IP + account-level brute force protection,
+ * and JWT refresh token rotation with server-side revocation.
  */
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: LoginAttempt.name, schema: LoginAttemptSchema },
+      { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -50,7 +57,9 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     AdminGuard,
     EmailService,
     AuthThrottleService,
+    RefreshTokenService,
+    RefreshTokenCleanupService,
   ],
-  exports: [AuthService, UsersService, JwtStrategy, PassportModule, JwtModule],
+  exports: [AuthService, UsersService, JwtStrategy, PassportModule, JwtModule, RefreshTokenService],
 })
 export class AuthModule {}

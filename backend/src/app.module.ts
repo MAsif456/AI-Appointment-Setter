@@ -22,6 +22,7 @@ import { DatabaseExceptionFilter } from "./common/database-exception.filter";
 import { RateLimitingModule } from "./rate-limiting/rate-limiting.module";
 import { AuthModule } from "./auth/auth.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { IntegrationsModule } from "./integrations/integrations.module";
 import { ReminderModule } from "./reminder/reminder.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { EscalationsModule } from "./escalations/escalations.module";
@@ -48,6 +49,7 @@ import { GdprModule } from "./gdpr/gdpr.module";
     SecurityHeadersModule,
     AuthModule,
     AnalyticsModule,
+    IntegrationsModule,
     AiSettingsModule,
     ClinicsModule,
     GhlModule,

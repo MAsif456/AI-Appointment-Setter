@@ -56,8 +56,9 @@ export async function handleConfirmCancel(
   // Reason already collected (or skipped) — execute cancellation
   const result = await cancellationService.executeCancellation(
     convId,
-    appointment._id,
+    appointment._id as Types.ObjectId,
     context.ghlContactId,
+    clinicConfig.ghlApiKey ?? '',
   );
   return result.message;
 }
@@ -75,6 +76,7 @@ export async function handleDeclineCancel(
 /** Handles freeform text in cancelling phases — stores as reason and executes cancellation. */
 export async function handleCancellationReason(
   context: OrchestratorContext,
+  clinicConfig: ClinicConfig,
   cancellationService: CancellationService,
 ): Promise<string> {
   const convId = new Types.ObjectId(context.conversationId!);
@@ -91,8 +93,9 @@ export async function handleCancellationReason(
 
   const result = await cancellationService.executeCancellation(
     convId,
-    appointment._id,
+    appointment._id as Types.ObjectId,
     context.ghlContactId,
+    clinicConfig.ghlApiKey ?? '',
     reason,
   );
   return result.message;

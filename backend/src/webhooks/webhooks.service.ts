@@ -120,7 +120,7 @@ export class WebhooksService {
         return { success: true };
       }
 
-      const clinicConfig = this.buildClinicConfig(clinic);
+      const clinicConfig = await this.buildClinicConfig(clinic);
 
       switch (type) {
         case "ContactCreate":
@@ -191,9 +191,18 @@ export class WebhooksService {
     );
   }
 
-  private buildClinicConfig(clinic: ClinicDocument): ClinicConfig {
+  private async buildClinicConfig(clinic: ClinicDocument): Promise<ClinicConfig> {
     const tone =
       clinic.aiConfig?.tone === "professional" ? "Professional" : "Friendly";
+    const clinicId = (clinic._id as Types.ObjectId).toString();
+
+    let ghlApiKey: string | undefined;
+    try {
+      ghlApiKey = await this.clinicsService.getDecryptedApiKey(clinicId);
+    } catch {
+      // Clinic has no stored API key — GHL calls will be skipped or fail gracefully.
+    }
+
     return {
       clinicId: clinic._id.toString(),
       name: clinic.name,
@@ -206,6 +215,7 @@ export class WebhooksService {
       customInstructions: clinic.aiConfig?.customInstructions || undefined,
       ghlLocationId: clinic.ghlLocationId,
       isActive: clinic.isActive,
+      ghlApiKey,
     };
   }
 }

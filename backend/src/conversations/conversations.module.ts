@@ -19,6 +19,7 @@ import { EscalationGhlService } from "../ai/escalation-ghl.service";
 import { EscalationNotifierService } from "../ai/escalation-notifier.service";
 import { ComprehensionClassifier } from "../ai/comprehension-classifier";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { EncryptionService } from "../common/encryption/encryption.service";
 import { ConversationsController } from "./conversations.controller";
 import { ConversationsService } from "./conversations.service";
 import { ConversationsPersistenceService } from "./conversations.persistence.service";
@@ -59,6 +60,7 @@ import { PostcodeValidationService } from "../orchestrator/postcode-validation.s
     AbuseHandlerService,
     AbuseDetectionService,
     PostcodeValidationService,
+    EncryptionService,
   ],
   exports: [ConversationsService],
 })
