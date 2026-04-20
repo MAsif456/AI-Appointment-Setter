@@ -69,7 +69,7 @@ export default function ReadOnlyChatShell({
               padding: '10px 14px',
               borderRadius: 8,
               maxWidth: '75%',
-              background: msg.sender === 'ai' ? '#ffffff' : '#4361ee',
+              background: msg.sender === 'ai' ? '#ffffff' : '#111827',
               color: msg.sender === 'ai' ? '#1a1a2e' : '#ffffff',
               border: msg.sender === 'ai' ? '1px solid #e5e7eb' : 'none',
               marginLeft: msg.sender === 'ai' ? 0 : 'auto',

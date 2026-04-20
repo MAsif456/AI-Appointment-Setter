@@ -34,4 +34,9 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   emailMessageId?: string;
+
+  /** GHL Location ID — required by GHL API to identify the sub-account. */
+  @IsOptional()
+  @IsString()
+  locationId?: string;
 }

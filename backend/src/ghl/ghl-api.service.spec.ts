@@ -274,11 +274,11 @@ describe("GhlApiService", () => {
     it("should PUT custom field update to GHL contacts API", async () => {
       httpService.put.mockReturnValue(of(mockAxiosResponse({ updated: true })));
 
-      await service.updateContactCustomField(TEST_API_KEY, "contact_123", "last_postcode", "CF10 2BX");
+      await service.updateContactCustomField(TEST_API_KEY, "contact_123", "last_postcode", "CF10 2BX", "loc_001");
 
       expect(httpService.put).toHaveBeenCalledWith(
         "/contacts/contact_123",
-        { customFields: [{ key: "last_postcode", value: "CF10 2BX" }] },
+        { customFields: [{ key: "last_postcode", field_value: "CF10 2BX" }] },
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: `Bearer ${TEST_API_KEY}` }),
         }),

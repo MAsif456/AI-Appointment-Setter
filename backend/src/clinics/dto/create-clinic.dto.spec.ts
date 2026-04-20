@@ -32,8 +32,44 @@ describe("CreateClinicDto validation", () => {
       name: "Test Clinic",
       ghlLocationId: "loc_test_001",
       ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
     });
     expect(errors).toHaveLength(0);
+  });
+
+  it("should reject missing address", async () => {
+    const errors = await validateDto({
+      name: "Test Clinic",
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
+    });
+    expect(errors.find((e) => e.property === "address")).toBeDefined();
+  });
+
+  it("should reject missing phone", async () => {
+    const errors = await validateDto({
+      name: "Test Clinic",
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      serviceAreas: [{ postcodePrefix: "CF" }],
+    });
+    expect(errors.find((e) => e.property === "phone")).toBeDefined();
+  });
+
+  it("should reject missing serviceAreas", async () => {
+    const errors = await validateDto({
+      name: "Test Clinic",
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+    });
+    expect(errors.find((e) => e.property === "serviceAreas")).toBeDefined();
   });
 
   it("should pass with all fields filled correctly", async () => {
@@ -119,7 +155,9 @@ describe("CreateClinicDto validation", () => {
       name: "Test Clinic",
       ghlLocationId: "loc_test_001",
       ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
       phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
     });
     expect(errors).toHaveLength(0);
   });
@@ -129,7 +167,9 @@ describe("CreateClinicDto validation", () => {
       name: "Test Clinic",
       ghlLocationId: "loc_test_001",
       ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
       phone: "+44 29 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
     });
     expect(errors).toHaveLength(0);
   });
@@ -161,6 +201,9 @@ describe("CreateClinicDto validation", () => {
       name: "Test Clinic",
       ghlLocationId: "loc_test_001",
       ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
       defaultAppointmentDuration: 45,
     });
     expect(errors).toHaveLength(0);

@@ -8,6 +8,7 @@ import { GhlApiService } from "../ghl/ghl-api.service";
 import { EncryptionService } from "../common/encryption/encryption.service";
 import { retryWithBackoff } from "../common/retry-utils";
 import { buildStaffAlert } from "./urgency-messages";
+import { channelToMessageType } from "../orchestrator/orchestrator.prompts";
 
 /** GHL tag used for every escalation, regardless of trigger type. */
 const ESCALATED_TAG = "escalated";
@@ -62,10 +63,13 @@ export class EscalationGhlService {
       lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
     const apiKey = this.resolveApiKey(clinic);
 
+    const locationId = (clinic as any).ghlLocationId ?? '';
+    const channel = conversation.channel ?? 'sms';
+
     await Promise.allSettled([
       this.addEscalatedTag(lead, contactId, apiKey),
-      this.setReasonCustomField(contactId, reason, apiKey),
-      this.notifyStaff(clinic, lead, reason, contactId, apiKey),
+      this.setReasonCustomField(contactId, reason, apiKey, locationId),
+      this.notifyStaff(lead, reason, contactId, apiKey, locationId, channel),
     ]);
   }
 
@@ -100,6 +104,7 @@ export class EscalationGhlService {
     contactId: string,
     reason: string,
     apiKey: string,
+    locationId: string,
   ): Promise<void> {
     try {
       await retryWithBackoff(
@@ -109,6 +114,7 @@ export class EscalationGhlService {
             contactId,
             ESCALATION_REASON_FIELD,
             reason,
+            locationId,
           ),
         { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 4000 },
       );
@@ -119,19 +125,21 @@ export class EscalationGhlService {
     }
   }
 
-  /** Sends the SMS alert to the clinic's GHL-linked staff number. */
+  /** Sends a staff alert via the lead's own conversation channel. */
   private async notifyStaff(
-    _clinic: ClinicDocument,
     lead: LeadDocument,
     reason: string,
     contactId: string,
     apiKey: string,
+    locationId: string,
+    channel: string,
   ): Promise<void> {
     try {
       await this.ghlApiService.sendMessageWithRetry(apiKey, {
-        type: "SMS",
+        type: channelToMessageType(channel),
         contactId,
         message: buildStaffAlert(lead, reason),
+        locationId,
       });
     } catch (error) {
       this.logger.warn(

@@ -10,6 +10,30 @@ import FunnelChart from '@/components/Analytics/FunnelChart';
 import ClinicTable from '@/components/Analytics/ClinicTable';
 import styles from './Analytics.module.css';
 
+// Inline SVG icons matching the dashboard stat cards
+const activityIcon = (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
+const trendUpIcon = (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </svg>
+);
+const trendDownIcon = (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+    <polyline points="17 18 23 18 23 12" />
+  </svg>
+);
+const chatIcon = (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 /**
  * Main analytics dashboard page.
  * Displays platform-wide metrics, bookings trend, conversion funnel, and clinic comparison.
@@ -73,13 +97,14 @@ export default function AnalyticsPage() {
       {overview && (
         <>
           <div className={styles.statCards}>
-            <StatCard title="Total Leads" value={overview.totalLeads} change={overview.comparison.leadsChange} />
-            <StatCard title="Total Bookings" value={overview.totalBookings} change={overview.comparison.bookingsChange} />
-            <StatCard title="Overall Conversion Rate" value={`${overview.conversionRate}%`} change={overview.comparison.conversionRateChange} />
+            <StatCard title="Total Leads" value={overview.totalLeads} change={overview.comparison.leadsChange} icon={activityIcon} />
+            <StatCard title="Total Bookings" value={overview.totalBookings} change={overview.comparison.bookingsChange} icon={trendUpIcon} />
+            <StatCard title="Overall Conversion Rate" value={`${overview.conversionRate}%`} change={overview.comparison.conversionRateChange} icon={trendDownIcon} />
             <StatCard
               title="Avg Messages to Booking"
               value={overview.avgMessagesToBooking}
               change={overview.comparison.avgMessagesToBookingChange}
+              icon={chatIcon}
             />
           </div>
 

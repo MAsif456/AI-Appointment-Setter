@@ -52,14 +52,38 @@
   outline: none;
   color: #111827;
 }
-.input:focus { border-color: #2563eb; }
+.input:focus { border-color: #111827; }
 .fieldHint { font-size: 0.75rem; color: #9ca3af; margin: 5px 0 0; }
+
+/* ─── Required scopes panel ─────────────────────────────────────────── */
+.scopesToggle {
+  background: none;
+  border: none;
+  padding: 4px 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+  cursor: pointer;
+  display: block;
+}
+.scopesToggle:hover { color: #374151; }
+.scopesList {
+  margin: 6px 0 0;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  list-style: none;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #374151;
+  line-height: 1.8;
+}
 
 /* ─── Action buttons ────────────────────────────────────────────────── */
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .btnPrimary {
   padding: 9px 18px;
-  background: #2563eb;
+  background: #111827;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -67,7 +91,7 @@
   font-weight: 500;
   cursor: pointer;
 }
-.btnPrimary:hover:not(:disabled) { background: #1d4ed8; }
+.btnPrimary:hover:not(:disabled) { background: #000; }
 .btnPrimary:disabled { opacity: 0.65; cursor: not-allowed; }
 .btnOutline {
   padding: 9px 18px;
@@ -159,3 +183,50 @@
 .divider { border-top: 1px solid #e5e7eb; margin-top: 28px; padding-top: 20px; }
 .dividerTitle { font-size: 1rem; font-weight: 600; color: #111827; margin: 0 0 4px; }
 .dividerDesc  { font-size: 0.875rem; color: #6b7280; margin: 0; }
+
+/* ─── Dark mode ────────────────────────────────────────────────────── */
+:global([data-theme="dark"]) .title { color: #f4f4f7; }
+:global([data-theme="dark"]) .desc { color: #a0a0b0; }
+
+:global([data-theme="dark"]) .statusRow { background: #1a1a24; border-color: #2a2a38; }
+:global([data-theme="dark"]) .statusLabel { color: #e0e0e8; }
+:global([data-theme="dark"]) .maskedKey { color: #8a8a9a; }
+:global([data-theme="dark"]) .loadingText { color: #8a8a9a; }
+
+:global([data-theme="dark"]) .label { color: #e0e0e8; }
+:global([data-theme="dark"]) .labelOptional { color: #8a8a9a; }
+:global([data-theme="dark"]) .input {
+  background: #2a2a38;
+  border-color: #3a3a4a;
+  color: #f4f4f7;
+}
+:global([data-theme="dark"]) .input:focus { border-color: #f472b6; }
+:global([data-theme="dark"]) .input::placeholder { color: #6a6a7a; }
+:global([data-theme="dark"]) .fieldHint { color: #8a8a9a; }
+
+:global([data-theme="dark"]) .scopesToggle { color: #8a8a9a; }
+:global([data-theme="dark"]) .scopesToggle:hover { color: #e0e0e8; }
+:global([data-theme="dark"]) .scopesList { background: #1a1a24; border-color: #2a2a38; color: #e0e0e8; }
+
+:global([data-theme="dark"]) .btnPrimary { background: #f472b6; color: #0c0c10; }
+:global([data-theme="dark"]) .btnPrimary:hover:not(:disabled) { background: #ec4899; }
+:global([data-theme="dark"]) .btnOutline { background: #2a2a38; color: #e0e0e8; border-color: #3a3a4a; }
+:global([data-theme="dark"]) .btnOutline:hover:not(:disabled) { background: #32323f; }
+:global([data-theme="dark"]) .btnDanger { background: transparent; color: #f472b6; border-color: #f472b6; }
+:global([data-theme="dark"]) .btnDanger:hover { background: rgba(244, 114, 182, 0.1); }
+
+:global([data-theme="dark"]) .toastSuccess { background: rgba(244, 114, 182, 0.12); color: #f472b6; border-color: rgba(244, 114, 182, 0.2); }
+:global([data-theme="dark"]) .toastError { background: #2a2a38; color: #f472b6; border-color: #3a3a4a; }
+
+:global([data-theme="dark"]) .backdrop { background: rgba(0, 0, 0, 0.6); }
+:global([data-theme="dark"]) .panel { background: #1a1a24; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+:global([data-theme="dark"]) .panelTitle { color: #f4f4f7; }
+:global([data-theme="dark"]) .panelDesc { color: #a0a0b0; }
+:global([data-theme="dark"]) .btnConfirmCancel { background: #2a2a38; color: #e0e0e8; border-color: #3a3a4a; }
+:global([data-theme="dark"]) .btnConfirmCancel:hover { background: #32323f; }
+:global([data-theme="dark"]) .btnConfirmDanger { background: #f472b6; color: #0c0c10; }
+:global([data-theme="dark"]) .btnConfirmDanger:hover { background: #ec4899; }
+
+:global([data-theme="dark"]) .divider { border-color: #2a2a38; }
+:global([data-theme="dark"]) .dividerTitle { color: #f4f4f7; }
+:global([data-theme="dark"]) .dividerDesc { color: #8a8a9a; }

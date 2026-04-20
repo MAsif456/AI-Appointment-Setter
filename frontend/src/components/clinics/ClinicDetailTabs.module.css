@@ -1,7 +1,7 @@
 .tabBar {
   display: flex;
   gap: 32px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-default);
   margin-top: 20px;
 }
 
@@ -9,7 +9,7 @@
   padding: 12px 0;
   font-size: 14px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -19,20 +19,21 @@
 }
 
 .tab:hover {
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .tabActive {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .tabContent {
   margin-top: 24px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   padding: 32px;
+  box-shadow: var(--shadow-card);
 }
 
 .editFormWrapper {
@@ -45,15 +46,15 @@
   gap: 12px;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-default);
 }
 
 .formCancelButton {
   padding: 10px 20px;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--border-default);
   border-radius: 8px;
-  background-color: #ffffff;
-  color: #374151;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -62,16 +63,16 @@
 }
 
 .formCancelButton:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
 }
 
 .formSaveButton {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background-color: #4361ee;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -80,12 +81,12 @@
 }
 
 .formSaveButton:hover {
-  background-color: #3a56d4;
+  background-color: var(--color-primary-hover);
 }
 
 .placeholder {
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
@@ -99,8 +100,8 @@
   padding: 10px 24px;
   border-radius: 8px;
   border: none;
-  background-color: #2563eb;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -108,7 +109,7 @@
 }
 
 .saveButton:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
 }
 
 .successBanner {
@@ -125,4 +126,14 @@
   font-size: 13px;
   color: #b91c1c;
   margin-bottom: 16px;
+}
+
+:global([data-theme="dark"]) .successBanner {
+  background-color: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+  border-color: rgba(244, 114, 182, 0.2);
+}
+
+:global([data-theme="dark"]) .errorText {
+  color: #f472b6;
 }

@@ -57,6 +57,7 @@ export function backgroundRetryAiResponse(
       const result = await ghlApiService.sendMessageWithRetry(clinicConfig.ghlApiKey ?? '', {
         type: channelToMessageType(channel),
         contactId,
+        locationId: clinicConfig.ghlLocationId,
         message: retryResponse,
         ...(ghlConversationId ? { conversationId: ghlConversationId } : {}),
         ...formatted,

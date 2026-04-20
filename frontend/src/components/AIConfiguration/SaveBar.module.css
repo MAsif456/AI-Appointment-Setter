@@ -9,8 +9,8 @@
 
 .saveButton {
   padding: 10px 28px;
-  background: #4361ee;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--text-on-primary);
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -20,7 +20,7 @@
 }
 
 .saveButton:hover:not(:disabled) {
-  background: #3651d4;
+  background: var(--color-primary-hover);
 }
 
 .saveButton:disabled {
@@ -44,6 +44,16 @@
 .error {
   background: #fee2e2;
   color: #dc2626;
+}
+
+:global([data-theme="dark"]) .success {
+  background: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+}
+
+:global([data-theme="dark"]) .error {
+  background: #2a2a38;
+  color: #f472b6;
 }
 
 @keyframes fadeIn {

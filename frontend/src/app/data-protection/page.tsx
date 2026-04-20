@@ -3,28 +3,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/apiAxios';
 import { useAuth } from '@/contexts/AuthContext';
+import ErasureRequestCard, { type ErasureRequest } from './ErasureRequestCard';
+import ErasureConfirmModal from './ErasureConfirmModal';
 import styles from './page.module.css';
 
-interface ErasureRequest {
-  _id: string;
-  leadId: { _id: string; firstName: string; lastName: string } | null;
-  clinicId: string;
-  status: 'pending' | 'approved' | 'rejected';
-  requestedBy: string;
-  reviewedBy?: string;
-  reason: string;
-  rejectionReason?: string;
-  reviewedAt?: string;
-  createdAt: string;
-}
-
+/**
+ * Data Protection page — lists pending and resolved erasure requests.
+ * Admin users can approve or reject pending requests via a confirmation modal.
+ */
 export default function DataProtectionPage() {
   const { isAdmin } = useAuth();
   const [requests, setRequests] = useState<ErasureRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{ id: string; type: 'approve' | 'reject' } | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -39,10 +32,12 @@ export default function DataProtectionPage() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
+  /** Approves the erasure request and refreshes the list. */
   const handleApprove = async (requestId: string) => {
     setActionLoading(requestId);
     try {
       await api.post(`/gdpr/erasure-requests/${requestId}/approve`);
+      setConfirmModal(null);
       fetchRequests();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Approval failed');
@@ -51,13 +46,12 @@ export default function DataProtectionPage() {
     }
   };
 
+  /** Rejects the erasure request with an optional reason. */
   const handleReject = async (requestId: string) => {
     setActionLoading(requestId);
     try {
-      await api.post(`/gdpr/erasure-requests/${requestId}/reject`, {
-        reason: rejectReason,
-      });
-      setRejectingId(null);
+      await api.post(`/gdpr/erasure-requests/${requestId}/reject`, { reason: rejectReason });
+      setConfirmModal(null);
       setRejectReason('');
       fetchRequests();
     } catch (err: any) {
@@ -71,6 +65,7 @@ export default function DataProtectionPage() {
   const resolved = requests.filter((r) => r.status !== 'pending');
   const approvedCount = resolved.filter((r) => r.status === 'approved').length;
   const rejectedCount = resolved.filter((r) => r.status === 'rejected').length;
+  const modalRequest = confirmModal ? requests.find((r) => r._id === confirmModal.id) : null;
 
   return (
     <div className={styles.container}>
@@ -89,84 +84,17 @@ export default function DataProtectionPage() {
         <>
           {pending.length > 0 && (
             <section>
-              <h2 className={styles.sectionTitle}>
-                Pending Requests ({pending.length})
-              </h2>
+              <h2 className={styles.sectionTitle}>Pending Requests ({pending.length})</h2>
               <div className={styles.cardGrid}>
                 {pending.map((req) => (
-                  <div key={req._id} className={styles.card}>
-                    <div className={styles.cardHeader}>
-                      <span className={styles.badgePending}>Pending</span>
-                      <span className={styles.date}>
-                        {new Date(req.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className={styles.cardBody}>
-                      <div className={styles.field}>
-                        <span className={styles.label}>Patient</span>
-                        <span className={styles.value}>
-                          {req.leadId
-                            ? `${req.leadId.firstName} ${req.leadId.lastName || ''}`.trim()
-                            : 'Unknown'}
-                        </span>
-                      </div>
-                      <div className={styles.field}>
-                        <span className={styles.label}>Requested by</span>
-                        <span className={styles.value}>{req.requestedBy}</span>
-                      </div>
-                      <div className={styles.field}>
-                        <span className={styles.label}>Reason</span>
-                        <span className={styles.value}>{req.reason}</span>
-                      </div>
-                    </div>
-                    {isAdmin && (
-                      <div className={styles.cardActions}>
-                        {rejectingId === req._id ? (
-                          <div className={styles.rejectForm}>
-                            <textarea
-                              className={styles.rejectInput}
-                              placeholder="Reason for rejection (optional)..."
-                              value={rejectReason}
-                              onChange={(e) => setRejectReason(e.target.value)}
-                              rows={2}
-                            />
-                            <div className={styles.rejectButtons}>
-                              <button
-                                className={styles.rejectConfirmBtn}
-                                onClick={() => handleReject(req._id)}
-                                disabled={actionLoading === req._id}
-                              >
-                                Confirm Reject
-                              </button>
-                              <button
-                                className={styles.cancelBtn}
-                                onClick={() => { setRejectingId(null); setRejectReason(''); }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              className={styles.approveBtn}
-                              onClick={() => handleApprove(req._id)}
-                              disabled={actionLoading === req._id}
-                            >
-                              {actionLoading === req._id ? 'Processing...' : 'Approve'}
-                            </button>
-                            <button
-                              className={styles.rejectBtn}
-                              onClick={() => setRejectingId(req._id)}
-                              disabled={actionLoading === req._id}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <ErasureRequestCard
+                    key={req._id}
+                    request={req}
+                    isAdmin={isAdmin}
+                    isLoading={actionLoading === req._id}
+                    onApprove={(id) => setConfirmModal({ id, type: 'approve' })}
+                    onReject={(id) => setConfirmModal({ id, type: 'reject' })}
+                  />
                 ))}
               </div>
             </section>
@@ -174,10 +102,7 @@ export default function DataProtectionPage() {
 
           {resolved.length > 0 && (
             <section>
-              <h2 className={styles.sectionTitle}>
-                Resolved ({resolved.length})
-              </h2>
-
+              <h2 className={styles.sectionTitle}>Resolved ({resolved.length})</h2>
               <div className={styles.resolvedSummary}>
                 <div className={styles.summaryChip}>
                   <span className={styles.summaryCount}>{approvedCount}</span>
@@ -188,7 +113,6 @@ export default function DataProtectionPage() {
                   <span className={styles.summaryLabel}>Rejected</span>
                 </div>
               </div>
-
               <table className={styles.resolvedTable}>
                 <thead>
                   <tr>
@@ -203,23 +127,15 @@ export default function DataProtectionPage() {
                   {resolved.map((req) => (
                     <tr key={req._id}>
                       <td>
-                        <span className={
-                          req.status === 'approved'
-                            ? styles.badgeApproved
-                            : styles.badgeRejected
-                        }>
+                        <span className={req.status === 'approved' ? styles.badgeApproved : styles.badgeRejected}>
                           {req.status === 'approved' ? 'Approved' : 'Rejected'}
                         </span>
                       </td>
-                      <td className={styles.dateCell}>
-                        {new Date(req.createdAt).toLocaleDateString()}
-                      </td>
+                      <td className={styles.dateCell}>{new Date(req.createdAt).toLocaleDateString()}</td>
                       <td>{req.requestedBy}</td>
                       <td>{req.reviewedBy ?? '—'}</td>
                       <td className={styles.reasonCell}>
-                        {req.status === 'rejected' && req.rejectionReason
-                          ? req.rejectionReason
-                          : req.reason}
+                        {req.status === 'rejected' && req.rejectionReason ? req.rejectionReason : req.reason}
                       </td>
                     </tr>
                   ))}
@@ -228,6 +144,22 @@ export default function DataProtectionPage() {
             </section>
           )}
         </>
+      )}
+
+      {confirmModal && modalRequest && (
+        <ErasureConfirmModal
+          request={modalRequest}
+          type={confirmModal.type}
+          rejectReason={rejectReason}
+          onRejectReasonChange={setRejectReason}
+          isLoading={actionLoading === confirmModal.id}
+          onConfirm={() =>
+            confirmModal.type === 'approve'
+              ? handleApprove(confirmModal.id)
+              : handleReject(confirmModal.id)
+          }
+          onCancel={() => { setConfirmModal(null); setRejectReason(''); }}
+        />
       )}
     </div>
   );

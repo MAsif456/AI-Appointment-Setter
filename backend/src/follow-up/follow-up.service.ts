@@ -144,10 +144,11 @@ export class FollowUpService {
         ? `Hi ${firstName}, just checking in! Still interested in booking?`
         : `Hey ${firstName}, I don't want to keep bothering you! Let me know if I can help.`;
 
-    const apiKey = await this.getApiKey(conversation.clinicId?.toString());
+    const { apiKey, locationId } = await this.getClinicCredentials(conversation.clinicId?.toString());
     const sendResult = await this.ghlApiService.sendMessageWithRetry(apiKey, {
       type: messageType,
       contactId,
+      locationId,
       message,
     });
 
@@ -169,15 +170,21 @@ export class FollowUpService {
     return 'sent';
   }
 
-  private async getApiKey(clinicId?: string): Promise<string> {
-    if (!clinicId) return '';
+  private async getClinicCredentials(clinicId?: string): Promise<{ apiKey: string; locationId: string }> {
+    if (!clinicId) return { apiKey: '', locationId: '' };
     try {
       const clinic = await this.clinicModel.findById(clinicId).lean().exec();
-      if (!clinic?.ghlApiKey) return '';
-      return this.encryptionService.decrypt(clinic.ghlApiKey);
+      return {
+        apiKey: clinic?.ghlApiKey ? this.encryptionService.decrypt(clinic.ghlApiKey) : '',
+        locationId: clinic?.ghlLocationId ?? '',
+      };
     } catch {
-      return '';
+      return { apiKey: '', locationId: '' };
     }
+  }
+
+  private async getApiKey(clinicId?: string): Promise<string> {
+    return (await this.getClinicCredentials(clinicId)).apiKey;
   }
 
   private async closeConversation(
