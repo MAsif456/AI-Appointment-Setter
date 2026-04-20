@@ -1,59 +1,24 @@
 'use client';
 
-import { useState, useEffect, type ComponentType } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/apiAxios';
+import { HighPriorityIcon } from '@/components/Icons';
+import ConversationTable from './ConversationTable';
+import ConversationPagination from './ConversationPagination';
 import {
-  HighPriorityIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  BookingPhaseIcon,
-  ConfirmedPhaseIcon,
-  QualifiedPhaseIcon,
-  DeclinedPhaseIcon,
-} from '@/components/Icons';
+  type Conversation,
+  KNOWN_PHASES,
+  ITEMS_PER_PAGE,
+  formatPhase,
+  getPatientName,
+} from './conversationHelpers';
 import styles from './ConversationList.module.css';
 
-const ITEMS_PER_PAGE = 10;
-
-/** Maps each phase to its distinct icon component */
-const PHASE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  booking: BookingPhaseIcon,
-  booked: ConfirmedPhaseIcon,
-  confirmed: ConfirmedPhaseIcon,
-  qualified: QualifiedPhaseIcon,
-  declined: DeclinedPhaseIcon,
-  cancelled: DeclinedPhaseIcon,
-  escalated: DeclinedPhaseIcon,
-  stalled: DeclinedPhaseIcon,
-};
-
-/** Maps each phase to its coloured icon CSS class */
-const PHASE_ICON_COLOURS: Record<string, string> = {
-  booking: styles.phaseIconBooking,
-  booked: styles.phaseIconConfirmed,
-  confirmed: styles.phaseIconConfirmed,
-  qualified: styles.phaseIconQualified,
-  declined: styles.phaseIconDeclined,
-  cancelled: styles.phaseIconDeclined,
-  escalated: styles.phaseIconEscalated,
-  stalled: styles.phaseIconDefault,
-};
-
-interface Conversation {
-  _id: string;
-  phase: string;
-  isHighPriority: boolean;
-  lastMessageAt: string | null;
-  clinicId: { _id: string; name: string } | null;
-  leadId: { _id: string; firstName: string; lastName: string; phone: string } | null;
-  channel: string;
-}
-
 /**
- * Displays the list of all conversations with search, filters,
+ * Displays the conversation list with search, filters,
  * priority indicators, pagination, and a data table.
- * Fetches real data from the backend API.
+ * Fetches live data from the backend API.
  */
 export default function ConversationList() {
   const router = useRouter();
@@ -62,9 +27,8 @@ export default function ConversationList() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [clinicFilter, setClinicFilter] = useState('All Clinics');
-  // Lead status is modelled as `phase` on the backend — this filter
-  // is labelled "Lead Status" in the UI to match the acceptance
-  // criteria, but the underlying state is still the phase string.
+  // Lead status is modelled as `phase` on the backend — the filter
+  // is labelled "Lead Status" in the UI to match acceptance criteria.
   const [phaseFilter, setPhaseFilter] = useState('All Statuses');
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'active' | 'redacted'>('active');
@@ -108,10 +72,9 @@ export default function ConversationList() {
 
   const priorityCount = conversations.filter((c) => c.isHighPriority).length;
 
+  // Filter, then sort — urgent conversations appear first
   const filtered = conversations.filter((c) => {
-    const patientName = c.leadId
-    ? [c.leadId.firstName, c.leadId.lastName].filter(Boolean).join(' ') || 'Unknown'
-    : 'Unknown';
+    const patientName = getPatientName(c);
     const phone = c.leadId?.phone || '';
     const clinic = c.clinicId?.name || 'Unknown Clinic';
 
@@ -124,57 +87,31 @@ export default function ConversationList() {
       phaseFilter === 'All Statuses' || c.phase === phaseFilter;
     return matchesSearch && matchesClinic && matchesPhase;
   }).sort((a, b) => {
-    // Urgent/high-priority conversations always appear first
     if (a.isHighPriority && !b.isHighPriority) return -1;
     if (!a.isHighPriority && b.isHighPriority) return 1;
-    // Within same priority, sort by most recent message
     const ta = new Date(a.lastMessageAt ?? 0).getTime();
     const tb = new Date(b.lastMessageAt ?? 0).getTime();
     return tb - ta;
   });
 
+  // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const safePage = Math.min(page, totalPages);
   const startIdx = (safePage - 1) * ITEMS_PER_PAGE;
   const paged = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
 
-  // Extract unique clinic names for filter dropdown
+  // Unique clinic names for filter dropdown
   const clinics = [
     'All Clinics',
     ...new Set(conversations.map((c) => c.clinicId?.name || 'Unknown Clinic')),
   ];
 
-  // Extract unique lead statuses (phases) for filter dropdown — always include escalated
-  const KNOWN_PHASES = ['greeting', 'qualifying', 'qualified', 'booking', 'confirmed', 'declined', 'escalated'];
+  // Phase filter — known phases always shown, plus any extras from data
   const phases = [
     'All Statuses',
     ...KNOWN_PHASES,
     ...new Set(conversations.map((c) => c.phase).filter((p) => !KNOWN_PHASES.includes(p))),
   ];
-
-  const handleRowClick = (conv: Conversation) => {
-    router.push(`/conversations/${conv._id}`); // ← Uses real MongoDB ID
-  };
-
-  // Format phase for display (capitalize first letter)
-  const formatPhase = (phase: string) =>
-    phase.charAt(0).toUpperCase() + phase.slice(1);
-
-  // Format last message time
-  const formatTime = (timestamp: string | null) => {
-    if (!timestamp) return 'No messages yet';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
 
   return (
     <div className={styles.container}>
@@ -210,40 +147,23 @@ export default function ConversationList() {
           type="text"
           placeholder="Search by name or phone..."
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
         <select
           className={styles.filterSelect}
           value={clinicFilter}
           aria-label="Filter by clinic"
-          onChange={(e) => {
-            setClinicFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setClinicFilter(e.target.value); setPage(1); }}
         >
-          {clinics.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
+          {clinics.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
           className={styles.filterSelect}
           value={phaseFilter}
           aria-label="Filter by lead status"
-          onChange={(e) => {
-            setPhaseFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setPhaseFilter(e.target.value); setPage(1); }}
         >
-          {phases.map((p) => (
-            <option key={p} value={p}>
-              {formatPhase(p)}
-            </option>
-          ))}
+          {phases.map((p) => <option key={p} value={p}>{formatPhase(p)}</option>)}
         </select>
       </div>
 
@@ -255,86 +175,18 @@ export default function ConversationList() {
 
       {filtered.length > 0 && (
         <>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Patient Name</th>
-                <th>Phone</th>
-                <th>Clinic</th>
-                <th>Lead Source</th>
-                <th>Phase</th>
-                <th>Last Message</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((conv) => {
-                const patientName = conv.leadId
-                ? [conv.leadId.firstName, conv.leadId.lastName].filter(Boolean).join(' ') || 'Unknown'
-                  : 'Unknown';
-                const phone = conv.leadId?.phone || 'N/A';
-                const clinic = conv.clinicId?.name || 'Unknown Clinic';
-                const PhaseIcon = PHASE_ICONS[conv.phase] ?? BookingPhaseIcon;
-
-                return (
-                  <tr key={conv._id} onClick={() => handleRowClick(conv)}>
-                    <td>
-                      <div className={styles.nameCell}>
-                        {patientName}
-                        {conv.isHighPriority && (
-                          <HighPriorityIcon className={styles.priorityIcon} />
-                        )}
-                      </div>
-                    </td>
-                    <td>{phone}</td>
-                    <td>{clinic}</td>
-                    <td>{conv.channel}</td>
-                    <td>
-                      <span className={styles.phaseBadge}>
-                        <PhaseIcon className={`${styles.phaseIcon} ${PHASE_ICON_COLOURS[conv.phase] ?? styles.phaseIconDefault}`} />
-                        {formatPhase(conv.phase)}
-                      </span>
-                    </td>
-                    <td className={styles.lastMessage}>
-                      {formatTime(conv.lastMessageAt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <div className={styles.pagination}>
-            <span className={styles.pageInfo}>
-              {`${startIdx + 1}–${Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)} of ${filtered.length}`}
-            </span>
-            <div className={styles.pageControls}>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon className={styles.pageBtnIcon} />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  className={n === safePage ? styles.pageBtnActive : styles.pageBtn}
-                  onClick={() => setPage(n)}
-                >
-                  {n}
-                </button>
-              ))}
-              <button
-                className={styles.pageBtn}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon className={styles.pageBtnIcon} />
-              </button>
-            </div>
-          </div>
+          <ConversationTable
+            conversations={paged}
+            onRowClick={(conv) => router.push(`/conversations/${conv._id}`)}
+          />
+          <ConversationPagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            startIdx={startIdx}
+            endIdx={Math.min(startIdx + ITEMS_PER_PAGE, filtered.length)}
+            totalItems={filtered.length}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>
