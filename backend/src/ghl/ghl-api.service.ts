@@ -52,11 +52,15 @@ export class GhlApiService {
   async sendMessageWithRetry(apiKey: string, dto: SendMessageDto): Promise<any> {
     // Ref: GHL Conversations API — Send a New Message. Email type uses html + subject, others use message.
     // conversationId threads messages into the same GHL conversation (critical for email threading).
+    // GHL API requires locationId to identify which sub-account this request is for.
     const payload: Record<string, string> = {
       type: dto.type,
       contactId: dto.contactId,
       status: "pending",
     };
+    if (dto.locationId) {
+      payload.locationId = dto.locationId;
+    }
     if (dto.conversationId) {
       payload.conversationId = dto.conversationId;
     }
@@ -92,6 +96,7 @@ export class GhlApiService {
             this.logger.warn(
               `GHL send attempt ${attempt} failed — contactId: ${dto.contactId}, ` +
                 `retrying in ${Math.round(delayMs)}ms. Error: ${error.message}`,
+              (error as any).response?.data,
             );
           },
         },
@@ -200,16 +205,24 @@ export class GhlApiService {
    * Errors are logged and re-thrown so callers can handle non-critical failures gracefully.
    *
    * @param {string} apiKey - The per-clinic GHL private integration token.
+   * @param {string} contactId - The GHL contact ID.
+   * @param {string} fieldKey - Custom field key (e.g., 'escalation_reason').
+   * @param {string} fieldValue - Value to set for the custom field.
+   * @param {string} [locationId] - GHL Location ID (required by GHL API for all contact updates).
    */
-  async updateContactCustomField(apiKey: string, contactId: string, fieldKey: string, fieldValue: string): Promise<void> {
+  async updateContactCustomField(apiKey: string, contactId: string, fieldKey: string, fieldValue: string, locationId?: string): Promise<void> {
     await lastValueFrom(
       this.httpService.put(
         `/contacts/${contactId}`,
-        { customFields: [{ key: fieldKey, value: fieldValue }] },
+        { customFields: [{ key: fieldKey, field_value: fieldValue }] },
         { headers: this.buildHeaders(apiKey) },
       ),
     ).catch((error) => {
-      this.logger.error(`Update custom field ${fieldKey} for contact ${contactId} failed: ${(error as Error).message}`);
+      this.logger.error(`Update custom field ${fieldKey} for contact ${contactId} failed:`, {
+        status: (error as any).response?.status,
+        data: (error as any).response?.data,
+        locationId,
+      });
       throw error;
     });
   }
@@ -278,12 +291,27 @@ export class GhlApiService {
     // Probe each required scope with a real endpoint to find exactly what's missing.
     // 401/403 = scope missing; 200/404 = scope present (404 just means no data).
     const probes: Array<{ scope: string; url: string }> = [
-      { scope: 'conversations.readonly',      url: `/conversations/?locationId=${locationId}&limit=1` },
-      { scope: 'conversations.write',         url: `/conversations/?locationId=${locationId}&limit=1` },
-      { scope: 'conversations/message.write', url: `/conversations/?locationId=${locationId}&limit=1` },
-      { scope: 'calendars.readonly',          url: `/calendars/?locationId=${locationId}` },
-      { scope: 'calendars/events.write',      url: `/calendars/events/appointments?locationId=${locationId}&startTime=1&endTime=1` },
-      { scope: 'calendars/events.readonly',   url: `/calendars/events/appointments?locationId=${locationId}&startTime=1&endTime=1` },
+      { scope: 'conversations.readonly',           url: `/conversations/?locationId=${locationId}&limit=1` },
+      { scope: 'conversations.write',              url: `/conversations/?locationId=${locationId}&limit=1` },
+      { scope: 'conversations/message.write',      url: `/conversations/?locationId=${locationId}&limit=1` },
+      { scope: 'conversations/message.readonly',   url: `/conversations/?locationId=${locationId}&limit=1` },
+      { scope: 'calendars.readonly',               url: `/calendars/?locationId=${locationId}` },
+      { scope: 'calendars.write',                  url: `/calendars/?locationId=${locationId}` },
+      { scope: 'calendars/events.write',           url: `/calendars/events/appointments?locationId=${locationId}&startTime=1&endTime=1` },
+      { scope: 'calendars/events.readonly',        url: `/calendars/events/appointments?locationId=${locationId}&startTime=1&endTime=1` },
+      { scope: 'calendars/groups.readonly',        url: `/calendars/groups?locationId=${locationId}` },
+      { scope: 'calendars/resources.readonly',     url: `/calendars/resources?locationId=${locationId}` },
+      { scope: 'calendars/groups.write',           url: `/calendars/groups?locationId=${locationId}` },
+      { scope: 'calendars/resources.write',        url: `/calendars/resources?locationId=${locationId}` },
+      { scope: 'contacts.readonly',                url: `/contacts/?locationId=${locationId}&limit=1` },
+      { scope: 'contacts.write',                   url: `/contacts/?locationId=${locationId}&limit=1` },
+      { scope: 'locations.readonly',               url: `/locations/${locationId}` },
+      { scope: 'locations/customFields.readonly',  url: `/locations/${locationId}/customFields` },
+      { scope: 'locations/customFields.write',     url: `/locations/${locationId}/customFields` },
+      { scope: 'locations/customValues.readonly',  url: `/locations/${locationId}/customValues` },
+      { scope: 'locations/customValues.write',     url: `/locations/${locationId}/customValues` },
+      { scope: 'socialplanner/oauth.readonly',     url: `/social-media-posting/oauth/facebook/locations/${locationId}/accounts` },
+      { scope: 'socialplanner/oauth.write',        url: `/social-media-posting/oauth/facebook/locations/${locationId}/accounts` },
     ];
 
     // Deduplicate by URL so we don't make the same HTTP call multiple times
@@ -323,13 +351,28 @@ export class GhlApiService {
         valid: false,
         errorMessage:
           `API key is missing these required scopes: ${missingScopes.join(', ')}.\n` +
-          'In GoHighLevel go to Settings → Integrations → Private Integrations and enable AT LEAST:\n' +
+          'In GoHighLevel go to Settings → Integrations → Private Integrations and enable ALL of:\n' +
           '  • conversations.readonly\n' +
           '  • conversations.write\n' +
           '  • conversations/message.write\n' +
+          '  • conversations/message.readonly\n' +
           '  • calendars.readonly\n' +
+          '  • calendars.write\n' +
           '  • calendars/events.write\n' +
-          '  • calendars/events.readonly',
+          '  • calendars/events.readonly\n' +
+          '  • calendars/groups.readonly\n' +
+          '  • calendars/groups.write\n' +
+          '  • calendars/resources.readonly\n' +
+          '  • calendars/resources.write\n' +
+          '  • contacts.readonly\n' +
+          '  • contacts.write\n' +
+          '  • locations.readonly\n' +
+          '  • locations/customFields.readonly\n' +
+          '  • locations/customFields.write\n' +
+          '  • locations/customValues.readonly\n' +
+          '  • locations/customValues.write\n' +
+          '  • socialplanner/oauth.readonly\n' +
+          '  • socialplanner/oauth.write',
       };
     }
 

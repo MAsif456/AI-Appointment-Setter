@@ -329,6 +329,7 @@ export class ConversationsService {
       (lastFrom, phase) =>
         this.persistence.updateConversationMeta(conversation, lastFrom, phase),
       clinicApiKey,
+      clinic.ghlLocationId ?? '',
     );
     if (cancelResult) return cancelResult;
 

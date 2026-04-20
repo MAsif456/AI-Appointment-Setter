@@ -18,6 +18,27 @@ jest.mock('@/services/clinicService', () => ({
   createClinic: (...args: unknown[]) => mockCreateClinic(...args),
 }));
 
+// Mock ServiceConfigSection — the real component is pill-based and has no simple
+// data-field input for serviceAreas. This mock exposes a text input that sets the
+// serviceAreas array to allow the existing fillRequiredFields helper to work.
+jest.mock('@/components/clinics/ServiceConfigSection', () => ({
+  __esModule: true,
+  default: ({ serviceAreas, servicesOffered, onChange, errors }: any) => (
+    <div>
+      <input
+        data-field="serviceAreas"
+        value={(serviceAreas || []).join(', ')}
+        onChange={(e: any) => {
+          const val = e.target.value;
+          const arr = val ? val.split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean) : [];
+          onChange('serviceAreas', arr);
+        }}
+      />
+      {errors?.serviceAreas && <span>{errors.serviceAreas}</span>}
+    </div>
+  ),
+}));
+
 import AddClinicPage from '@/app/clinics/new/page';
 
 /**
@@ -41,6 +62,9 @@ function fillRequiredFields() {
   fireEvent.change(getField('clinicName'), { target: { value: 'Test Clinic' } });
   fireEvent.change(getField('ghlLocationId'), { target: { value: 'loc_test_001' } });
   fireEvent.change(getField('ghlCalendarId'), { target: { value: 'cal_test_001' } });
+  fireEvent.change(getField('address'), { target: { value: '123 Queen Street, Cardiff' } });
+  fireEvent.change(getField('phoneNumber'), { target: { value: '029 2034 5678' } });
+  fireEvent.change(getField('serviceAreas'), { target: { value: 'CF' } });
 }
 
 /**
@@ -71,6 +95,9 @@ describe('AddClinicPage', () => {
     expect(screen.getByText('Clinic name is required')).toBeTruthy();
     expect(screen.getByText('GHL Location ID is required')).toBeTruthy();
     expect(screen.getByText('GHL Calendar ID is required')).toBeTruthy();
+    expect(screen.getByText('Address is required')).toBeTruthy();
+    expect(screen.getByText('Phone number is required')).toBeTruthy();
+    expect(screen.getByText('At least one service area is required')).toBeTruthy();
     expect(mockCreateClinic).not.toHaveBeenCalled();
   });
 
@@ -197,7 +224,7 @@ describe('AddClinicPage', () => {
           clinicName: 'Test Clinic',
           address: '123 Test St',
           phoneNumber: '029 2034 5678',
-          serviceAreas: 'CF, NP',
+          serviceAreas: ['CF', 'NP'],
         }),
       );
     });

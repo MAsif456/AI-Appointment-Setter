@@ -33,6 +33,9 @@ describe("ClinicsController", () => {
     name: "Cardiff Physio",
     ghlLocationId: "loc_cardiff_001",
     ghlCalendarId: "cal_cardiff_001",
+    address: "123 Queen Street, Cardiff, CF10 2BX",
+    phone: "029 2034 5678",
+    serviceAreas: [{ postcodePrefix: "CF" }],
   };
 
   beforeEach(async () => {

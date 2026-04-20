@@ -239,6 +239,7 @@ export async function handleNewLeadFlow(
     const sendResult = await ghlApiService.sendMessageWithRetry(clinicConfig.ghlApiKey ?? '', {
       type: channelToMessageType(channel),
       contactId,
+      locationId: clinicConfig.ghlLocationId,
       message: greeting,
       ...(ghlConversationId ? { conversationId: ghlConversationId } : {}),
       ...formatted,

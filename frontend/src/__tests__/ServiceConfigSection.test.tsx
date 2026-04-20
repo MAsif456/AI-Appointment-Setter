@@ -1,8 +1,8 @@
 /**
  * Tests for the ServiceConfigSection component.
  *
- * Covers the services offered input, the appointment duration
- * dropdown, and change handler invocations for each field.
+ * Covers pill-based service and area management, dropdown selection,
+ * custom input addition, and removal via X buttons.
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -11,10 +11,8 @@ import ServiceConfigSection from '@/components/clinics/ServiceConfigSection';
 describe('ServiceConfigSection', () => {
   const mockOnChange = jest.fn();
   const defaultProps = {
-    serviceAreas: '',
-    servicesOffered: '',
-    appointmentDuration: 30,
-    dataRetentionMonths: 12,
+    serviceAreas: ['CF', 'NP'],
+    servicesOffered: ['Back pain', 'Sports injury'],
     onChange: mockOnChange,
     errors: {} as Record<string, string>,
   };
@@ -23,41 +21,157 @@ describe('ServiceConfigSection', () => {
     mockOnChange.mockReset();
   });
 
-  /** Should call onChange when the services offered input is changed. */
-  it('should call onChange when services offered is typed into', () => {
+  it('renders the section title', () => {
     render(<ServiceConfigSection {...defaultProps} />);
-
-    const servicesInput = screen.getByPlaceholderText('e.g., Back pain, Sports injury');
-    fireEvent.change(servicesInput, { target: { value: 'Massage' } });
-
-    expect(mockOnChange).toHaveBeenCalledWith('servicesOffered', 'Massage');
+    expect(screen.getByText('Services & Locations')).toBeInTheDocument();
   });
 
-  /** Should call onChange with a numeric value when duration is selected. */
-  it('should call onChange when appointment duration is changed', () => {
+  it('renders existing services as pills', () => {
     render(<ServiceConfigSection {...defaultProps} />);
-
-    const select = screen.getByDisplayValue('30 minutes');
-    fireEvent.change(select, { target: { value: '60' } });
-
-    expect(mockOnChange).toHaveBeenCalledWith('appointmentDuration', 60);
+    expect(screen.getByText('Back pain')).toBeInTheDocument();
+    expect(screen.getByText('Sports injury')).toBeInTheDocument();
   });
 
-  /** Should render all duration options in the dropdown. */
-  it('should display all duration options', () => {
+  it('renders existing service areas as pills', () => {
     render(<ServiceConfigSection {...defaultProps} />);
-
-    expect(screen.getByText('15 minutes')).toBeTruthy();
-    expect(screen.getByText('120 minutes')).toBeTruthy();
+    expect(screen.getByText('CF')).toBeInTheDocument();
+    expect(screen.getByText('NP')).toBeInTheDocument();
   });
 
-  /** Should call onChange when service areas input is changed. */
-  it('should call onChange when service areas is typed into', () => {
+  it('removes a service when X is clicked', () => {
     render(<ServiceConfigSection {...defaultProps} />);
+    const removeBtn = screen.getByLabelText('Remove Back pain');
+    fireEvent.click(removeBtn);
+    expect(mockOnChange).toHaveBeenCalledWith('servicesOffered', ['Sports injury']);
+  });
 
-    const input = screen.getByPlaceholderText('e.g., CF, NP, SA (comma separated)');
+  it('removes a service area when X is clicked', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const removeBtn = screen.getByLabelText('Remove CF');
+    fireEvent.click(removeBtn);
+    expect(mockOnChange).toHaveBeenCalledWith('serviceAreas', ['NP']);
+  });
+
+  it('adds a service from the dropdown', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const select = screen.getByDisplayValue('Select a service...');
+    fireEvent.change(select, { target: { value: 'Rehabilitation' } });
+    expect(mockOnChange).toHaveBeenCalledWith('servicesOffered', [
+      'Back pain', 'Sports injury', 'Rehabilitation',
+    ]);
+  });
+
+  it('adds a service area from the dropdown', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const select = screen.getByDisplayValue('Select a service area...');
+    fireEvent.change(select, { target: { value: 'SA' } });
+    expect(mockOnChange).toHaveBeenCalledWith('serviceAreas', ['CF', 'NP', 'SA']);
+  });
+
+  it('adds a custom service via the Add button', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Or add a custom service...');
+    fireEvent.change(input, { target: { value: 'Massage therapy' } });
+    const addBtns = screen.getAllByText('+ Add');
+    fireEvent.click(addBtns[0]);
+    expect(mockOnChange).toHaveBeenCalledWith('servicesOffered', [
+      'Back pain', 'Sports injury', 'Massage therapy',
+    ]);
+  });
+
+  it('adds a custom service area via the Add button', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Or add a custom postcode prefix...');
+    fireEvent.change(input, { target: { value: 'LD' } });
+    const addBtns = screen.getAllByText('+ Add');
+    fireEvent.click(addBtns[1]);
+    expect(mockOnChange).toHaveBeenCalledWith('serviceAreas', ['CF', 'NP', 'LD']);
+  });
+
+  it('adds a custom service on Enter key press', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Or add a custom service...');
+    fireEvent.change(input, { target: { value: 'Acupuncture' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(mockOnChange).toHaveBeenCalledWith('servicesOffered', [
+      'Back pain', 'Sports injury', 'Acupuncture',
+    ]);
+  });
+
+  it('does not add duplicate services', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Or add a custom service...');
+    fireEvent.change(input, { target: { value: 'Back pain' } });
+    const addBtns = screen.getAllByText('+ Add');
+    fireEvent.click(addBtns[0]);
+    expect(mockOnChange).not.toHaveBeenCalled();
+  });
+
+  it('does not add duplicate service areas', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Or add a custom postcode prefix...');
     fireEvent.change(input, { target: { value: 'CF' } });
+    const addBtns = screen.getAllByText('+ Add');
+    fireEvent.click(addBtns[1]);
+    expect(mockOnChange).not.toHaveBeenCalled();
+  });
 
-    expect(mockOnChange).toHaveBeenCalledWith('serviceAreas', 'CF');
+  it('shows error message when serviceAreas has an error', () => {
+    render(
+      <ServiceConfigSection
+        {...defaultProps}
+        errors={{ serviceAreas: 'At least one service area is required' }}
+      />,
+    );
+    expect(screen.getByText('At least one service area is required')).toBeInTheDocument();
+  });
+
+  it('excludes already-selected services from dropdown', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const select = screen.getByDisplayValue('Select a service...');
+    const options = select.querySelectorAll('option');
+    const optionTexts = Array.from(options).map((o) => o.textContent);
+    expect(optionTexts).not.toContain('Back pain');
+    expect(optionTexts).not.toContain('Sports injury');
+    expect(optionTexts).toContain('Rehabilitation');
+  });
+
+  it('shows helper text for service areas', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    expect(screen.getByText(/These postcode prefixes determine/)).toBeInTheDocument();
+  });
+
+  it('renders at least 10 preset services in dropdown when none selected', () => {
+    render(
+      <ServiceConfigSection
+        {...defaultProps}
+        servicesOffered={[]}
+      />,
+    );
+    const select = screen.getByDisplayValue('Select a service...');
+    // Count non-disabled options (subtract the placeholder)
+    const options = select.querySelectorAll('option:not([disabled])');
+    expect(options.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('renders at least 6 preset areas in dropdown when none selected', () => {
+    render(
+      <ServiceConfigSection
+        {...defaultProps}
+        serviceAreas={[]}
+      />,
+    );
+    const select = screen.getByDisplayValue('Select a service area...');
+    const options = select.querySelectorAll('option:not([disabled])');
+    expect(options.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('uppercases custom service area input', () => {
+    render(<ServiceConfigSection {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Or add a custom postcode prefix...');
+    fireEvent.change(input, { target: { value: 'bs' } });
+    const addBtns = screen.getAllByText('+ Add');
+    fireEvent.click(addBtns[1]);
+    expect(mockOnChange).toHaveBeenCalledWith('serviceAreas', ['CF', 'NP', 'BS']);
   });
 });

@@ -56,11 +56,21 @@ jest.mock('@/components/clinics/GhlIntegrationSection', () => ({
 jest.mock('@/components/clinics/ServiceConfigSection', () => ({
   __esModule: true,
   default: ({ serviceAreas, onChange }: any) => (
-    <input
-      data-testid="service-areas"
-      value={serviceAreas}
-      onChange={(e) => onChange('serviceAreas', e.target.value)}
-    />
+    <div>
+      <span data-testid="service-areas-value">{(serviceAreas || []).join(',')}</span>
+      <button
+        data-testid="service-areas-clear"
+        onClick={() => onChange('serviceAreas', [])}
+      >
+        Clear Areas
+      </button>
+      <button
+        data-testid="service-areas-add"
+        onClick={() => onChange('serviceAreas', [...(serviceAreas || []), 'SA'])}
+      >
+        Add Area
+      </button>
+    </div>
   ),
 }));
 
@@ -198,5 +208,41 @@ describe('ClinicSettingsForm', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Server error');
     });
+  });
+
+  // AC-9: Required field validation for address, phone, and service areas
+  it('does not call onSave when address is empty', async () => {
+    const { formRef, onSave } = renderForm();
+    fireEvent.change(screen.getByTestId('address'), { target: { value: '' } });
+    formRef.current?.submit();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('does not call onSave when phone is empty', async () => {
+    const { formRef, onSave } = renderForm();
+    fireEvent.change(screen.getByTestId('phone'), { target: { value: '' } });
+    formRef.current?.submit();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('does not call onSave when service areas is empty', async () => {
+    const { formRef, onSave } = renderForm();
+    fireEvent.click(screen.getByTestId('service-areas-clear'));
+    formRef.current?.submit();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('does not call onSave when multiple required fields are empty', async () => {
+    const { formRef, onSave } = renderForm();
+    fireEvent.change(screen.getByTestId('clinic-name'), { target: { value: '' } });
+    fireEvent.change(screen.getByTestId('address'), { target: { value: '' } });
+    fireEvent.change(screen.getByTestId('phone'), { target: { value: '' } });
+    fireEvent.click(screen.getByTestId('service-areas-clear'));
+    formRef.current?.submit();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

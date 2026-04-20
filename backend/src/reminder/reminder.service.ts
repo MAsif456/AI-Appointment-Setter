@@ -108,6 +108,7 @@ export class ReminderService {
             type: this.channelToGhlType(conversation.channel),
             contactId: conversation.ghlContactId,
             conversationId: conversation.ghlConversationId,
+            locationId: clinic.ghlLocationId,
             message,
           });
           anySent = true;
@@ -131,6 +132,7 @@ export class ReminderService {
             type: 'Email',
             contactId: conversation.ghlContactId,
             conversationId: conversation.ghlConversationId,
+            locationId: clinic.ghlLocationId,
             subject: `Appointment Reminder — ${clinic.name}`,
             message: emailHtml,
           });

@@ -59,6 +59,8 @@ export async function handleConfirmCancel(
     appointment._id as Types.ObjectId,
     context.ghlContactId,
     clinicConfig.ghlApiKey ?? '',
+    undefined,
+    clinicConfig.ghlLocationId,
   );
   return result.message;
 }
@@ -97,6 +99,7 @@ export async function handleCancellationReason(
     context.ghlContactId,
     clinicConfig.ghlApiKey ?? '',
     reason,
+    clinicConfig.ghlLocationId,
   );
   return result.message;
 }
