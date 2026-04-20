@@ -11,7 +11,7 @@ export interface RecentConversation {
   lastMessageAt: string | null;
   createdAt?: string;
   clinicId: { _id: string; name: string } | null;
-  leadId: { _id: string; firstName: string; lastName: string } | null;
+  leadId: { _id: string; firstName: string; lastName: string; phone?: string } | null;
 }
 
 interface RecentConversationsProps {
@@ -21,6 +21,10 @@ interface RecentConversationsProps {
   viewAllHref?: string;
   /** Hide the clinic column (used on the clinic overview tab where context is implicit). */
   hideClinic?: boolean;
+  /** Override the section heading. Defaults to "Recent Conversations". */
+  title?: string;
+  /** Hide the "View all" link entirely. */
+  hideViewAll?: boolean;
 }
 
 /** Maps phase to the badge colour scheme used in the design. */
@@ -60,14 +64,14 @@ function formatRelative(timestamp: string | null): string {
  * dashboard per the current design — clicking "View all" opens the full
  * conversations list instead.
  */
-export default function RecentConversations({ conversations, viewAllHref = '/conversations', hideClinic = false }: RecentConversationsProps) {
+export default function RecentConversations({ conversations, viewAllHref = '/conversations', hideClinic = false, title = 'Recent Conversations', hideViewAll = false }: RecentConversationsProps) {
   const router = useRouter();
 
   return (
     <section className={styles.card} aria-labelledby="recent-conversations-heading">
       <div className={styles.header}>
-        <h2 id="recent-conversations-heading" className={styles.heading}>Recent Conversations</h2>
-        <Link href={viewAllHref} className={styles.viewAll}>View all</Link>
+        <h2 id="recent-conversations-heading" className={styles.heading}>{title}</h2>
+        {!hideViewAll && <Link href={viewAllHref} className={styles.viewAll}>View all</Link>}
       </div>
 
       {conversations.length === 0 ? (
@@ -95,7 +99,9 @@ export default function RecentConversations({ conversations, viewAllHref = '/con
               >
                 <div className={styles.personCol}>
                   <span className={styles.name}>{name}</span>
-                  {!hideClinic && <span className={styles.subtle}>{clinic}</span>}
+                  <span className={styles.subtle}>
+                    {hideClinic ? (c.leadId?.phone || 'No phone') : clinic}
+                  </span>
                 </div>
                 <span className={`${styles.badge} ${badgeClass}`}>{formatPhase(c.phase)}</span>
                 <span className={styles.when}>{when}</span>

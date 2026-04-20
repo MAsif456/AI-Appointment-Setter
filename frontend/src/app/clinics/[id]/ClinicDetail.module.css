@@ -1,26 +1,26 @@
 .loading {
   text-align: center;
   padding: 80px 0;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
 .notFound {
   text-align: center;
   padding: 80px 0;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
 .backLink {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-muted);
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .backLink:hover {
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .heading {
@@ -41,10 +41,10 @@
   align-items: center;
   gap: 8px;
   padding: 10px 24px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
-  background-color: #ffffff;
-  color: #1a1a2e;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -53,7 +53,7 @@
 }
 
 .editButton:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-hover);
 }
 
 .editingActions {
@@ -64,10 +64,10 @@
 
 .cancelButton {
   padding: 10px 20px;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--border-default);
   border-radius: 8px;
-  background-color: #ffffff;
-  color: #374151;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -76,8 +76,8 @@
 }
 
 .cancelButton:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
 }
 
 .saveButton {
@@ -85,7 +85,7 @@
   border: none;
   border-radius: 8px;
   background-color: var(--color-primary);
-  color: #ffffff;
+  color: var(--bg-card);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -100,7 +100,7 @@
 .clinicName {
   font-size: 28px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .badgeActive {
@@ -118,7 +118,12 @@
   padding: 3px 14px;
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
-  background-color: #f3f4f6;
+  color: var(--text-muted);
+  background-color: var(--bg-input);
   border-radius: 20px;
+}
+
+:global([data-theme="dark"]) .badgeActive {
+  background-color: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
 }

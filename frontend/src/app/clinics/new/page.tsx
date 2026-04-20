@@ -8,6 +8,8 @@ import BasicInfoSection from '@/components/clinics/BasicInfoSection';
 import GhlIntegrationSection from '@/components/clinics/GhlIntegrationSection';
 import ServiceConfigSection from '@/components/clinics/ServiceConfigSection';
 import BusinessHoursSection from '@/components/clinics/BusinessHoursSection';
+import FormCard from '@/components/FormCard/FormCard';
+import formStyles from '@/components/FormCard/FormCard.module.css';
 import type { WeekHours, DayHours } from '@/components/clinics/BusinessHoursSection';
 import { createClinic, type ApiError } from '@/services/clinicService';
 import styles from './page.module.css';
@@ -41,8 +43,8 @@ export default function AddClinicPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [ghlLocationId, setGhlLocationId] = useState('');
   const [ghlCalendarId, setGhlCalendarId] = useState('');
-  const [serviceAreas, setServiceAreas] = useState('');
-  const [servicesOffered, setServicesOffered] = useState('');
+  const [serviceAreas, setServiceAreas] = useState<string[]>([]);
+  const [servicesOffered, setServicesOffered] = useState<string[]>([]);
   const [appointmentDuration, setAppointmentDuration] = useState(30);
   const [dataRetentionMonths, setDataRetentionMonths] = useState(12);
   const [businessHours, setBusinessHours] = useState<WeekHours>(getDefaultHours);
@@ -51,16 +53,22 @@ export default function AddClinicPage() {
   const [submitting, setSubmitting] = useState(false);
 
   /** Route field-name changes to the correct setter. */
-  const handleFieldChange = (field: string, value: string | number) => {
+  const handleFieldChange = (field: string, value: string | number | string[]) => {
     setErrors((prev) => ({ ...prev, [field]: '' }));
+    if (field === 'serviceAreas' && Array.isArray(value)) {
+      setServiceAreas(value);
+      return;
+    }
+    if (field === 'servicesOffered' && Array.isArray(value)) {
+      setServicesOffered(value);
+      return;
+    }
     const setters: Record<string, (v: never) => void> = {
       clinicName: setClinicName as (v: never) => void,
       address: setAddress as (v: never) => void,
       phoneNumber: setPhoneNumber as (v: never) => void,
       ghlLocationId: setGhlLocationId as (v: never) => void,
       ghlCalendarId: setGhlCalendarId as (v: never) => void,
-      serviceAreas: setServiceAreas as (v: never) => void,
-      servicesOffered: setServicesOffered as (v: never) => void,
       appointmentDuration: setAppointmentDuration as (v: never) => void,
       dataRetentionMonths: setDataRetentionMonths as (v: never) => void,
     };
@@ -115,11 +123,10 @@ export default function AddClinicPage() {
       newErrors.phoneNumber = 'Enter a valid UK phone number (e.g. 029 2034 5678 or +44 29 2034 5678)';
     }
 
-    if (!serviceAreas.trim()) {
+    if (serviceAreas.length === 0) {
       newErrors.serviceAreas = 'At least one service area is required';
     } else {
-      const prefixes = serviceAreas.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
-      const invalid = prefixes.find((p) => !/^[A-Z]{1,4}$/.test(p));
+      const invalid = serviceAreas.find((p) => !/^[A-Z]{1,4}$/.test(p));
       if (invalid) {
         newErrors.serviceAreas = `"${invalid}" is not a valid postcode prefix (e.g. CF, NP, SA)`;
       }
@@ -198,12 +205,39 @@ export default function AddClinicPage() {
         <ServiceConfigSection
           serviceAreas={serviceAreas}
           servicesOffered={servicesOffered}
-          appointmentDuration={appointmentDuration}
-          dataRetentionMonths={dataRetentionMonths}
           onChange={handleFieldChange}
           errors={errors}
         />
         <BusinessHoursSection hours={businessHours} onChange={handleHoursChange} />
+        <FormCard title="Additional Settings">
+          <div className={formStyles.field}>
+            <label className={formStyles.label}>Appointment Duration</label>
+            <select
+              className={formStyles.select}
+              value={appointmentDuration}
+              onChange={(e) => handleFieldChange('appointmentDuration', Number(e.target.value))}
+            >
+              {[15, 20, 30, 45, 60, 75, 90, 105, 120].map((mins) => (
+                <option key={mins} value={mins}>{mins} minutes</option>
+              ))}
+            </select>
+          </div>
+          <div className={formStyles.field}>
+            <label className={formStyles.label}>Data Retention Period</label>
+            <select
+              className={formStyles.select}
+              value={dataRetentionMonths}
+              onChange={(e) => handleFieldChange('dataRetentionMonths', Number(e.target.value))}
+            >
+              {[3, 6, 12, 18, 24, 36].map((months) => (
+                <option key={months} value={months}>{months} months</option>
+              ))}
+            </select>
+            <span className={formStyles.helperText}>
+              Patient data is automatically anonymised after this period of inactivity (GDPR Art. 5(1)(e))
+            </span>
+          </div>
+        </FormCard>
       </div>
 
       <div className={styles.footerActions}>

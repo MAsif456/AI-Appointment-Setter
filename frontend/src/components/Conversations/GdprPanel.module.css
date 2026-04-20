@@ -1,27 +1,28 @@
 .card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
 .subHeading {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
 .muted {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
 
@@ -49,33 +50,37 @@
   font-weight: 600;
 }
 
-.consentGranted {
-  background-color: #d1fae5;
-  color: #065f46;
-}
-
-.consentDeclined {
-  background-color: #fee2e2;
-  color: #dc2626;
-}
-
+.consentGranted,
+.consentDeclined,
 .consentWithdrawn {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+:global([data-theme="dark"]) .consentGranted,
+:global([data-theme="dark"]) .consentDeclined,
+:global([data-theme="dark"]) .consentWithdrawn {
+  background-color: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
 }
 
 .consentDate {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .result {
   font-size: 13px;
-  color: #065f46;
-  background: #d1fae5;
+  color: #111827;
+  background: #f3f4f6;
   padding: 8px 12px;
   border-radius: 8px;
   margin-bottom: 12px;
+}
+
+:global([data-theme="dark"]) .result {
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.12);
 }
 
 .eraseBtn {
@@ -83,7 +88,7 @@
   padding: 10px;
   border: 1px solid #fca5a5;
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg-card);
   font-size: 13px;
   font-weight: 500;
   color: #dc2626;
@@ -117,12 +122,14 @@
 .reasonInput {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
   font-size: 13px;
   margin-bottom: 10px;
   resize: vertical;
   font-family: inherit;
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
 .confirmActions {
@@ -151,18 +158,45 @@
   cursor: not-allowed;
 }
 
+:global([data-theme="dark"]) .confirmBtn {
+  background: #f472b6;
+  color: #0c0c10;
+}
+
+:global([data-theme="dark"]) .confirmBtn:hover {
+  background: #ec4899;
+}
+
+:global([data-theme="dark"]) .eraseBtn {
+  border-color: #3a3a4a;
+  color: #f472b6;
+}
+
+:global([data-theme="dark"]) .eraseBtn:hover {
+  background-color: rgba(244, 114, 182, 0.08);
+}
+
+:global([data-theme="dark"]) .confirmBox {
+  border-color: #3a3a4a;
+  background: #1a1a24;
+}
+
+:global([data-theme="dark"]) .confirmText {
+  color: #c0c0d0;
+}
+
 .cancelBtn {
   flex: 1;
   padding: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-card);
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .cancelBtn:hover {
-  background: #f3f4f6;
+  background: var(--bg-hover);
 }

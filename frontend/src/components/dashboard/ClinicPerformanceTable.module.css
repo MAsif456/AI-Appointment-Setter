@@ -1,16 +1,17 @@
 /* Clinic Performance summary table — dashboard variant */
 .card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   padding: 24px 28px;
   margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
 }
 
 .heading {
   font-size: 18px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin: 0 0 20px 0;
 }
 
@@ -23,12 +24,12 @@
   text-align: left;
   font-size: 12px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 12px 16px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-input);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .th:first-child { border-top-left-radius: 8px; }
@@ -40,7 +41,7 @@
 }
 
 .row:hover {
-  background: #f9fafb;
+  background: var(--bg-hover);
 }
 
 .row:focus-visible {
@@ -51,8 +52,8 @@
 .td {
   padding: 16px;
   font-size: 14px;
-  color: #1a1a2e;
-  border-bottom: 1px solid #f3f4f6;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .statusActive {
@@ -65,19 +66,24 @@
   background: #dcfce7;
 }
 
+:global([data-theme="dark"]) .statusActive {
+  background: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+}
+
 .statusInactive {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 500;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: var(--text-muted);
+  background: var(--bg-input);
 }
 
 .empty {
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 32px 0;
   margin: 0;
 }

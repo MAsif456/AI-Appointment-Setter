@@ -15,6 +15,8 @@ import ClinicSettingsForm, { type ClinicSettingsFormHandle } from '@/components/
 import ClinicSettingsView from '@/components/EditClinicsDetails/ClinicSettingsView';
 import ClinicAnalyticsTab from '@/components/Analytics/ClinicAnalyticsTab';
 import ClinicOverviewTab from './ClinicOverviewTab';
+import RecentConversations, { type RecentConversation } from '@/components/dashboard/RecentConversations';
+import { fetchRecentConversations } from '@/lib/api/dashboard';
 
 /** Available tabs on the clinic detail page. */
 const TABS = ['Overview', 'Settings', 'AI Configuration', 'Conversations', 'Analytics'] as const;
@@ -96,6 +98,21 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
 
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
+  // Conversations tab state
+  const [clinicConvos, setClinicConvos] = useState<RecentConversation[]>([]);
+  const [convosLoading, setConvosLoading] = useState(true);
+
+  useEffect(() => {
+    if (activeTab !== 'Conversations') return;
+    let cancelled = false;
+    setConvosLoading(true);
+    fetchRecentConversations(50, clinic._id)
+      .then((data) => { if (!cancelled) setClinicConvos(data); })
+      .catch(() => { if (!cancelled) setClinicConvos([]); })
+      .finally(() => { if (!cancelled) setConvosLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, clinic._id]);
+
   const handleSaveSettings = async (updated: Partial<Clinic>) => {
     try {
       const saved = await updateClinicSettings(clinic._id, updated);
@@ -170,10 +187,10 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
 
     if (activeTab === 'AI Configuration') {
       if (aiLoading) {
-        return <p style={{ color: '#6b7280' }}>Loading AI settings...</p>;
+        return <p style={{ color: 'var(--text-muted)' }}>Loading AI settings...</p>;
       }
       if (aiError) {
-        return <p style={{ color: '#dc2626' }}>Error: {aiError}</p>;
+        return <p style={{ color: 'var(--color-error)' }}>Error: {aiError}</p>;
       }
       return (
         <div>
@@ -190,15 +207,25 @@ const ClinicDetailTabs = forwardRef<ClinicDetailTabsHandle, ClinicDetailTabsProp
       return <ClinicAnalyticsTab clinicId={clinic._id} />;
     }
 
+    if (activeTab === 'Conversations') {
+      if (convosLoading) {
+        return <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>Loading conversations...</p>;
+      }
+      return (
+        <RecentConversations
+          conversations={clinicConvos}
+          title="Conversations"
+          hideViewAll
+          hideClinic
+        />
+      );
+    }
+
     if (activeTab === 'Overview') {
       return <ClinicOverviewTab clinic={clinic} />;
     }
 
-    return (
-      <p className={styles.placeholder}>
-        Clinic {activeTab.toLowerCase()} would go here...
-      </p>
-    );
+    return null;
   };
 
   return (

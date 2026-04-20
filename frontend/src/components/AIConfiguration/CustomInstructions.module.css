@@ -1,28 +1,30 @@
 /* Custom instructions textarea section */
 
 .section {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .sectionTitle {
   font-size: 16px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
 .textarea {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-family: inherit;
   font-size: 14px;
-  color: #1a1a2e;
+  color: var(--text-primary);
+  background: var(--bg-input);
   resize: vertical;
   min-height: 80px;
   line-height: 1.5;
@@ -35,12 +37,12 @@
 }
 
 .textarea::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .hint {
   margin-top: 10px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-muted);
   font-style: italic;
 }

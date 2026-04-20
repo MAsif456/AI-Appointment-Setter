@@ -77,6 +77,37 @@ export default function ClinicSettingsView({ clinic, saveSuccess }: Props) {
       </div>
 
       <div className={styles.settingsCard}>
+        <h2 className={styles.settingsCardTitle}>Services & Locations</h2>
+        <div className={styles.readOnlyField}>
+          <span className={styles.readOnlyLabel}>Services Offered</span>
+          <div className={styles.settingsPillRow}>
+            {(clinic.services ?? []).length === 0 ? (
+              <span className={styles.settingsSubtle}>No services configured</span>
+            ) : (
+              (clinic.services ?? []).map((s) => (
+                <span key={s.name} className={styles.settingsPill}>{s.name}</span>
+              ))
+            )}
+          </div>
+        </div>
+        <div className={styles.readOnlyField}>
+          <span className={styles.readOnlyLabel}>Service Areas (Postcode Prefixes)</span>
+          <div className={styles.settingsPillRow}>
+            {(clinic.serviceAreas ?? []).length === 0 ? (
+              <span className={styles.settingsSubtle}>No service areas configured</span>
+            ) : (
+              (clinic.serviceAreas ?? []).map((a) => (
+                <span key={a.postcodePrefix} className={styles.settingsPillArea}>{a.postcodePrefix}</span>
+              ))
+            )}
+          </div>
+          <span className={styles.settingsSubtle} style={{ marginTop: 8, display: 'block' }}>
+            These postcode prefixes determine which areas your clinic serves
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.settingsCard}>
         <h2 className={styles.settingsCardTitle}>Data Protection</h2>
         <div className={styles.readOnlyField}>
           <span className={styles.readOnlyLabel}>Data Retention Period</span>

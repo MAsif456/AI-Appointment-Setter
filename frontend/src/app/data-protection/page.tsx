@@ -25,6 +25,7 @@ export default function DataProtectionPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{ id: string; type: 'approve' | 'reject' } | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -43,6 +44,7 @@ export default function DataProtectionPage() {
     setActionLoading(requestId);
     try {
       await api.post(`/gdpr/erasure-requests/${requestId}/approve`);
+      setConfirmModal(null);
       fetchRequests();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Approval failed');
@@ -57,6 +59,7 @@ export default function DataProtectionPage() {
       await api.post(`/gdpr/erasure-requests/${requestId}/reject`, {
         reason: rejectReason,
       });
+      setConfirmModal(null);
       setRejectingId(null);
       setRejectReason('');
       fetchRequests();
@@ -71,6 +74,9 @@ export default function DataProtectionPage() {
   const resolved = requests.filter((r) => r.status !== 'pending');
   const approvedCount = resolved.filter((r) => r.status === 'approved').length;
   const rejectedCount = resolved.filter((r) => r.status === 'rejected').length;
+
+  // Find the request associated with the active modal
+  const modalRequest = confirmModal ? requests.find((r) => r._id === confirmModal.id) : null;
 
   return (
     <div className={styles.container}>
@@ -121,49 +127,20 @@ export default function DataProtectionPage() {
                     </div>
                     {isAdmin && (
                       <div className={styles.cardActions}>
-                        {rejectingId === req._id ? (
-                          <div className={styles.rejectForm}>
-                            <textarea
-                              className={styles.rejectInput}
-                              placeholder="Reason for rejection (optional)..."
-                              value={rejectReason}
-                              onChange={(e) => setRejectReason(e.target.value)}
-                              rows={2}
-                            />
-                            <div className={styles.rejectButtons}>
-                              <button
-                                className={styles.rejectConfirmBtn}
-                                onClick={() => handleReject(req._id)}
-                                disabled={actionLoading === req._id}
-                              >
-                                Confirm Reject
-                              </button>
-                              <button
-                                className={styles.cancelBtn}
-                                onClick={() => { setRejectingId(null); setRejectReason(''); }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              className={styles.approveBtn}
-                              onClick={() => handleApprove(req._id)}
-                              disabled={actionLoading === req._id}
-                            >
-                              {actionLoading === req._id ? 'Processing...' : 'Approve'}
-                            </button>
-                            <button
-                              className={styles.rejectBtn}
-                              onClick={() => setRejectingId(req._id)}
-                              disabled={actionLoading === req._id}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
+                        <button
+                          className={styles.approveBtn}
+                          onClick={() => setConfirmModal({ id: req._id, type: 'approve' })}
+                          disabled={actionLoading === req._id}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className={styles.rejectBtn}
+                          onClick={() => setConfirmModal({ id: req._id, type: 'reject' })}
+                          disabled={actionLoading === req._id}
+                        >
+                          Reject
+                        </button>
                       </div>
                     )}
                   </div>
@@ -228,6 +205,67 @@ export default function DataProtectionPage() {
             </section>
           )}
         </>
+      )}
+
+      {/* ── Centered confirmation modal for approve / reject ── */}
+      {confirmModal && modalRequest && (
+        <div className={styles.modalOverlay} onClick={() => { setConfirmModal(null); setRejectReason(''); }}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>
+              {confirmModal.type === 'approve' ? 'Approve Erasure Request' : 'Reject Erasure Request'}
+            </h3>
+            <p className={styles.modalDesc}>
+              {confirmModal.type === 'approve'
+                ? 'This will permanently erase all data for this patient. This action cannot be undone.'
+                : 'Please provide a reason for rejecting this erasure request.'}
+            </p>
+
+            <div className={styles.modalInfo}>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalInfoLabel}>Patient</span>
+                <span className={styles.modalInfoValue}>
+                  {modalRequest.leadId
+                    ? `${modalRequest.leadId.firstName} ${modalRequest.leadId.lastName || ''}`.trim()
+                    : 'Unknown'}
+                </span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalInfoLabel}>Reason</span>
+                <span className={styles.modalInfoValue}>{modalRequest.reason}</span>
+              </div>
+            </div>
+
+            {confirmModal.type === 'reject' && (
+              <textarea
+                className={styles.rejectInput}
+                placeholder="Reason for rejection (optional)..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+              />
+            )}
+
+            <div className={styles.modalActions}>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => { setConfirmModal(null); setRejectReason(''); }}
+              >
+                Cancel
+              </button>
+              <button
+                className={confirmModal.type === 'approve' ? styles.modalApproveBtn : styles.modalRejectBtn}
+                onClick={() => confirmModal.type === 'approve'
+                  ? handleApprove(confirmModal.id)
+                  : handleReject(confirmModal.id)}
+                disabled={actionLoading === confirmModal.id}
+              >
+                {actionLoading === confirmModal.id
+                  ? 'Processing...'
+                  : confirmModal.type === 'approve' ? 'Confirm & Erase Data' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

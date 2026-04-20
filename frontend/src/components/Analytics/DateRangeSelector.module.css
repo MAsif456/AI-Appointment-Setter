@@ -8,11 +8,11 @@
 
 .select {
   padding: 8px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 14px;
-  color: #1a1a2e;
-  background: #ffffff;
+  color: var(--text-primary);
+  background: var(--bg-card);
   cursor: pointer;
   min-width: 160px;
 }
@@ -30,21 +30,22 @@
 
 .dateInput {
   padding: 6px 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
   font-size: 13px;
-  color: #1a1a2e;
+  color: var(--text-primary);
+  background: var(--bg-input);
 }
 
 .separator {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
 .applyButton {
   padding: 6px 14px;
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--text-on-primary);
   border: none;
   border-radius: 6px;
   font-size: 13px;

@@ -5,6 +5,58 @@
   --color-primary-light: #f3f4f6;
   --color-error: #dc2626;
   --color-error-light: #fef2f2;
+
+  /* Semantic tokens — light mode defaults */
+  --bg-page: #ffffff;
+  --bg-sidebar: #f8f9fa;
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --bg-hover: #e8ecf4;
+  --bg-active: var(--color-primary);
+  --bg-modal-overlay: rgba(0, 0, 0, 0.4);
+
+  --border-default: #e2e8f0;
+  --border-sidebar: #e9ecef;
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a68;
+  --text-muted: #6b7280;
+  --text-on-primary: #ffffff;
+
+  --chart-line: #111827;
+  --chart-dot: #111827;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Dark mode palette — Lunax Digital branding ────────────────────── */
+[data-theme="dark"] {
+  --color-primary: #f472b6;
+  --color-primary-hover: #ec4899;
+  --color-primary-light: #1f1f2e;
+  --color-error: #fb7185;
+  --color-error-light: #2d1b1e;
+
+  --bg-page: #0c0c10;
+  --bg-sidebar: #121218;
+  --bg-card: #1a1a24;
+  --bg-input: #222230;
+  --bg-hover: #2a2a38;
+  --bg-active: #f472b6;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.7);
+
+  --border-default: #3a3a4a;
+  --border-sidebar: #2e2e3c;
+
+  --text-primary: #f4f4f7;
+  --text-secondary: #c0c0d0;
+  --text-muted: #9898b0;
+  --text-on-primary: #0c0c10;
+
+  --chart-line: #f472b6;
+  --chart-dot: #f472b6;
+
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -14,15 +66,15 @@
 }
 
 body {
-  background: #ffffff;
-  color: #1a1a2e;
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 h1 {
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 /* Hides the native password reveal button in Edge/IE */
@@ -30,3 +82,41 @@ input::-ms-reveal,
 input::-ms-clear {
   display: none;
 }
+
+/* ─── Dark mode global enhancements ──────────────────────────────────── */
+[data-theme="dark"] select,
+[data-theme="dark"] option {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] ::placeholder {
+  color: var(--text-muted);
+}
+
+/* Scrollbar styling for dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #3a3a4a;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #4a4a5a;
+}
+
+/* ─── Dark mode: 4-colour badge/status overrides (black, pink, white, grey) ─ */
+/* These global overrides ensure NO green/red/blue/amber leaks into dark mode. */

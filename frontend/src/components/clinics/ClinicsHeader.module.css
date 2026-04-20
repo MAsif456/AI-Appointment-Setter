@@ -8,7 +8,7 @@
 .title {
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .actions {
@@ -28,24 +28,24 @@
   transform: translateY(-50%);
   width: 16px;
   height: 16px;
-  color: #9ca3af;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
 .searchInput {
   width: 220px;
   padding: 9px 14px 9px 38px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 14px;
-  color: #374151;
-  background: #ffffff;
+  color: var(--text-secondary);
+  background: var(--bg-card);
   outline: none;
   transition: border-color 0.15s;
 }
 
 .searchInput::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .searchInput:focus {
@@ -59,7 +59,7 @@
   gap: 6px;
   padding: 9px 20px;
   background-color: var(--color-primary);
-  color: #ffffff;
+  color: var(--text-on-primary);
   font-size: 14px;
   font-weight: 500;
   border: none;
@@ -67,6 +67,7 @@
   cursor: pointer;
   transition: background-color 0.15s;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .addButton:hover {

@@ -77,7 +77,6 @@ export default function ConversationDetail({ conversation, leadId }: Props) {
               statusClass={statusClass}
             />
           )}
-          <ActionButtons />
           {leadId && <GdprPanel leadId={leadId} />}
         </div>
       </div>
@@ -158,20 +157,6 @@ function BookingInfo({
           {booking.status}
         </span>
       </div>
-    </div>
-  );
-}
-
-/** Action buttons for flagging and external links */
-function ActionButtons() {
-  return (
-    <div className={styles.actions}>
-      <button className={styles.actionBtn}>
-        &#9873; Flag for Review
-      </button>
-      <button className={styles.actionBtn}>
-        &#8599; View in GHL
-      </button>
     </div>
   );
 }

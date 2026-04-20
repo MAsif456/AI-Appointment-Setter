@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { DailyDataPoint } from '@/types/analytics';
 import styles from './BookingsChart.module.css';
@@ -28,6 +29,20 @@ interface BookingsChartProps {
  * Uses Recharts with dynamic imports to prevent SSR hydration issues.
  */
 export default function BookingsChart({ data, title = 'Bookings Over Time' }: BookingsChartProps) {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const lineColour = isDark ? '#f472b6' : '#111827';
+  const gridStroke = isDark ? '#3a3a4a' : '#e5e7eb';
+  const tickFill = isDark ? '#9898b0' : '#6b7280';
+
   /** Formats ISO date strings to shorter display labels (e.g. 'Mar 20'). */
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -42,16 +57,16 @@ export default function BookingsChart({ data, title = 'Bookings Over Time' }: Bo
       <div className={styles.chartWrapper}>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={formattedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6b7280' }} />
-            <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} allowDecimals={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="label" tick={{ fontSize: 12, fill: tickFill }} />
+            <YAxis tick={{ fontSize: 12, fill: tickFill }} allowDecimals={false} />
             <Tooltip />
             <Line
               type="linear"
               dataKey="count"
-              stroke="#111827"
+              stroke={lineColour}
               strokeWidth={2}
-              dot={{ fill: '#111827', r: 4 }}
+              dot={{ fill: lineColour, r: 4 }}
               activeDot={{ r: 6 }}
               isAnimationActive={false}
               connectNulls

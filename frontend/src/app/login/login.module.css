@@ -3,12 +3,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  background: var(--bg-page);
   padding: 1rem;
 }
 
 .card {
-  background: white;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 1.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
   width: 100%;
@@ -17,10 +18,10 @@
 }
 
 .header { text-align: center; margin-bottom: 2.5rem; }
-.title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 0.75rem; }
+.title { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.75rem; }
 .titleHighlight { color: var(--color-primary); }
-.subtitle { font-size: 1.125rem; color: #4b5563; margin-bottom: 0.5rem; }
-.description { font-size: 0.875rem; color: #9ca3af; }
+.subtitle { font-size: 1.125rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.description { font-size: 0.875rem; color: var(--text-muted); }
 
 .error {
   margin-bottom: 1.5rem;
@@ -42,6 +43,8 @@
   font-size: 0.875rem;
 }
 
+:global([data-theme="dark"]) .success { background-color: rgba(244, 114, 182, 0.12); border-color: rgba(244, 114, 182, 0.2); color: #f472b6; }
+
 .fieldError { color: #e53935; font-size: 13px; margin-top: 6px; }
 
 .form { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -51,7 +54,7 @@
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
 }
 
@@ -59,19 +62,19 @@
   width: 100%;
   padding: 0.875rem 1rem;
   font-size: 1rem;
-  color: #1f2937;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  color: var(--text-primary);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-default);
   border-radius: 0.5rem;
   outline: none;
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
 
-.input::placeholder { color: #9ca3af; }
+.input::placeholder { color: var(--text-muted); }
 
 .input:focus {
-  background-color: white;
+  background-color: var(--bg-card);
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
 }
@@ -79,7 +82,7 @@
 /* Red border on both inputs when a login attempt fails — matches Add Clinic form style */
 .inputError {
   border-color: #dc2626;
-  background-color: #fff;
+  background-color: var(--bg-card);
 }
 
 .inputError:focus {
@@ -92,7 +95,7 @@
   padding: 0.875rem;
   font-size: 1rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-on-primary);
   background-color: var(--color-primary);
   border: none;
   border-radius: 0.5rem;
@@ -139,7 +142,7 @@
   border: none;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;

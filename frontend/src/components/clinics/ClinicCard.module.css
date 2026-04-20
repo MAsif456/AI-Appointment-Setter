@@ -1,6 +1,6 @@
 .card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 24px;
   transition: box-shadow 0.15s;
@@ -20,7 +20,7 @@
 .clinicName {
   font-size: 17px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
   line-height: 1.3;
 }
 
@@ -35,7 +35,7 @@
   border: none;
   cursor: pointer;
   font-size: 20px;
-  color: #9ca3af;
+  color: var(--text-muted);
   padding: 2px 6px;
   border-radius: 4px;
   line-height: 1;
@@ -43,8 +43,8 @@
 }
 
 .menuButton:hover {
-  color: #4b5563;
-  background-color: #f3f4f6;
+  color: var(--text-secondary);
+  background-color: var(--bg-hover);
 }
 
 .dropdown {
@@ -53,8 +53,8 @@
   top: 100%;
   margin-top: 4px;
   width: 180px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   padding: 4px 0;
@@ -66,7 +66,7 @@
   width: 100%;
   padding: 8px 16px;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-secondary);
   text-decoration: none;
   text-align: left;
   background: none;
@@ -76,14 +76,14 @@
 }
 
 .dropdownItem:hover {
-  background-color: #f9fafb;
+  background-color: var(--bg-hover);
 }
 
 /* Address */
 .address {
   margin-top: 6px;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-muted);
   line-height: 1.4;
 }
 
@@ -102,8 +102,8 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--color-primary);
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background-color: var(--color-primary-light);
+  border: 1px solid var(--border-default);
   border-radius: 20px;
   line-height: 1.6;
 }
@@ -112,12 +112,12 @@
 .stats {
   margin-top: 16px;
   font-size: 14px;
-  color: #4b5563;
+  color: var(--text-secondary);
 }
 
 .statNumber {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 /* Footer row */
@@ -139,13 +139,25 @@
   border-radius: 20px;
 }
 
+/* Dark mode: postcode tags white, active badge pink */
+:global([data-theme="dark"]) .tag {
+  color: #f4f4f7;
+  background-color: #2a2a38;
+  border-color: #3a3a4a;
+}
+
+:global([data-theme="dark"]) .badgeActive {
+  background-color: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+}
+
 .badgeInactive {
   display: inline-block;
   padding: 3px 14px;
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
-  background-color: #f3f4f6;
+  color: var(--text-muted);
+  background-color: var(--bg-input);
   border-radius: 20px;
 }
 

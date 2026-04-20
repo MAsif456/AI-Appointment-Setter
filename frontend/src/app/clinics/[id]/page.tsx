@@ -21,7 +21,7 @@ export default function ClinicDetailPage() {
   const tabsRef = useRef<ClinicDetailTabsHandle>(null);
 
   // Edit settings button only visible on Settings and AI Configuration tabs
-  const showEditButton = activeTab === 'Settings' || activeTab === 'AI Configuration';
+  const showEditButton = activeTab === 'Settings';
 
   useEffect(() => {
     if (searchParams.get('edit') === 'true') {

@@ -184,20 +184,10 @@ interface ToggleRowProps {
 
 function ToggleRow({ label, description, checked, onChange, disabled, isMaster }: ToggleRowProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '18px 24px',
-        borderBottom: '1px solid #f1f5f9',
-        opacity: disabled ? 0.5 : 1,
-        background: isMaster ? '#f8fafc' : '#fff',
-      }}
-    >
+    <div className={`${styles.toggleRow} ${isMaster ? styles.toggleRowMaster : ''}`} style={{ opacity: disabled ? 0.5 : 1 }}>
       <div>
-        <div style={{ fontSize: '0.925rem', fontWeight: isMaster ? 600 : 500, color: '#0f172a' }}>{label}</div>
-        <div style={{ fontSize: '0.825rem', color: '#64748b', marginTop: 2 }}>{description}</div>
+        <div className={styles.toggleLabel} style={{ fontWeight: isMaster ? 600 : 500 }}>{label}</div>
+        <div className={styles.toggleDesc}>{description}</div>
       </div>
       <button
         role="switch"
@@ -205,30 +195,10 @@ function ToggleRow({ label, description, checked, onChange, disabled, isMaster }
         aria-label={label}
         onClick={disabled ? undefined : onChange}
         disabled={disabled}
-        style={{
-          width: 44,
-          height: 24,
-          borderRadius: 12,
-          border: 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          background: checked ? '#111827' : '#cbd5e1',
-          position: 'relative',
-          flexShrink: 0,
-          transition: 'background 0.2s',
-        }}
+        className={`${styles.toggleSwitch} ${checked ? styles.toggleSwitchOn : ''}`}
+        style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
       >
-        <span
-          style={{
-            position: 'absolute',
-            top: 3,
-            left: checked ? 23 : 3,
-            width: 18,
-            height: 18,
-            borderRadius: '50%',
-            background: '#fff',
-            transition: 'left 0.2s',
-          }}
-        />
+        <span className={styles.toggleKnob} style={{ left: checked ? 23 : 3 }} />
       </button>
     </div>
   );

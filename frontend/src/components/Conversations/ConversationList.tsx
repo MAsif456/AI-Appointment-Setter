@@ -101,7 +101,7 @@ export default function ConversationList() {
     return (
       <div className={styles.container}>
         <h1 className={styles.title}>Conversations</h1>
-        <p style={{ color: 'red' }}>{error}</p>
+        <p style={{ color: 'var(--color-error)' }}>{error}</p>
       </div>
     );
   }
@@ -123,6 +123,14 @@ export default function ConversationList() {
     const matchesPhase =
       phaseFilter === 'All Statuses' || c.phase === phaseFilter;
     return matchesSearch && matchesClinic && matchesPhase;
+  }).sort((a, b) => {
+    // Urgent/high-priority conversations always appear first
+    if (a.isHighPriority && !b.isHighPriority) return -1;
+    if (!a.isHighPriority && b.isHighPriority) return 1;
+    // Within same priority, sort by most recent message
+    const ta = new Date(a.lastMessageAt ?? 0).getTime();
+    const tb = new Date(b.lastMessageAt ?? 0).getTime();
+    return tb - ta;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));

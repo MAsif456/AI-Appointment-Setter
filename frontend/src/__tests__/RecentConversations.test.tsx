@@ -1,7 +1,7 @@
 /**
  * Unit tests for the RecentConversations component.
  * Covers rendering, badge colours, relative timestamps, the "View all"
- * link, the empty state, and the hideClinic mode used by the clinic tab.
+ * link, the empty state, hideClinic mode, custom title, and hideViewAll.
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import RecentConversations, { type RecentConversation } from '@/components/dashboard/RecentConversations';
@@ -23,14 +23,14 @@ const mockConversations: RecentConversation[] = [
     phase: 'confirmed',
     lastMessageAt: new Date(Date.now() - 86400000).toISOString(),
     clinicId: { _id: 'c1', name: 'Cardiff Physio' },
-    leadId: { _id: 'l1', firstName: 'Sarah', lastName: 'Williams' },
+    leadId: { _id: 'l1', firstName: 'Sarah', lastName: 'Williams', phone: '07700 900001' },
   },
   {
     _id: 'conv2',
     phase: 'booking',
     lastMessageAt: new Date(Date.now() - 300000).toISOString(),
     clinicId: { _id: 'c2', name: 'Newport Sports' },
-    leadId: { _id: 'l2', firstName: 'John', lastName: 'Davies' },
+    leadId: { _id: 'l2', firstName: 'John', lastName: 'Davies', phone: '07700 900002' },
   },
   {
     _id: 'conv3',
@@ -47,6 +47,12 @@ describe('RecentConversations', () => {
   it('should render the heading', () => {
     render(<RecentConversations conversations={mockConversations} />);
     expect(screen.getByText('Recent Conversations')).toBeInTheDocument();
+  });
+
+  it('should render a custom title when provided', () => {
+    render(<RecentConversations conversations={mockConversations} title="Conversations" />);
+    expect(screen.getByText('Conversations')).toBeInTheDocument();
+    expect(screen.queryByText('Recent Conversations')).not.toBeInTheDocument();
   });
 
   it('should render patient names from the conversation list', () => {
@@ -66,9 +72,16 @@ describe('RecentConversations', () => {
     expect(screen.getByText('Newport Sports')).toBeInTheDocument();
   });
 
-  it('should hide clinic names when hideClinic is true', () => {
+  it('should show phone numbers when hideClinic is true', () => {
     render(<RecentConversations conversations={mockConversations} hideClinic />);
     expect(screen.queryByText('Cardiff Physio')).not.toBeInTheDocument();
+    expect(screen.getByText('07700 900001')).toBeInTheDocument();
+    expect(screen.getByText('07700 900002')).toBeInTheDocument();
+  });
+
+  it('should show "No phone" when hideClinic is true and phone is missing', () => {
+    render(<RecentConversations conversations={mockConversations} hideClinic />);
+    expect(screen.getByText('No phone')).toBeInTheDocument();
   });
 
   it('should render phase badges with capitalised text', () => {
@@ -85,9 +98,7 @@ describe('RecentConversations', () => {
 
   it('should render relative times for recent messages', () => {
     render(<RecentConversations conversations={mockConversations} />);
-    // 5 minutes ago
     expect(screen.getByText('5 minutes ago')).toBeInTheDocument();
-    // 1 day ago
     expect(screen.getByText('1 days ago')).toBeInTheDocument();
   });
 
@@ -106,6 +117,11 @@ describe('RecentConversations', () => {
     );
     const link = screen.getByText('View all').closest('a');
     expect(link).toHaveAttribute('href', '/conversations?clinic=Cardiff');
+  });
+
+  it('should hide View all link when hideViewAll is true', () => {
+    render(<RecentConversations conversations={mockConversations} hideViewAll />);
+    expect(screen.queryByText('View all')).not.toBeInTheDocument();
   });
 
   it('should show empty state when no conversations', () => {
