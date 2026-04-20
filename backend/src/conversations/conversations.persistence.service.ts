@@ -84,8 +84,14 @@ export class ConversationsPersistenceService {
    */
   async storeOfferedSlots(conversation: ConversationDocument, slots: Slot[]) {
     if (slots.length === 0) return;
+    // Prefer the authoritative UTC from GHL (`s.dateTime`). The fallback
+    // reconstruction is retained only for legacy callers that don't provide
+    // `dateTime`; it is wrong by 1h during BST and should not be used for
+    // slots that will later be booked via GHL.
     const offeredSlots = slots.map((s) => ({
-      dateTime: new Date(`${s.date}T${s.startTime}:00`),
+      dateTime: s.dateTime
+        ? new Date(s.dateTime)
+        : new Date(`${s.date}T${s.startTime}:00`),
       displayText: formatSlotDisplay(s),
     }));
     const existingHistory: { dateTime: Date; displayText: string }[] =
