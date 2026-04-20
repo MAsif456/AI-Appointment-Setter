@@ -1,0 +1,15 @@
+{
+  "entryPointStrategy": "expand",
+  "entryPoints": ["src"],
+  "exclude": [
+    "**/*.test.tsx",
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "**/node_modules/**"
+  ],
+  "out": "../docs/frontend",
+  "name": "LunaX Frontend",
+  "includeVersion": true,
+  "readme": "none",
+  "skipErrorChecking": true
+}

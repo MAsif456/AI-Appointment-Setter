@@ -22,14 +22,18 @@ describe('UserSchema', () => {
   it('supports notification preferences', () => {
     const user = new User();
     user.notificationPreferences = {
+      generalNotifications: true,
       emailNotifications: true,
-      dailySummary: false,
-      stalled: true,
+      stalledConversations: false,
+      escalatedConversations: true,
+      bookingCancelled: false,
+      newUserJoined: true,
+      appointmentReminders: true,
     };
 
     expect(user.notificationPreferences.emailNotifications).toBe(true);
-    expect(user.notificationPreferences.dailySummary).toBe(false);
-    expect(user.notificationPreferences.stalled).toBe(true);
+    expect(user.notificationPreferences.stalledConversations).toBe(false);
+    expect(user.notificationPreferences.escalatedConversations).toBe(true);
   });
 
   it('supports token-based email verification fields', () => {
