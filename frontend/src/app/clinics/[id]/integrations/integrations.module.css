@@ -55,6 +55,30 @@
 .input:focus { border-color: #2563eb; }
 .fieldHint { font-size: 0.75rem; color: #9ca3af; margin: 5px 0 0; }
 
+/* ─── Required scopes panel ─────────────────────────────────────────── */
+.scopesToggle {
+  background: none;
+  border: none;
+  padding: 4px 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+  cursor: pointer;
+  display: block;
+}
+.scopesToggle:hover { color: #374151; }
+.scopesList {
+  margin: 6px 0 0;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  list-style: none;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #374151;
+  line-height: 1.8;
+}
+
 /* ─── Action buttons ────────────────────────────────────────────────── */
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .btnPrimary {

@@ -50,6 +50,7 @@ export async function handleCancellationIntercept(
   ) => Promise<any>,
   updateMeta: (lastFrom: string, phase?: string) => Promise<void>,
   apiKey: string = '',
+  locationId: string = '',
 ): Promise<CancellationResult> {
   const phase = conversation.phase;
   const lower = userMessage.toLowerCase();
@@ -109,6 +110,8 @@ export async function handleCancellationIntercept(
             appointment._id as Types.ObjectId,
             lead.ghlContactId ?? "",
             apiKey,
+            undefined,
+            locationId,
           );
           reply = result.message;
           newPhase = "cancelled";
@@ -134,6 +137,7 @@ export async function handleCancellationIntercept(
             lead.ghlContactId ?? "",
             apiKey,
             userMessage,
+            locationId,
           );
           reply = result.message;
           newPhase = "cancelled";

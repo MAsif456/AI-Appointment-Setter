@@ -32,6 +32,7 @@ export default function ClinicIntegrationsPage({
   const [loaded, setLoaded] = useState(!!initialMaskedKey);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [scopesOpen, setScopesOpen] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function ClinicIntegrationsPage({
 
   function showToast(type: 'success' | 'error', message: string) {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 7000);
+    setTimeout(() => setToast(null), type === 'error' ? 15000 : 7000);
   }
 
   async function handleSave() {
@@ -145,6 +146,34 @@ export default function ClinicIntegrationsPage({
           placeholder={maskedKey ? 'Enter new key to replace' : 'Enter GHL private integration token'}
         />
         <p className={styles.fieldHint}>Settings → Private Integrations in your GHL sub-account.</p>
+        <button type="button" className={styles.scopesToggle} onClick={() => setScopesOpen(o => !o)}>
+          {scopesOpen ? '▾' : '▸'} Required API scopes
+        </button>
+        {scopesOpen && (
+          <ul className={styles.scopesList}>
+            <li>conversations.readonly</li>
+            <li>conversations.write</li>
+            <li>conversations/message.write</li>
+            <li>conversations/message.readonly</li>
+            <li>calendars.readonly</li>
+            <li>calendars.write</li>
+            <li>calendars/events.write</li>
+            <li>calendars/events.readonly</li>
+            <li>calendars/groups.readonly</li>
+            <li>calendars/groups.write</li>
+            <li>calendars/resources.readonly</li>
+            <li>calendars/resources.write</li>
+            <li>contacts.readonly</li>
+            <li>contacts.write</li>
+            <li>locations.readonly</li>
+            <li>locations/customFields.readonly</li>
+            <li>locations/customFields.write</li>
+            <li>locations/customValues.readonly</li>
+            <li>locations/customValues.write</li>
+            <li>socialplanner/oauth.readonly</li>
+            <li>socialplanner/oauth.write</li>
+          </ul>
+        )}
       </div>
 
       <div className={styles.formGroupLast}>
@@ -183,7 +212,7 @@ export default function ClinicIntegrationsPage({
       {toast && (
         <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
           <span className={styles.toastIcon}>{toast.type === 'success' ? '✓' : '!'}</span>
-          <span>{toast.message}</span>
+          <span style={{ whiteSpace: 'pre-wrap' }}>{toast.message}</span>
         </div>
       )}
 
