@@ -1,6 +1,8 @@
 /* Staff overview dashboard layout */
 .container {
-  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .header {
@@ -8,7 +10,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .titleGroup {

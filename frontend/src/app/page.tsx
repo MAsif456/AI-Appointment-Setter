@@ -80,7 +80,11 @@ export default function DashboardPage() {
   }, [authLoading, user]);
 
   if (authLoading) {
-    return <div className={styles.loading}>Loading...</div>;
+    return (
+      <div className={styles.container}>
+        <p className={styles.loading}>Loading...</p>
+      </div>
+    );
   }
 
   return (
