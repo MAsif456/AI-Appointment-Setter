@@ -6,8 +6,10 @@ import { Types } from 'mongoose';
 import { FollowUpService } from './follow-up.service';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Lead } from '../database/schemas/lead.schema';
+import { Clinic } from '../database/schemas/clinic.schema';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
 
 const MON_10AM = new Date('2026-04-06T10:00:00.000Z');
 const MON_11PM = new Date('2026-04-06T23:00:00.000Z');
@@ -41,8 +43,10 @@ describe('FollowUpService — close conversation (followUpCount >= 2)', () => {
         FollowUpService,
         { provide: getModelToken(Conversation.name), useValue: mockConversationModel },
         { provide: getModelToken(Lead.name), useValue: mockLeadModel },
+        { provide: getModelToken(Clinic.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();
 
@@ -80,7 +84,7 @@ describe('FollowUpService — close conversation (followUpCount >= 2)', () => {
 
   it('adds the unresponsive tag to the GHL contact', async () => {
     await service.checkAndSendFollowUps(MON_10AM);
-    expect(mockGhlApiService.addContactTag).toHaveBeenCalledWith('contact_001', 'unresponsive');
+    expect(mockGhlApiService.addContactTag).toHaveBeenCalledWith(expect.any(String), 'contact_001', 'unresponsive');
   });
 
   it('does NOT send a message when closing', async () => {

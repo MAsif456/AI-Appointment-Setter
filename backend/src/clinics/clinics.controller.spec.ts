@@ -8,6 +8,7 @@ import { ClinicsController } from "./clinics.controller";
 import { ClinicsService } from "./clinics.service";
 import { CreateClinicDto } from "./dto/create-clinic.dto";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
+import { UpdateIntegrationDto } from "./dto/update-integration.dto";
 
 /** Reusable mock clinic object for assertions. */
 const mockClinic = {
@@ -41,12 +42,20 @@ describe("ClinicsController", () => {
     service = {
       create: jest.fn().mockResolvedValue({ ...validDto, _id: "abc123" }),
       findAll: jest.fn().mockResolvedValue([]),
-      findById: jest.fn().mockResolvedValue({ ...validDto, _id: "abc123" }),
+      findById: jest.fn().mockResolvedValue({
+        ...validDto,
+        _id: "abc123",
+        toObject: jest.fn().mockReturnValue({ ...validDto, _id: "abc123" }),
+      }),
+      maskApiKey: jest.fn().mockReturnValue(""),
       deactivate: jest.fn(),
       activate: jest.fn(),
       updateBasicSettings: jest
         .fn()
         .mockResolvedValue({ ...validDto, _id: "abc123" }),
+      updateIntegrations: jest.fn().mockResolvedValue(undefined),
+      testClinicConnection: jest.fn().mockResolvedValue({ connected: true }),
+      disconnectIntegration: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -146,12 +155,15 @@ describe("ClinicsController", () => {
 
   describe("findById", () => {
     it("should return a single clinic", async () => {
-      service.findById.mockResolvedValue(mockClinic);
+      service.findById.mockResolvedValue({
+        ...mockClinic,
+        toObject: jest.fn().mockReturnValue({ ...mockClinic }),
+      });
 
       const result = await controller.findById("507f1f77bcf86cd799439011");
 
       expect(service.findById).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
-      expect(result).toEqual(mockClinic);
+      expect(result).toMatchObject(mockClinic);
     });
 
     it("should propagate BadRequestException for invalid ID", async () => {
@@ -245,6 +257,74 @@ describe("ClinicsController", () => {
       await controller.updateSettings("abc123", body);
 
       expect(service.updateBasicSettings).toHaveBeenCalledWith("abc123", body);
+    });
+  });
+
+  describe("updateIntegrations", () => {
+    const CLINIC_ID = "507f1f77bcf86cd799439011";
+    const dto: UpdateIntegrationDto = { ghlApiKey: "valid-api-key" };
+
+    it("should call updateIntegrations and return a success message", async () => {
+      const result = await controller.updateIntegrations(CLINIC_ID, dto);
+
+      expect(service.updateIntegrations).toHaveBeenCalledWith(CLINIC_ID, dto.ghlApiKey, dto.webhookUrl);
+      expect(result).toEqual({ message: "Integration settings updated successfully" });
+    });
+
+    it("should propagate BadRequestException when GHL rejects the key", async () => {
+      service.updateIntegrations.mockRejectedValue(
+        new BadRequestException("Could not connect to GoHighLevel"),
+      );
+
+      await expect(controller.updateIntegrations(CLINIC_ID, dto)).rejects.toThrow(BadRequestException);
+    });
+
+    it("should propagate NotFoundException when the clinic does not exist", async () => {
+      service.updateIntegrations.mockRejectedValue(
+        new NotFoundException("Clinic not found"),
+      );
+
+      await expect(controller.updateIntegrations(CLINIC_ID, dto)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("testIntegration", () => {
+    const CLINIC_ID = "507f1f77bcf86cd799439011";
+
+    it("should return { connected: true } when the stored key is valid", async () => {
+      service.testClinicConnection.mockResolvedValue({ connected: true });
+
+      const result = await controller.testIntegration(CLINIC_ID);
+
+      expect(service.testClinicConnection).toHaveBeenCalledWith(CLINIC_ID);
+      expect(result).toEqual({ connected: true });
+    });
+
+    it("should return { connected: false } when no key is stored", async () => {
+      service.testClinicConnection.mockResolvedValue({ connected: false });
+
+      const result = await controller.testIntegration(CLINIC_ID);
+
+      expect(result).toEqual({ connected: false });
+    });
+  });
+
+  describe("disconnectIntegration", () => {
+    const CLINIC_ID = "507f1f77bcf86cd799439011";
+
+    it("should call disconnectIntegration and return a success message", async () => {
+      const result = await controller.disconnectIntegration(CLINIC_ID);
+
+      expect(service.disconnectIntegration).toHaveBeenCalledWith(CLINIC_ID);
+      expect(result).toEqual({ message: "Integration disconnected successfully" });
+    });
+
+    it("should propagate BadRequestException for an invalid clinic ID", async () => {
+      service.disconnectIntegration.mockRejectedValue(
+        new BadRequestException("Invalid clinic ID"),
+      );
+
+      await expect(controller.disconnectIntegration("bad-id")).rejects.toThrow(BadRequestException);
     });
   });
 });

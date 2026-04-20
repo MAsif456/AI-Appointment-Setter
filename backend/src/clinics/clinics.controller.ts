@@ -5,15 +5,24 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
+  Put,
   Query,
-} from "@nestjs/common";
-import { ClinicsService } from "./clinics.service";
-import { CreateClinicDto } from "./dto/create-clinic.dto";
-import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ClinicsService } from './clinics.service';
+import { CreateClinicDto } from './dto/create-clinic.dto';
+import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
+import { UpdateIntegrationDto } from './dto/update-integration.dto';
 
 /**
  * REST controller exposing clinic endpoints.
@@ -47,11 +56,16 @@ export class ClinicsController {
   /**
    * GET /clinics/:id
    * Returns a single clinic by its MongoDB ObjectId.
+   * The ghlApiKey is masked (e.g. "••••••••••••abc123") before returning —
+   * the plaintext key is never exposed over the API.
    * Throws 400 if the ID format is invalid, 404 if no clinic is found.
    */
   @Get(":id")
-  findById(@Param("id") id: string) {
-    return this.clinicsService.findById(id);
+  async findById(@Param("id") id: string) {
+    const clinic = await this.clinicsService.findById(id);
+    const doc = clinic.toObject();
+    doc.ghlApiKey = this.clinicsService.maskApiKey(doc.ghlApiKey ?? '');
+    return doc;
   }
 
   /**
@@ -84,5 +98,53 @@ export class ClinicsController {
     @Body() body: UpdateClinicSettingsDto,
   ) {
     return this.clinicsService.updateBasicSettings(id, body);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Integration endpoints (all require a valid JWT)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * PUT /clinics/:id/integrations
+   * Validates the supplied GHL API key against the live GHL API,
+   * then encrypts and stores it. Returns 400 if the key is rejected by GHL.
+   */
+  @Put(':id/integrations')
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  async updateIntegrations(
+    @Param('id') id: string,
+    @Body() dto: UpdateIntegrationDto,
+  ): Promise<{ message: string }> {
+    await this.clinicsService.updateIntegrations(id, dto.ghlApiKey, dto.webhookUrl);
+    return { message: 'Integration settings updated successfully' };
+  }
+
+  /**
+   * POST /clinics/:id/integrations/test
+   * Tests the stored encrypted API key against the GHL API.
+   * Returns { connected: boolean } — does not throw on GHL failure.
+   */
+  @Post(':id/integrations/test')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async testIntegration(
+    @Param('id') id: string,
+  ): Promise<{ connected: boolean }> {
+    return this.clinicsService.testClinicConnection(id);
+  }
+
+  /**
+   * DELETE /clinics/:id/integrations
+   * Removes the stored GHL API key and webhook URL and marks the clinic inactive.
+   */
+  @Delete(':id/integrations')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async disconnectIntegration(
+    @Param('id') id: string,
+  ): Promise<{ message: string }> {
+    await this.clinicsService.disconnectIntegration(id);
+    return { message: 'Integration disconnected successfully' };
   }
 }

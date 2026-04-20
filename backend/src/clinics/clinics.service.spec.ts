@@ -1,7 +1,8 @@
 /**
  * Unit tests for ClinicsService.
  * Covers listing clinics, finding by ID, clinic creation,
- * duplicate GHL Location ID detection, and database error propagation.
+ * duplicate GHL Location ID detection, database error propagation,
+ * and per-clinic integration management.
  */
 import { Test, TestingModule } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
@@ -14,6 +15,8 @@ import { ClinicsService } from "./clinics.service";
 import { Clinic } from "../database/schemas/clinic.schema";
 import { CreateClinicDto } from "./dto/create-clinic.dto";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
+import { EncryptionService } from '../common/encryption/encryption.service';
+import { GhlApiService } from '../ghl/ghl-api.service';
 
 /** Helper to build a mock clinic document with a save() method. */
 const mockClinic = (overrides = {}) => ({
@@ -28,9 +31,13 @@ const mockClinic = (overrides = {}) => ({
   ...overrides,
 });
 
+const CLINIC_ID = '507f1f77bcf86cd799439011';
+
 describe("ClinicsService", () => {
   let service: ClinicsService;
   let model: Record<string, jest.Mock>;
+  let mockEncryption: jest.Mocked<Pick<EncryptionService, 'encrypt' | 'decrypt'>>;
+  let mockGhl: jest.Mocked<Pick<GhlApiService, 'testConnectionWithKey'>>;
 
   const validDto: CreateClinicDto = {
     name: "Test Clinic",
@@ -49,7 +56,10 @@ describe("ClinicsService", () => {
   beforeEach(async () => {
     model = {
       find: jest.fn(),
-      findById: jest.fn(),
+      findById: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID, ghlLocationId: 'loc_test_001' }) }),
+        exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID }),
+      }),
       findByIdAndUpdate: jest.fn(),
       findOne: jest
         .fn()
@@ -61,11 +71,22 @@ describe("ClinicsService", () => {
       aggregate: jest.fn().mockResolvedValue([]),
     };
 
+    mockEncryption = {
+      encrypt: jest.fn().mockReturnValue('encrypted:auth:cipher'),
+      decrypt: jest.fn().mockReturnValue('plaintext-api-key'),
+    };
+
+    mockGhl = {
+      testConnectionWithKey: jest.fn().mockResolvedValue({ valid: true }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClinicsService,
         { provide: getModelToken(Clinic.name), useValue: model },
         { provide: getModelToken("Conversation"), useValue: conversationModel },
+        { provide: EncryptionService, useValue: mockEncryption },
+        { provide: GhlApiService, useValue: mockGhl },
       ],
     }).compile();
 
@@ -374,6 +395,196 @@ describe("ClinicsService", () => {
 
       const payload = model.findByIdAndUpdate.mock.calls[0][1];
       expect(payload.businessHours[0].openTime).toBe("08:00");
+    });
+  });
+
+  // ─── updateIntegrations ───────────────────────────────────────────────────
+
+  describe('updateIntegrations', () => {
+    it('throws BadRequestException when GHL rejects the API key', async () => {
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: false });
+
+      await expect(
+        service.updateIntegrations(CLINIC_ID, 'bad-key'),
+      ).rejects.toThrow(BadRequestException);
+      expect(model.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException with descriptive message on invalid key', async () => {
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: false });
+
+      await expect(
+        service.updateIntegrations(CLINIC_ID, 'bad-key'),
+      ).rejects.toThrow('Could not connect to GoHighLevel');
+    });
+
+    it('encrypts the API key before storing', async () => {
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: true });
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID }),
+      });
+
+      await service.updateIntegrations(CLINIC_ID, 'valid-api-key');
+
+      expect(mockEncryption.encrypt).toHaveBeenCalledWith('valid-api-key');
+      const payload = model.findByIdAndUpdate.mock.calls[0][1];
+      expect(payload.ghlApiKey).toBe('encrypted:auth:cipher');
+      expect(payload.ghlApiKey).not.toBe('valid-api-key');
+    });
+
+    it('sets isActive to true on success', async () => {
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: true });
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID }),
+      });
+
+      await service.updateIntegrations(CLINIC_ID, 'valid-api-key');
+
+      const payload = model.findByIdAndUpdate.mock.calls[0][1];
+      expect(payload.isActive).toBe(true);
+    });
+
+    it('persists webhookUrl when provided', async () => {
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: true });
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID }),
+      });
+
+      await service.updateIntegrations(CLINIC_ID, 'valid-api-key', 'https://example.com/wh');
+
+      const payload = model.findByIdAndUpdate.mock.calls[0][1];
+      expect(payload.webhookUrl).toBe('https://example.com/wh');
+    });
+
+    it('throws NotFoundException when the clinic does not exist', async () => {
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: true });
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.updateIntegrations(CLINIC_ID, 'valid-api-key'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException for an invalid clinic ID format', async () => {
+      await expect(
+        service.updateIntegrations('bad-id', 'valid-api-key'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── testClinicConnection ─────────────────────────────────────────────────
+
+  describe('testClinicConnection', () => {
+    it('returns { connected: false } when no API key is stored', async () => {
+      model.findById = jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID }) }),
+      });
+
+      const result = await service.testClinicConnection(CLINIC_ID);
+      expect(result).toEqual({ connected: false });
+    });
+
+    it('returns { connected: true } when the stored key is accepted', async () => {
+      model.findById = jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID, ghlApiKey: 'encrypted:auth:cipher' }),
+        }),
+      });
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: true });
+
+      const result = await service.testClinicConnection(CLINIC_ID);
+      expect(result).toEqual({ connected: true });
+      expect(mockEncryption.decrypt).toHaveBeenCalledWith('encrypted:auth:cipher');
+    });
+
+    it('returns { connected: false } when the stored key is rejected', async () => {
+      model.findById = jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID, ghlApiKey: 'encrypted:auth:cipher' }),
+        }),
+      });
+      mockGhl.testConnectionWithKey.mockResolvedValue({ valid: false });
+
+      const result = await service.testClinicConnection(CLINIC_ID);
+      expect(result).toEqual({ connected: false });
+    });
+
+    it('returns { connected: false } when decryption throws', async () => {
+      model.findById = jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID, ghlApiKey: 'bad' }),
+        }),
+      });
+      mockEncryption.decrypt.mockImplementation(() => { throw new Error('bad data'); });
+
+      const result = await service.testClinicConnection(CLINIC_ID);
+      expect(result).toEqual({ connected: false });
+    });
+  });
+
+  // ─── disconnectIntegration ────────────────────────────────────────────────
+
+  describe('disconnectIntegration', () => {
+    it('unsets ghlApiKey and webhookUrl and sets isActive to false', async () => {
+      model.findByIdAndUpdate = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+
+      await service.disconnectIntegration(CLINIC_ID);
+
+      const [, updateArg] = model.findByIdAndUpdate.mock.calls[0];
+      expect(updateArg.$unset).toMatchObject({ ghlApiKey: '', webhookUrl: '' });
+      expect(updateArg.isActive).toBe(false);
+    });
+
+    it('throws BadRequestException for an invalid ID format', async () => {
+      await expect(service.disconnectIntegration('not-an-id')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── getDecryptedApiKey ───────────────────────────────────────────────────
+
+  describe('getDecryptedApiKey', () => {
+    it('returns the decrypted plaintext key', async () => {
+      model.findById = jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID, ghlApiKey: 'encrypted:auth:cipher' }),
+        }),
+      });
+
+      const result = await service.getDecryptedApiKey(CLINIC_ID);
+      expect(result).toBe('plaintext-api-key');
+      expect(mockEncryption.decrypt).toHaveBeenCalledWith('encrypted:auth:cipher');
+    });
+
+    it('throws NotFoundException when no API key is configured', async () => {
+      model.findById = jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: CLINIC_ID }),
+        }),
+      });
+
+      await expect(service.getDecryptedApiKey(CLINIC_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── maskApiKey ───────────────────────────────────────────────────────────
+
+  describe('maskApiKey', () => {
+    it('returns empty string when no key is provided', () => {
+      expect(service.maskApiKey('')).toBe('');
+    });
+
+    it('returns masked key with last 6 chars of the decrypted value', () => {
+      mockEncryption.decrypt.mockReturnValue('super-secret-abc123');
+      const result = service.maskApiKey('encrypted:auth:cipher');
+      expect(result).toBe('••••••••••••abc123');
+    });
+
+    it('returns fallback mask if decryption fails', () => {
+      mockEncryption.decrypt.mockImplementation(() => { throw new Error('bad'); });
+      const result = service.maskApiKey('bad-data');
+      expect(result).toBe('••••••••••••');
     });
   });
 });

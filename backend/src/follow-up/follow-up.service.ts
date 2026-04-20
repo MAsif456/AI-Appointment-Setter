@@ -18,8 +18,10 @@ import {
   ConversationDocument,
 } from '../database/schemas/conversation.schema';
 import { Lead, LeadDocument } from '../database/schemas/lead.schema';
+import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
 
 const FIRST_FOLLOW_UP_DELAY_MS = 24 * 60 * 60 * 1000;
 const SECOND_FOLLOW_UP_DELAY_MS = 48 * 60 * 60 * 1000;
@@ -56,8 +58,11 @@ export class FollowUpService {
     private readonly conversationModel: Model<ConversationDocument>,
     @InjectModel(Lead.name)
     private readonly leadModel: Model<LeadDocument>,
+    @InjectModel(Clinic.name)
+    private readonly clinicModel: Model<ClinicDocument>,
     private readonly messagesService: MessagesService,
     private readonly ghlApiService: GhlApiService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   /**
@@ -139,9 +144,11 @@ export class FollowUpService {
         ? `Hi ${firstName}, just checking in! Still interested in booking?`
         : `Hey ${firstName}, I don't want to keep bothering you! Let me know if I can help.`;
 
-    const sendResult = await this.ghlApiService.sendMessageWithRetry({
+    const { apiKey, locationId } = await this.getClinicCredentials(conversation.clinicId?.toString());
+    const sendResult = await this.ghlApiService.sendMessageWithRetry(apiKey, {
       type: messageType,
       contactId,
+      locationId,
       message,
     });
 
@@ -163,6 +170,23 @@ export class FollowUpService {
     return 'sent';
   }
 
+  private async getClinicCredentials(clinicId?: string): Promise<{ apiKey: string; locationId: string }> {
+    if (!clinicId) return { apiKey: '', locationId: '' };
+    try {
+      const clinic = await this.clinicModel.findById(clinicId).lean().exec();
+      return {
+        apiKey: clinic?.ghlApiKey ? this.encryptionService.decrypt(clinic.ghlApiKey) : '',
+        locationId: clinic?.ghlLocationId ?? '',
+      };
+    } catch {
+      return { apiKey: '', locationId: '' };
+    }
+  }
+
+  private async getApiKey(clinicId?: string): Promise<string> {
+    return (await this.getClinicCredentials(clinicId)).apiKey;
+  }
+
   private async closeConversation(
     conversation: ConversationDocument,
     now: Date,
@@ -174,7 +198,8 @@ export class FollowUpService {
     });
 
     const contactId = conversation.ghlContactId ?? '';
-    const tagResult = await this.ghlApiService.addContactTag(contactId, 'unresponsive');
+    const apiKey = await this.getApiKey(conversation.clinicId?.toString());
+    const tagResult = await this.ghlApiService.addContactTag(apiKey, contactId, 'unresponsive');
     if (tagResult === null) {
       this.logger.warn(
         `Could not add "unresponsive" tag for contact ${contactId}`,

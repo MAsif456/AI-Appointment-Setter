@@ -5,8 +5,10 @@ import { Lead, LeadDocument } from "../database/schemas/lead.schema";
 import { ClinicDocument } from "../database/schemas/clinic.schema";
 import { ConversationDocument } from "../database/schemas/conversation.schema";
 import { GhlApiService } from "../ghl/ghl-api.service";
+import { EncryptionService } from "../common/encryption/encryption.service";
 import { retryWithBackoff } from "../common/retry-utils";
 import { buildStaffAlert } from "./urgency-messages";
+import { channelToMessageType } from "../orchestrator/orchestrator.prompts";
 
 /** GHL tag used for every escalation, regardless of trigger type. */
 const ESCALATED_TAG = "escalated";
@@ -31,8 +33,20 @@ export class EscalationGhlService {
 
   constructor(
     private readonly ghlApiService: GhlApiService,
+    private readonly encryptionService: EncryptionService,
     @InjectModel(Lead.name) private leadModel: Model<LeadDocument>,
   ) {}
+
+  /** Decrypts the per-clinic GHL API key, returning '' on failure. */
+  private resolveApiKey(clinic: ClinicDocument): string {
+    if (!clinic.ghlApiKey) return '';
+    try {
+      return this.encryptionService.decrypt(clinic.ghlApiKey);
+    } catch {
+      this.logger.warn(`Failed to decrypt GHL API key for clinic ${(clinic._id as any).toString()}`);
+      return '';
+    }
+  }
 
   /**
    * Runs the full GHL side of an escalation.
@@ -47,11 +61,15 @@ export class EscalationGhlService {
   ): Promise<void> {
     const contactId =
       lead.ghlContactId ?? conversation.ghlContactId ?? lead._id.toString();
+    const apiKey = this.resolveApiKey(clinic);
+
+    const locationId = (clinic as any).ghlLocationId ?? '';
+    const channel = conversation.channel ?? 'sms';
 
     await Promise.allSettled([
-      this.addEscalatedTag(lead, contactId),
-      this.setReasonCustomField(contactId, reason),
-      this.notifyStaff(clinic, lead, reason, contactId),
+      this.addEscalatedTag(lead, contactId, apiKey),
+      this.setReasonCustomField(contactId, reason, apiKey, locationId),
+      this.notifyStaff(lead, reason, contactId, apiKey, locationId, channel),
     ]);
   }
 
@@ -59,6 +77,7 @@ export class EscalationGhlService {
   private async addEscalatedTag(
     lead: LeadDocument,
     contactId: string,
+    apiKey: string,
   ): Promise<void> {
     // Update local lead record first — it's the source of truth for
     // in-app views even if GHL is down.
@@ -70,7 +89,7 @@ export class EscalationGhlService {
 
     try {
       await retryWithBackoff(
-        () => this.ghlApiService.addContactTag(contactId, ESCALATED_TAG),
+        () => this.ghlApiService.addContactTag(apiKey, contactId, ESCALATED_TAG),
         { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 4000 },
       );
     } catch (error) {
@@ -84,14 +103,18 @@ export class EscalationGhlService {
   private async setReasonCustomField(
     contactId: string,
     reason: string,
+    apiKey: string,
+    locationId: string,
   ): Promise<void> {
     try {
       await retryWithBackoff(
         () =>
           this.ghlApiService.updateContactCustomField(
+            apiKey,
             contactId,
             ESCALATION_REASON_FIELD,
             reason,
+            locationId,
           ),
         { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 4000 },
       );
@@ -102,18 +125,21 @@ export class EscalationGhlService {
     }
   }
 
-  /** Sends the SMS alert to the clinic's GHL-linked staff number. */
+  /** Sends a staff alert via the lead's own conversation channel. */
   private async notifyStaff(
-    _clinic: ClinicDocument,
     lead: LeadDocument,
     reason: string,
     contactId: string,
+    apiKey: string,
+    locationId: string,
+    channel: string,
   ): Promise<void> {
     try {
-      await this.ghlApiService.sendMessageWithRetry({
-        type: "SMS",
+      await this.ghlApiService.sendMessageWithRetry(apiKey, {
+        type: channelToMessageType(channel),
         contactId,
         message: buildStaffAlert(lead, reason),
+        locationId,
       });
     } catch (error) {
       this.logger.warn(

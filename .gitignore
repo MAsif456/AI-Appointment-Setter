@@ -29,3 +29,7 @@ yarn-error.log*
 docs/
 
 backend/test-webhooks.sh
+
+# curl cookie jars — contain live auth tokens, never commit
+cookies.txt
+**/cookies.txt

@@ -1,24 +1,17 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { HttpService } from "@nestjs/axios";
-import { ConfigService } from "@nestjs/config";
 import { of, throwError } from "rxjs";
 import { GHLCalendarService } from "./ghl-calendar.service";
 import { AxiosResponse } from "axios";
 
+const TEST_API_KEY = "test-clinic-api-key";
+
 describe("GHLCalendarService", () => {
   let service: GHLCalendarService;
-  let httpService: HttpService;
 
   const mockHttpService = {
     get: jest.fn(),
     post: jest.fn(),
-  };
-
-  const mockConfigService = {
-    get: jest.fn((key: string) => {
-      if (key === "GHL_PRIVATE_TOKEN") return "mock_ghl_token";
-      return null;
-    }),
   };
 
   beforeEach(async () => {
@@ -26,87 +19,50 @@ describe("GHLCalendarService", () => {
       providers: [
         GHLCalendarService,
         { provide: HttpService, useValue: mockHttpService },
-        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     service = module.get<GHLCalendarService>(GHLCalendarService);
-    httpService = module.get<HttpService>(HttpService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("Constructor", () => {
-    it("should throw error when GHL_PRIVATE_TOKEN is missing", () => {
-      const mockConfigServiceMissingToken = {
-        get: jest.fn(() => null),
-      };
-
-      expect(() => {
-        new GHLCalendarService(
-          mockHttpService as any,
-          mockConfigServiceMissingToken as any,
-        );
-      }).toThrow("GHL_PRIVATE_TOKEN is required");
-    });
-
-    it("should initialize successfully with valid token", () => {
-      const mockConfigServiceWithToken = {
-        get: jest.fn((key: string) => {
-          if (key === "GHL_PRIVATE_TOKEN") return "valid_token";
-          return null;
-        }),
-      };
-
-      const serviceInstance = new GHLCalendarService(
-        mockHttpService as any,
-        mockConfigServiceWithToken as any,
-      );
-
-      expect(serviceInstance).toBeDefined();
-    });
-  });
-
   describe("fetchAvailableSlots - Real GHL API", () => {
     it("should parse GHL response correctly with 30-minute appointment duration", async () => {
       const mockGHLResponse = {
-        "2026-03-25": {
+        '2026-03-25': {
           slots: [
-            "2026-03-25T08:00:00Z",
-            "2026-03-25T08:10:00Z",
-            "2026-03-25T08:20:00Z",
+            '2026-03-25T08:00:00Z',
+            '2026-03-25T08:10:00Z',
+            '2026-03-25T08:20:00Z',
           ],
         },
-        "2026-03-26": {
-          slots: ["2026-03-26T09:00:00Z"],
+        '2026-03-26': {
+          slots: ['2026-03-26T09:00:00Z'],
         },
-        traceId: "test-trace-id",
+        traceId: 'test-trace-id',
       };
 
       const axiosResponse: AxiosResponse = {
         data: mockGHLResponse,
         status: 200,
-        statusText: "OK",
+        statusText: 'OK',
         headers: {},
         config: {} as any,
       };
 
       mockHttpService.get.mockReturnValue(of(axiosResponse));
 
-      const startDate = new Date("2026-03-25");
-      const endDate = new Date("2026-03-27");
-      const appointmentDuration = 30; // 30 minutes
-
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
-        startDate,
-        endDate,
-        appointmentDuration,
+        new Date("2026-03-25"),
+        new Date("2026-03-27"),
+        30,
       );
 
-      // Should have 4 slots total (3 from 03-25, 1 from 03-26)
       expect(result.length).toBe(4);
 
       // Check first slot
@@ -114,7 +70,6 @@ describe("GHLCalendarService", () => {
       expect(result[0].startTime).toBe("2026-03-25T08:00:00.000Z");
       expect(result[0].available).toBe(true);
 
-      // Check slot duration (30 minutes from appointmentDuration parameter)
       const start = new Date(result[0].startTime);
       const end = new Date(result[0].endTime);
       const duration = (end.getTime() - start.getTime()) / (1000 * 60);
@@ -140,12 +95,12 @@ describe("GHLCalendarService", () => {
       mockHttpService.get.mockReturnValue(of(axiosResponse));
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2026-03-25"),
         new Date("2026-03-26"),
         30,
       );
-
       expect(result.length).toBe(1);
     });
 
@@ -168,12 +123,12 @@ describe("GHLCalendarService", () => {
       mockHttpService.get.mockReturnValue(of(axiosResponse));
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2026-03-25"),
         new Date("2026-03-26"),
         30,
       );
-
       expect(result).toEqual([]);
     });
 
@@ -197,6 +152,7 @@ describe("GHLCalendarService", () => {
       mockHttpService.get.mockReturnValue(of(axiosResponse));
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2026-03-25"),
         new Date("2026-03-27"),
@@ -207,6 +163,7 @@ describe("GHLCalendarService", () => {
       expect(result.length).toBe(1);
       expect(result[0].startTime).toBe("2026-03-26T09:00:00.000Z");
     });
+
     it("should handle response with missing slots property", async () => {
       const mockGHLResponse = {
         "2026-03-25": {
@@ -230,6 +187,7 @@ describe("GHLCalendarService", () => {
       mockHttpService.get.mockReturnValue(of(axiosResponse));
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2026-03-25"),
         new Date("2026-03-27"),
@@ -263,6 +221,7 @@ describe("GHLCalendarService", () => {
       mockHttpService.get.mockReturnValue(of(axiosResponse));
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2026-03-25"),
         new Date("2026-03-27"),
@@ -282,6 +241,7 @@ describe("GHLCalendarService", () => {
       );
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2024-03-25"),
         new Date("2024-03-26"),
@@ -297,6 +257,7 @@ describe("GHLCalendarService", () => {
       );
 
       const result = await service.fetchAvailableSlots(
+        TEST_API_KEY,
         "cal_123",
         new Date("2024-03-25"),
         new Date("2024-03-26"),
@@ -306,6 +267,7 @@ describe("GHLCalendarService", () => {
       expect(result).toEqual([]);
     });
   });
+
   describe("createAppointment", () => {
     it("should create appointment successfully", async () => {
       const mockResponse = {
@@ -324,6 +286,7 @@ describe("GHLCalendarService", () => {
       mockHttpService.post.mockReturnValue(of(axiosResponse));
 
       const result = await service.createAppointment(
+        TEST_API_KEY,
         "cal_123",
         "contact_123",
         "slot_123",
@@ -338,7 +301,7 @@ describe("GHLCalendarService", () => {
       );
 
       await expect(
-        service.createAppointment("cal_123", "contact_123", "slot_123"),
+        service.createAppointment(TEST_API_KEY, "cal_123", "contact_123", "slot_123"),
       ).rejects.toThrow("API error");
     });
   });

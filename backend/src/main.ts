@@ -9,6 +9,7 @@ import 'dotenv/config';
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
+import cookieParser from 'cookie-parser';
 import { AppModule } from "./app.module";
 import { buildHelmetOptions } from "./security-headers/security-headers.config";
 
@@ -34,6 +35,13 @@ async function bootstrap() {
    */
   app.use(helmet(buildHelmetOptions(process.env.NODE_ENV)));
 
+  /**
+   * Parse cookies from incoming requests so req.cookies is populated.
+   * Required for reading the HttpOnly refresh_token cookie in /auth/refresh.
+   * Must be registered BEFORE any route handlers that read cookies.
+   */
+  app.use(cookieParser());
+  
   // Enable global validation so DTOs are automatically validated
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? "http://localhost:3000",

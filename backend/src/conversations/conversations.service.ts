@@ -55,6 +55,7 @@ import {
 import { PatientHistoryService } from "../patient-history/patient-history.service";
 import { handleDetailsChanged } from "../orchestrator/orchestrator.returning-patient-handlers";
 import { PostcodeValidationService } from "../orchestrator/postcode-validation.service";
+import { EncryptionService } from "../common/encryption/encryption.service";
 
 @Injectable()
 export class ConversationsService {
@@ -79,6 +80,7 @@ export class ConversationsService {
     private readonly persistence: ConversationsPersistenceService,
     private readonly patientHistoryService: PatientHistoryService,
     private readonly postcodeValidationService: PostcodeValidationService,
+    private readonly encryptionService: EncryptionService,
     private readonly consentService: ConsentService,
   ) {}
 
@@ -172,6 +174,20 @@ export class ConversationsService {
     const finalGreeting = greeting ?? FALLBACK_AI_UNAVAILABLE;
     if (!greeting)
       this.logger.warn("Greeting generation failed — using fallback");
+
+    // A new greeting signals a fresh chat session — clear any stale escalation
+    // state so the AI can respond normally. (In production the previous
+    // escalation will still be visible in the staff dashboard via notifications.)
+    if (conversation.requiresHumanIntervention) {
+      await this.conversationModel.findByIdAndUpdate(conversation._id, {
+        $set: {
+          requiresHumanIntervention: false,
+          failedUnderstandingCount: 0,
+        },
+        $unset: { escalatedAt: '', escalationReason: '', humanInterventionReason: '' },
+      });
+    }
+
     await this.persistence.saveMessage(
       conversation,
       clinic,
@@ -217,6 +233,16 @@ export class ConversationsService {
         score: urgencyAssessment.score,
       },
     );
+
+    // When the conversation is already escalated (phase OR requiresHumanIntervention —
+    // the latter is set by handleNoSlotsForUrgent without changing phase),
+    // do not run the AI pipeline. A human is handling it.
+    if (conversation.phase === 'escalated' || conversation.requiresHumanIntervention) {
+      const reply = "A team member has been notified and will be in touch shortly. Please hold on.";
+      await this.persistence.saveMessage(conversation, clinic, lead, 'ai', reply);
+      await this.persistence.updateConversationMeta(conversation, 'ai', undefined);
+      return { reply, offeredSlots: [], slotSelection: null, bookingResult: null };
+    }
 
     const abuseHandled = await this.abuseHandler.handle(
       conversation,
@@ -277,6 +303,10 @@ export class ConversationsService {
       };
     }
 
+    let clinicApiKey = '';
+    if (clinic.ghlApiKey) {
+      try { clinicApiKey = this.encryptionService.decrypt(clinic.ghlApiKey); } catch { /* no key */ }
+    }
     const cancelResult = await handleCancellationIntercept(
       conversation,
       clinic,
@@ -294,6 +324,8 @@ export class ConversationsService {
         ),
       (lastFrom, phase) =>
         this.persistence.updateConversationMeta(conversation, lastFrom, phase),
+      clinicApiKey,
+      clinic.ghlLocationId ?? '',
     );
     if (cancelResult) return cancelResult;
 
@@ -504,7 +536,7 @@ export class ConversationsService {
       if (conversation.phase === 'rescheduling') {
         const oldGhlApptId = conversation.context?.get('ghlAppointmentId');
         if (oldGhlApptId) {
-          const cancelled = await this.ghlApiService.cancelAppointment(oldGhlApptId);
+          const cancelled = await this.ghlApiService.cancelAppointment(clinicApiKey, oldGhlApptId);
           if (cancelled === null) {
             this.logger.error(`Failed to cancel old appointment ${oldGhlApptId} during reschedule`);
           }
@@ -610,7 +642,7 @@ export class ConversationsService {
     const updated = await this.conversationModel.findByIdAndUpdate(
       conversation._id,
       { $inc: { failedUnderstandingCount: 1 } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     const count = updated?.failedUnderstandingCount ?? 0;
     this.logger.log(

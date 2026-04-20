@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AccountSettings from './components/AccountSettings';
 import UserManagement from './components/UserManagement';
+import IntegrationsSettings from './components/IntegrationsSettings';
 import NotificationPreferences from './components/NotificationPreferences';
 import AppearanceSettings from './components/AppearanceSettings';
 import styles from './settings.module.css';
@@ -27,7 +28,9 @@ export default function SettingsPage() {
     ] : []),
     { key: 'notifications' as Tab, label: 'Notifications', icon: Bell },
     { key: 'appearance' as Tab, label: 'Appearance', icon: Palette },
-    { key: 'integrations' as Tab, label: 'Integrations', icon: Plug },
+    ...(isAdmin ? [
+      { key: 'integrations' as Tab, label: 'Integrations', icon: Plug },
+    ] : []),
   ];
 
   return (
@@ -55,7 +58,7 @@ export default function SettingsPage() {
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'notifications' && <NotificationPreferences />}
         {activeTab === 'appearance' && <AppearanceSettings />}
-        {activeTab === 'integrations' && <PlaceholderTab title="Integrations" />}
+        {activeTab === 'integrations' && isAdmin && <IntegrationsSettings />}
       </div>
       <br />
     </div>

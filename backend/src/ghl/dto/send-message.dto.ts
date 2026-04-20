@@ -12,6 +12,11 @@ export class SendMessageDto {
   @IsNotEmpty()
   message: string;
 
+  /** MongoDB clinic ID — used to look up the per-clinic GHL API key. */
+  @IsOptional()
+  @IsString()
+  clinicId?: string;
+
   @IsOptional()
   @IsString()
   subject?: string;
@@ -29,4 +34,9 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   emailMessageId?: string;
+
+  /** GHL Location ID — required by GHL API to identify the sub-account. */
+  @IsOptional()
+  @IsString()
+  locationId?: string;
 }
