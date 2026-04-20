@@ -79,8 +79,8 @@ build:frontend:
 deploy:vercel:
   stage: deploy
   retry: 2
-  only:
-    - development
+  rules:
+    - if: $CI_COMMIT_BRANCH == "development"
   script:
     - npm install --global vercel
     - export VERCEL_GIT_COMMIT_AUTHOR_LOGIN=$VERCEL_GIT_COMMIT_AUTHOR_LOGIN
@@ -92,8 +92,8 @@ deploy:vercel:
 # --- Deploy to Render (Backend) ---
 deploy:render:
   stage: deploy
-  only:
-    - development
+  rules:
+    - if: $CI_COMMIT_BRANCH == "development"
   script:
     - |
       if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
