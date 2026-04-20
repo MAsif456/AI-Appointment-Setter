@@ -56,7 +56,9 @@ export class SlotsService {
         try {
           apiKey = this.encryptionService.decrypt(clinic.ghlApiKey);
         } catch {
-          this.logger.error(`Failed to decrypt GHL API key for clinic ${clinicId}`);
+          // Key may be stored as plaintext (pre-encryption migration) — use as-is.
+          this.logger.warn(`GHL API key decrypt failed for clinic ${clinicId} — falling back to plaintext`);
+          apiKey = clinic.ghlApiKey;
         }
       }
 

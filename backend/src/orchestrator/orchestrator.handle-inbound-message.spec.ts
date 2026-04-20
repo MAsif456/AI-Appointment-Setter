@@ -537,5 +537,61 @@ describe("OrchestratorService — handleInboundMessage", () => {
         expect(mockChatConversationsService.sendMessage).not.toHaveBeenCalled();
       },
     );
+
+    it.each([
+      "I want to cancel",
+      "can I cancel my appointment",
+      "cancel",
+      "I need to cancel",
+    ])(
+      "should bypass re-entry and route to AI pipeline for cancel message in terminal phase: '%s'",
+      async (body) => {
+        mockGhlConversationsService.findByGhlContactId.mockResolvedValue({
+          ...terminalConversation,
+          phase: "booked",
+        });
+
+        await service.handleInboundMessage(
+          {
+            type: "InboundMessage",
+            location: { id: "loc_001" },
+            id: "contact_001",
+            message: { body, type: "Email" },
+          } as any,
+          clinicConfig,
+        );
+
+        expect(mockChatConversationsService.resetConversation).not.toHaveBeenCalled();
+        expect(mockChatConversationsService.sendMessage).toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      "can I reschedule",
+      "I need to reschedule my appointment",
+      "reschedule",
+      "can we rearrange",
+    ])(
+      "should bypass re-entry and route to AI pipeline for reschedule message in terminal phase: '%s'",
+      async (body) => {
+        mockGhlConversationsService.findByGhlContactId.mockResolvedValue({
+          ...terminalConversation,
+          phase: "booked",
+        });
+
+        await service.handleInboundMessage(
+          {
+            type: "InboundMessage",
+            location: { id: "loc_001" },
+            id: "contact_001",
+            message: { body, type: "Email" },
+          } as any,
+          clinicConfig,
+        );
+
+        expect(mockChatConversationsService.resetConversation).not.toHaveBeenCalled();
+        expect(mockChatConversationsService.sendMessage).toHaveBeenCalled();
+      },
+    );
   });
 });

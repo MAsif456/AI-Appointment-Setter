@@ -305,7 +305,11 @@ export class ConversationsService {
 
     let clinicApiKey = '';
     if (clinic.ghlApiKey) {
-      try { clinicApiKey = this.encryptionService.decrypt(clinic.ghlApiKey); } catch { /* no key */ }
+      try {
+        clinicApiKey = this.encryptionService.decrypt(clinic.ghlApiKey);
+      } catch {
+        clinicApiKey = clinic.ghlApiKey; // plaintext fallback for pre-encryption migration
+      }
     }
     const cancelResult = await handleCancellationIntercept(
       conversation,

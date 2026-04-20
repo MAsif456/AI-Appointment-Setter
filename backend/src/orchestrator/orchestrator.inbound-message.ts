@@ -5,7 +5,12 @@ import { ConversationsService } from "../ghl/conversations.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { GhlInboundMessagePayload } from "../webhooks/dto/ghl-webhook.dto";
 import { getChannelAdapter } from "../ghl/channel-adapter";
-import { FALLBACK_AI_UNAVAILABLE, TERMINAL_PHASES } from "./orchestrator.types";
+import {
+  CANCEL_KEYWORDS,
+  FALLBACK_AI_UNAVAILABLE,
+  RESCHEDULE_KEYWORDS,
+  TERMINAL_PHASES,
+} from "./orchestrator.types";
 import {
   mapMessageTypeToChannel,
   channelToMessageType,
@@ -79,13 +84,27 @@ export async function handleInboundMessageFlow(
     conversation.ghlConversationId = ghlConversationId;
   }
 
+  // Resolve channel before any message processing so adapter and content are available.
+  if (!channel && conversation.channel) channel = conversation.channel;
+  if (!channel) channel = "sms";
+
+  const adapter = getChannelAdapter(channel);
+  const rawContent = webhookData.message?.body ?? "";
+  const messageContent = adapter.stripInbound(rawContent);
+
   // Returning patient re-entry — terminal phase triggers reset + greeting.
-  if (TERMINAL_PHASES.includes(conversation.phase)) {
+  // Guard: if the message is a cancel or reschedule intent, skip re-entry and let
+  // the normal AI pipeline handle it so the lead is routed to the correct flow.
+  // Uses substring matching (not matchesKeywords) so phrases like "can I reschedule"
+  // are caught even when the keyword is a single word embedded in a longer message.
+  const lowerContent = messageContent.toLowerCase();
+  const isCancelOrReschedule =
+    [...CANCEL_KEYWORDS, ...RESCHEDULE_KEYWORDS].some((kw) => lowerContent.includes(kw));
+
+  if (TERMINAL_PHASES.includes(conversation.phase) && !isCancelOrReschedule) {
     const greeting = await handleReentryForTerminalConversation(
       conversation, clinicConfig, deps, correlationId,
     );
-    if (!channel && conversation.channel) channel = conversation.channel;
-    if (!channel) channel = "sms";
     await sendGhlResponse(
       greeting, channel, clinicConfig, contactId, deps,
       conversation.ghlConversationId, webhookData.message?.emailMessageId,
@@ -93,16 +112,7 @@ export async function handleInboundMessageFlow(
     return;
   }
 
-  // Fall back to the existing conversation's channel if the webhook didn't specify one
-  if (!channel && conversation.channel) {
-    channel = conversation.channel;
-  }
-  if (!channel) {
-    channel = "sms";
-  }
-
   // Ref: RFC 3834 — detect auto-replies early to prevent infinite loops
-  const adapter = getChannelAdapter(channel);
   if (
     adapter.isAutoReply({
       subject: webhookData.message?.subject,
@@ -115,9 +125,6 @@ export async function handleInboundMessageFlow(
     );
     return;
   }
-
-  const rawContent = webhookData.message?.body ?? "";
-  const messageContent = adapter.stripInbound(rawContent);
 
   // Capture the inbound email's Message-ID for reply threading (In-Reply-To header)
   const inboundEmailMessageId = webhookData.message?.emailMessageId;
