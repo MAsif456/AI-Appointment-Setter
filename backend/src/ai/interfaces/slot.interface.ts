@@ -3,23 +3,27 @@
  */
 export interface Slot {
   /**
-   * Date of the appointment in YYYY-MM-DD format (UK local timezone).
+   * Date of the appointment in ISO format (YYYY-MM-DD), as displayed in
+   * clinic-local time (Europe/London). Use `dateTime` for any UTC-sensitive
+   * operation (booking, storage) to avoid BST/GMT round-trip errors.
    */
   date: string;
 
   /**
-   * Start time in HH:MM (UK local timezone, e.g. "10:00" for 10am BST).
+   * Start time of the appointment in ISO format (HH:MM), in clinic-local
+   * time (Europe/London). Display-only — see `dateTime` for the UTC value.
    */
   startTime: string;
 
   /**
-   * End time in HH:MM (UK local timezone).
+   * End time of the appointment in ISO format (HH:MM), clinic-local.
    */
   endTime: string;
 
   /**
-   * Original UTC ISO 8601 string from GHL (e.g. "2026-04-10T09:00:00.000Z").
-   * Used for accurate booking — do not reconstruct from date+startTime on a UTC server.
+   * Authoritative UTC instant of the slot, as returned by GHL, in ISO 8601
+   * with `Z` suffix. Preserved end-to-end so booking uses the exact timestamp
+   * GHL offered, rather than a display-string round-trip.
    */
-  isoDateTime?: string;
+  dateTime?: string;
 }

@@ -22,36 +22,38 @@ describe("SlotProvider", () => {
   });
 
   it("should return mapped slots when GHL returns data", async () => {
+    const dt1 = new Date("2026-03-23T09:00:00.000Z");
+    const dt2 = new Date("2026-03-24T10:00:00.000Z");
     mockSlotsService.fetchAvailableSlots.mockResolvedValue([
       {
         date: "2026-03-23",
         startTime: "09:00",
         endTime: "09:30",
-        dateTime: new Date(),
+        dateTime: dt1,
       },
       {
         date: "2026-03-24",
         startTime: "10:00",
         endTime: "10:30",
-        dateTime: new Date(),
+        dateTime: dt2,
       },
     ]);
 
     const result = await provider.getAvailableSlots("clinic_001");
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual(expect.objectContaining({
+    expect(result[0]).toEqual({
       date: "2026-03-23",
       startTime: "09:00",
       endTime: "09:30",
-      isoDateTime: expect.any(String),
-    }));
-    expect(result[1]).toEqual(expect.objectContaining({
+      dateTime: dt1.toISOString(),
+    });
+    expect(result[1]).toEqual({
       date: "2026-03-24",
       startTime: "10:00",
       endTime: "10:30",
-      isoDateTime: expect.any(String),
-    }));
+      dateTime: dt2.toISOString(),
+    });
   });
 
   it("should call SlotsService with clinicId and a 31-day date range", async () => {
@@ -98,22 +100,22 @@ describe("SlotProvider", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("should map dateTime to isoDateTime and not expose the raw Date object", async () => {
-    const mockDate = new Date("2026-03-23T09:00:00.000Z");
+  it("should preserve the dateTime UTC ISO string from GHL response", async () => {
+    const dt = new Date("2026-03-23T09:00:00.000Z");
     mockSlotsService.fetchAvailableSlots.mockResolvedValue([
       {
         date: "2026-03-23",
         startTime: "09:00",
         endTime: "09:30",
-        dateTime: mockDate,
+        dateTime: dt,
       },
     ]);
 
     const result = await provider.getAvailableSlots("clinic_001");
 
-    // dateTime (Date object) is not exposed; isoDateTime (UTC ISO string) is
-    expect(result[0]).not.toHaveProperty("dateTime");
-    expect(result[0].isoDateTime).toBe(mockDate.toISOString());
+    // dateTime is carried through as ISO UTC so downstream booking uses the
+    // exact instant GHL offered (no BST/UTC round-trip via display strings).
+    expect(result[0].dateTime).toBe(dt.toISOString());
   });
 
   describe("4-month GHL booking limit", () => {

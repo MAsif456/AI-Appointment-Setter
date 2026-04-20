@@ -120,23 +120,12 @@ export async function buildAndSendReply(
   if (keepExistingSlots && conversation.offeredSlots?.length > 0) {
     selected = conversation.offeredSlots.map((s: any) => {
       const dt = new Date(s.dateTime);
-      // Extract UK local date and time — avoids UTC-server giving wrong time during BST
-      const parts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Europe/London",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).formatToParts(dt);
-      const get = (type: string) =>
-        parts.find((p) => p.type === type)?.value ?? "";
+      const londonDate = dt.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
       return {
-        date: `${get("year")}-${get("month")}-${get("day")}`,
-        startTime: `${get("hour")}:${get("minute")}`,
+        date: londonDate,
+        startTime: dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }),
         endTime: "",
-        isoDateTime: dt.toISOString(),
+        dateTime: dt.toISOString(),
       };
     });
     slotSection = buildSlotPromptSection(selected, urgency);
@@ -198,10 +187,19 @@ export async function buildAndSendReply(
   );
   if (!reply) return null;
 
-  const finalReply =
-    bookingResult?.success && bookingResult.confirmationMessage
-      ? bookingResult.confirmationMessage
-      : reply;
+  // If the booking failed because the slot was taken between offer and
+  // confirmation, override the AI reply with a canned apology. The LLM is
+  // not told about the booking failure, so its draft would otherwise claim
+  // the appointment is booked — a false confirmation the patient would act on.
+  let finalReply: string;
+  if (bookingResult?.slotTaken) {
+    finalReply =
+      "Sorry — that slot was just taken. Would you like me to check other times?";
+  } else if (bookingResult?.success && bookingResult.confirmationMessage) {
+    finalReply = bookingResult.confirmationMessage;
+  } else {
+    finalReply = reply;
+  }
 
   await deps.persistence.storeOfferedSlots(conversation, selected);
   await deps.persistence.saveDateContext(conversation, selectionResult);
@@ -215,8 +213,7 @@ export async function buildAndSendReply(
   await deps.persistence.updateConversationMeta(conversation, "ai", undefined);
 
   const offeredSlots = selected.map((s) => ({
-    // Prefer isoDateTime (UTC) over reconstructing from UK local parts
-    dateTime: s.isoDateTime ?? new Date(`${s.date}T${s.startTime}:00`).toISOString(),
+    dateTime: s.dateTime ?? new Date(`${s.date}T${s.startTime}:00`).toISOString(),
     displayText: formatSlotDisplay(s),
   }));
   return {

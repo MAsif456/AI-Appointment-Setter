@@ -62,14 +62,14 @@ export class SlotProvider {
         return [];
       }
 
-      // Map SlotsService output to our Slot interface.
-      // isoDateTime carries the original UTC timestamp so booking and display
-      // always use the same moment — no reconstruction from UK local parts.
+      // Map SlotsService output to our Slot interface. `dateTime` carries the
+      // authoritative UTC instant so later stages don't round-trip a London-
+      // local display string back into UTC (which is off by 1h during BST).
       return ghlSlots.map((s) => ({
         date: s.date,
         startTime: s.startTime,
         endTime: s.endTime,
-        isoDateTime: s.dateTime.toISOString(),
+        dateTime: s.dateTime.toISOString(),
       }));
     } catch (error) {
       this.logger.error(`Failed to fetch GHL slots: ${error.message}`);
