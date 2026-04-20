@@ -200,13 +200,25 @@ const DATE_RANGE_PATTERNS: {
   resolve: () => { start: Date; end: Date };
 }[] = [
   {
-    pattern:
-      /\b(?:same[\s-]?day|today|asap|as\s+soon\s+as\s+possible|right\s+away|urgent)\b/i,
+    pattern: /\b(?:same[\s-]?day|today)\b/i,
     resolve: () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const end = new Date(today);
       end.setDate(today.getDate() + 1);
+      return { start: today, end };
+    },
+  },
+  {
+    // Urgency signals mean "earliest available" — a strict 24h window
+    // leaves nothing once today's slots are gone (e.g. late-evening asks).
+    pattern:
+      /\b(?:asap|as\s+soon\s+as\s+possible|right\s+away|urgent|urgently)\b/i,
+    resolve: () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(today);
+      end.setDate(today.getDate() + 3);
       return { start: today, end };
     },
   },
