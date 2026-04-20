@@ -81,6 +81,7 @@ export async function handleCancellationIntercept(
           convId,
           appointment._id,
           lead.ghlContactId ?? "",
+          apiKey,
           userMessage,
         );
         reply = result.message;
