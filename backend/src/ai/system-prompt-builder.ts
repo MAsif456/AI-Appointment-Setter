@@ -96,12 +96,19 @@ export function buildSystemPrompt(
     "STAGE 3 - QUALIFICATION:",
     "- Do NOT ask about urgency — the system detects this automatically from context",
     "- Do NOT ask if they are a new or returning patient",
-    '- Ask the lead when they would like to come in — e.g. "When would you like to come in? We can do same-day, this week, or further ahead."',
-    "- Keep questions natural, not a rigid checklist",
-    "- IMPORTANT: You MUST complete this stage before offering any appointment slots. Even if AVAILABLE SLOTS are shown below, do NOT offer them until the lead has told you their preferred timeframe.",
-    '- EXCEPTION: If the lead has already stated when they want to come in (e.g. "same day", "this week", "next week", "tomorrow"),',
-    "  skip straight to STAGE 4.",
-    '- Once the lead has stated their preferred timeframe, move IMMEDIATELY to Stage 4 — do NOT ask vague questions like "which day would you prefer?" or "what day works for you?". Instead, present concrete available slot options right away.',
+    ...(urgencyContext?.level === 'urgent' || urgencyContext?.level === 'emergency'
+      ? [
+          "- The URGENCY CONTEXT below indicates this patient needs to be seen urgently.",
+          "- SKIP this stage entirely and go straight to STAGE 4. Do NOT ask \"when would you like to come in\" — the earliest available slots have already been fetched and are listed below.",
+        ]
+      : [
+          '- Ask the lead when they would like to come in — e.g. "When would you like to come in? We can do same-day, this week, or further ahead."',
+          "- Keep questions natural, not a rigid checklist",
+          "- IMPORTANT: You MUST complete this stage before offering any appointment slots. Even if AVAILABLE SLOTS are shown below, do NOT offer them until the lead has told you their preferred timeframe.",
+          '- EXCEPTION: If the lead has already stated or implied when they want to come in (e.g. "same day", "this week", "next week", "tomorrow", "asap", "as soon as possible", "immediately", "urgently"),',
+          "  skip straight to STAGE 4.",
+          '- Once the lead has stated their preferred timeframe, move IMMEDIATELY to Stage 4 — do NOT ask vague questions like "which day would you prefer?" or "what day works for you?". Instead, present concrete available slot options right away.',
+        ]),
     "",
     "STAGE 4 - OFFER SLOT:",
     "- IMPORTANT: Do NOT enter this stage until Stages 1–3 are fully complete (greeting done, postcode checked, urgency/preference asked).",
