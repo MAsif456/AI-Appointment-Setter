@@ -6,10 +6,11 @@ import AccountSettings from './components/AccountSettings';
 import UserManagement from './components/UserManagement';
 import IntegrationsSettings from './components/IntegrationsSettings';
 import NotificationPreferences from './components/NotificationPreferences';
+import AppearanceSettings from './components/AppearanceSettings';
 import styles from './settings.module.css';
-import { User, Users, Bell, Plug } from 'lucide-react';
+import { User, Users, Bell, Plug, Palette } from 'lucide-react';
 
-type Tab = 'account' | 'users' | 'notifications' | 'integrations';
+type Tab = 'account' | 'users' | 'notifications' | 'appearance' | 'integrations';
 
 /**
  * Settings page — renders tab navigation and delegates to
@@ -26,6 +27,7 @@ export default function SettingsPage() {
       { key: 'users' as Tab, label: 'User Management', icon: Users },
     ] : []),
     { key: 'notifications' as Tab, label: 'Notifications', icon: Bell },
+    { key: 'appearance' as Tab, label: 'Appearance', icon: Palette },
     ...(isAdmin ? [
       { key: 'integrations' as Tab, label: 'Integrations', icon: Plug },
     ] : []),
@@ -55,6 +57,7 @@ export default function SettingsPage() {
         {activeTab === 'account' && <AccountSettings />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'notifications' && <NotificationPreferences />}
+        {activeTab === 'appearance' && <AppearanceSettings />}
         {activeTab === 'integrations' && isAdmin && <IntegrationsSettings />}
       </div>
       <br />

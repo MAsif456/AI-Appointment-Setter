@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { updateClinicIntegration, testClinicIntegration, disconnectClinicIntegration, getClinicById, } from '@/lib/api/clinics';
+import { updateClinicIntegration, testClinicIntegration, disconnectClinicIntegration, getClinicById } from '@/lib/api/clinics';
+import ApiScopesList from './ApiScopesList';
+import DisconnectConfirmModal from './DisconnectConfirmModal';
 import styles from './integrations.module.css';
 
 interface Props {
@@ -26,13 +28,10 @@ export default function ClinicIntegrationsPage({
   const [apiKey, setApiKey] = useState('');
   const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
   const [maskedKey, setMaskedKey] = useState(initialMaskedKey);
-  const [status, setStatus] = useState<ConnectionStatus>(
-    initialMaskedKey ? 'connected' : 'disconnected',
-  );
+  const [status, setStatus] = useState<ConnectionStatus>(initialMaskedKey ? 'connected' : 'disconnected');
   const [loaded, setLoaded] = useState(!!initialMaskedKey);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [scopesOpen, setScopesOpen] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -53,13 +52,13 @@ export default function ClinicIntegrationsPage({
       .finally(() => setLoaded(true));
   }, [id, initialMaskedKey]);
 
-  function showToast(type: 'success' | 'error', message: string) {
+  function showToastMessage(type: 'success' | 'error', message: string) {
     setToast({ type, message });
     setTimeout(() => setToast(null), type === 'error' ? 15000 : 7000);
   }
 
   async function handleSave() {
-    if (!apiKey.trim()) { showToast('error', 'Please enter an API key'); return; }
+    if (!apiKey.trim()) { showToastMessage('error', 'Please enter an API key'); return; }
     setSaving(true);
     try {
       await updateClinicIntegration(id, apiKey.trim(), webhookUrl.trim() || undefined);
@@ -68,10 +67,10 @@ export default function ClinicIntegrationsPage({
       setWebhookUrl(updated.webhookUrl ?? '');
       setApiKey('');
       setStatus('connected');
-      showToast('success', 'Integration saved');
+      showToastMessage('success', 'Integration saved');
       onUpdated?.();
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Failed to save');
+      showToastMessage('error', err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -82,13 +81,13 @@ export default function ClinicIntegrationsPage({
     try {
       const result = await testClinicIntegration(id);
       setStatus(result.connected ? 'connected' : 'disconnected');
-      showToast(
+      showToastMessage(
         result.connected ? 'success' : 'error',
         result.connected ? 'Connection successful' : 'Connection failed — check your API key',
       );
     } catch {
       setStatus('disconnected');
-      showToast('error', 'Could not reach the server');
+      showToastMessage('error', 'Could not reach the server');
     }
   }
 
@@ -97,11 +96,11 @@ export default function ClinicIntegrationsPage({
       await disconnectClinicIntegration(id);
       setMaskedKey(''); setWebhookUrl(''); setApiKey('');
       setStatus('disconnected'); setConfirmOpen(false);
-      showToast('success', 'Integration disconnected');
+      showToastMessage('success', 'Integration disconnected');
       onUpdated?.();
     } catch {
       setConfirmOpen(false);
-      showToast('error', 'Failed to disconnect');
+      showToastMessage('error', 'Failed to disconnect');
     }
   }
 
@@ -116,12 +115,9 @@ export default function ClinicIntegrationsPage({
 
   return (
     <div className={styles.container}>
-
       <div className={styles.header}>
         <h2 className={styles.title}>GoHighLevel Integration</h2>
-        <p className={styles.desc}>
-          Connect this clinic to GoHighLevel to enable AI-powered booking and messaging.
-        </p>
+        <p className={styles.desc}>Connect this clinic to GoHighLevel to enable AI-powered booking and messaging.</p>
       </div>
 
       <div className={styles.statusRow}>
@@ -139,41 +135,12 @@ export default function ClinicIntegrationsPage({
       <div className={styles.formGroup}>
         <label className={styles.label}>GHL API Key</label>
         <input
-          type="password"
-          className={styles.input}
-          value={apiKey}
+          type="password" className={styles.input} value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder={maskedKey ? 'Enter new key to replace' : 'Enter GHL private integration token'}
         />
         <p className={styles.fieldHint}>Settings → Private Integrations in your GHL sub-account.</p>
-        <button type="button" className={styles.scopesToggle} onClick={() => setScopesOpen(o => !o)}>
-          {scopesOpen ? '▾' : '▸'} Required API scopes
-        </button>
-        {scopesOpen && (
-          <ul className={styles.scopesList}>
-            <li>conversations.readonly</li>
-            <li>conversations.write</li>
-            <li>conversations/message.write</li>
-            <li>conversations/message.readonly</li>
-            <li>calendars.readonly</li>
-            <li>calendars.write</li>
-            <li>calendars/events.write</li>
-            <li>calendars/events.readonly</li>
-            <li>calendars/groups.readonly</li>
-            <li>calendars/groups.write</li>
-            <li>calendars/resources.readonly</li>
-            <li>calendars/resources.write</li>
-            <li>contacts.readonly</li>
-            <li>contacts.write</li>
-            <li>locations.readonly</li>
-            <li>locations/customFields.readonly</li>
-            <li>locations/customFields.write</li>
-            <li>locations/customValues.readonly</li>
-            <li>locations/customValues.write</li>
-            <li>socialplanner/oauth.readonly</li>
-            <li>socialplanner/oauth.write</li>
-          </ul>
-        )}
+        <ApiScopesList />
       </div>
 
       <div className={styles.formGroupLast}>
@@ -181,9 +148,7 @@ export default function ClinicIntegrationsPage({
           Webhook URL <span className={styles.labelOptional}>(optional)</span>
         </label>
         <input
-          type="url"
-          className={styles.input}
-          value={webhookUrl}
+          type="url" className={styles.input} value={webhookUrl}
           onChange={(e) => setWebhookUrl(e.target.value)}
           placeholder="https://your-domain.com/webhooks/ghl"
         />
@@ -195,16 +160,10 @@ export default function ClinicIntegrationsPage({
         </button>
         {maskedKey && (
           <>
-            <button
-              className={styles.btnOutline}
-              onClick={handleTest}
-              disabled={status === 'testing'}
-            >
+            <button className={styles.btnOutline} onClick={handleTest} disabled={status === 'testing'}>
               Test Connection
             </button>
-            <button className={styles.btnDanger} onClick={() => setConfirmOpen(true)}>
-              Disconnect
-            </button>
+            <button className={styles.btnDanger} onClick={() => setConfirmOpen(true)}>Disconnect</button>
           </>
         )}
       </div>
@@ -216,26 +175,7 @@ export default function ClinicIntegrationsPage({
         </div>
       )}
 
-      {confirmOpen && (
-        <div className={styles.overlay} role="dialog" aria-modal="true">
-          <div className={styles.backdrop} onClick={() => setConfirmOpen(false)} />
-          <div className={styles.panel}>
-            <h3 className={styles.panelTitle}>Remove integration?</h3>
-            <p className={styles.panelDesc}>
-              Are you sure? This will stop all AI booking services for this clinic. You can reconnect at any time.
-            </p>
-            <div className={styles.panelActions}>
-              <button className={styles.btnConfirmCancel} onClick={() => setConfirmOpen(false)}>
-                Cancel
-              </button>
-              <button className={styles.btnConfirmDanger} onClick={handleDisconnect}>
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {confirmOpen && <DisconnectConfirmModal onConfirm={handleDisconnect} onCancel={() => setConfirmOpen(false)} />}
     </div>
   );
 }

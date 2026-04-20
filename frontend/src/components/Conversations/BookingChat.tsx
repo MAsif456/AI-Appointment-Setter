@@ -54,7 +54,7 @@ export default function BookingChat({ leadName, clinicName }: BookingChatProps) 
   if (error) {
     return (
       <div style={{ padding: 32 }}>
-        <p style={{ color: '#dc2626', background: '#fee2e2', padding: 16, borderRadius: 8 }}>
+        <p style={{ color: 'var(--color-error)', background: 'var(--color-error-light)', padding: 16, borderRadius: 8 }}>
           {error}
         </p>
       </div>
@@ -63,7 +63,7 @@ export default function BookingChat({ leadName, clinicName }: BookingChatProps) 
 
   if (!conversationId) {
     return (
-      <div style={{ padding: 32, color: '#6b7280' }}>
+      <div style={{ padding: 32, color: 'var(--text-muted)' }}>
         Loading conversation...
       </div>
     );

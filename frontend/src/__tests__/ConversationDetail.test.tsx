@@ -15,6 +15,11 @@ jest.mock('next/link', () => {
   };
 });
 
+// scrollIntoView is not implemented in jsdom
+beforeAll(() => {
+  Element.prototype.scrollIntoView = jest.fn();
+});
+
 describe('ConversationDetail', () => {
   const sarahConversation = mockConversationDetails['conv_002'];
 
@@ -62,12 +67,6 @@ describe('ConversationDetail', () => {
     expect(screen.getByText('March 5, 2026')).toBeInTheDocument();
     expect(screen.getByText('2:00pm')).toBeInTheDocument();
     expect(screen.getByText('APT-001')).toBeInTheDocument();
-  });
-
-  it('renders action buttons', () => {
-    render(<ConversationDetail conversation={sarahConversation} />);
-    expect(screen.getByText(/Flag for Review/)).toBeInTheDocument();
-    expect(screen.getByText(/View in GHL/)).toBeInTheDocument();
   });
 
   it('has a back link to conversations list', () => {

@@ -17,7 +17,7 @@
 }
 
 .loading {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 14px;
   padding: 24px 0;
 }
@@ -27,3 +27,5 @@
   font-size: 14px;
   padding: 24px 0;
 }
+
+:global([data-theme="dark"]) .error { color: #f472b6; }

@@ -25,8 +25,8 @@ function buildFormData(overrides: Record<string, unknown> = {}) {
     phoneNumber: '029 2034 5678',
     ghlLocationId: 'loc_cardiff_001',
     ghlCalendarId: 'cal_cardiff_001',
-    serviceAreas: 'CF, NP',
-    servicesOffered: 'Back pain, Sports injury',
+    serviceAreas: ['CF', 'NP'],
+    servicesOffered: ['Back pain', 'Sports injury'],
     appointmentDuration: 30,
     businessHours: {
       Monday: { open: true, start: '09:00', end: '17:00' },
@@ -67,9 +67,9 @@ describe('clinicService', () => {
     expect(body.phoneNumber).toBeUndefined();
   });
 
-  it('should transform serviceAreas string to uppercase postcode objects', async () => {
+  it('should transform serviceAreas array to postcode objects', async () => {
     mockSuccess();
-    await createClinic(buildFormData({ serviceAreas: 'cf, np, sa' }));
+    await createClinic(buildFormData({ serviceAreas: ['CF', 'NP', 'SA'] }));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.serviceAreas).toEqual([
@@ -79,9 +79,9 @@ describe('clinicService', () => {
     ]);
   });
 
-  it('should transform servicesOffered string to service objects', async () => {
+  it('should transform servicesOffered array to service objects', async () => {
     mockSuccess();
-    await createClinic(buildFormData({ servicesOffered: 'Back pain, Sports injury' }));
+    await createClinic(buildFormData({ servicesOffered: ['Back pain', 'Sports injury'] }));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.services).toEqual([{ name: 'Back pain' }, { name: 'Sports injury' }]);
@@ -98,7 +98,7 @@ describe('clinicService', () => {
 
   it('should omit empty optional fields', async () => {
     mockSuccess();
-    await createClinic(buildFormData({ address: '', phoneNumber: '', serviceAreas: '' }));
+    await createClinic(buildFormData({ address: '', phoneNumber: '', serviceAreas: [] }));
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.address).toBeUndefined();

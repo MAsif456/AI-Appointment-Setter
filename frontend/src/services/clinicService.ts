@@ -8,8 +8,8 @@ interface ClinicFormData {
   phoneNumber: string;
   ghlLocationId: string;
   ghlCalendarId: string;
-  serviceAreas: string;
-  servicesOffered: string;
+  serviceAreas: string[];
+  servicesOffered: string[];
   appointmentDuration: number;
   dataRetentionMonths: number;
   businessHours: WeekHours;
@@ -23,14 +23,10 @@ export interface ApiError {
 /** Transform the flat frontend form state into the shape the backend DTO expects. */
 function toCreateClinicPayload(data: ClinicFormData) {
   const serviceAreas = data.serviceAreas
-    .split(',')
-    .map((s) => s.trim().toUpperCase())
     .filter(Boolean)
     .map((postcodePrefix) => ({ postcodePrefix }));
 
   const services = data.servicesOffered
-    .split(',')
-    .map((s) => s.trim())
     .filter(Boolean)
     .map((name) => ({ name }));
 

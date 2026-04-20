@@ -1,15 +1,16 @@
 /* Lead sources horizontal bar chart */
 .container {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   padding: 24px 28px;
-  background: #ffffff;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
 
 .title {
   font-size: 18px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin: 0 0 20px 0;
 }
 
@@ -34,31 +35,31 @@
 .sourceName {
   font-size: 14px;
   font-weight: 500;
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .stats {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .barTrack {
   height: 8px;
-  background: #f3f4f6;
+  background: var(--bg-input);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .barFill {
   height: 100%;
-  background: #4361ee;
+  background: var(--color-primary);
   border-radius: 4px;
   transition: width 0.4s ease;
   min-width: 2px;
 }
 
 .empty {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 14px;
   text-align: center;
   padding: 24px 0;

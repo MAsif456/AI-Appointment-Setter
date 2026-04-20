@@ -8,15 +8,15 @@
   padding: 8px 14px;
   border-radius: 999px;
   border: none;
-  background-color: #2563eb;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
 .primaryButton:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
 }
 
 
@@ -34,14 +34,14 @@
 }
 
 .statusBadgeInactive {
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background-color: var(--bg-input);
+  color: var(--text-secondary);
 }
 
 .viewDetailsLink {
   font-size: 13px;
   font-weight: 500;
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -66,7 +66,7 @@
   font-size: 22px;
   font-weight: 700;
   margin: 0;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .titleRow {
@@ -79,13 +79,13 @@
 .detailMeta {
   margin-top: 4px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .tabButton {
@@ -94,14 +94,14 @@
   background: none;
   font-size: 14px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
 }
 
 .tabButtonActive {
-  color: #111827;
-  border-bottom-color: #2563eb;
+  color: var(--text-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .tabPanel {
@@ -125,13 +125,13 @@
 
 .fieldLabel {
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-secondary);
 }
 
 .textInput {
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-default);
   font-size: 14px;
 }
 
@@ -148,14 +148,14 @@
   padding: 4px 8px;
   border-radius: 999px;
   background-color: #eff6ff;
-  color: #1d4ed8;
+  color: var(--color-primary-hover);
   font-size: 11px;
 }
 
 .chipRemove {
   border: none;
   background: none;
-  color: #6b7280;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 11px;
 }
@@ -173,13 +173,13 @@
 }
 
 .hoursTable thead {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .timeInput {
   padding: 4px 6px;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-default);
   font-size: 13px;
 }
 
@@ -191,16 +191,16 @@
 .secondaryButton {
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
-  color: #111827;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
 .secondaryButton:hover {
-  background-color: #f9fafb;
+  background-color: var(--bg-hover);
 }
 
 .successBanner {
@@ -217,11 +217,61 @@
   color: #b91c1c;
 }
 
+:global([data-theme="dark"]) .successBanner { background-color: rgba(244, 114, 182, 0.12); color: #f472b6; border-color: rgba(244, 114, 182, 0.2); }
+:global([data-theme="dark"]) .errorText { color: #f472b6; }
+
+/* Pill row for read-only services & locations */
+.settingsPillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.settingsPill {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid var(--border-default);
+}
+
+:global([data-theme="dark"]) .settingsPill {
+  color: #f4f4f7;
+  background: #2a2a38;
+  border-color: #3a3a4a;
+}
+
+.settingsPillArea {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid var(--border-default);
+}
+
+:global([data-theme="dark"]) .settingsPillArea {
+  color: #f4f4f7;
+  background: #2a2a38;
+  border-color: #3a3a4a;
+}
+
+.settingsSubtle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* Settings view (read-only) and header actions */
 .settingsCard {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-default);
   padding: 24px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   margin-bottom: 24px;
@@ -234,7 +284,7 @@
 .settingsCardTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin: 0 0 20px 0;
   letter-spacing: -0.01em;
 }
@@ -250,7 +300,7 @@
 .readOnlyLabel {
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted);
   margin-bottom: 6px;
   display: block;
 }
@@ -261,12 +311,13 @@
   min-height: 44px;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
-  color: #111827;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.5;
   box-sizing: border-box;
+  cursor: default;
 }
 
 /* Business hours: two boxes for open/close */
@@ -284,7 +335,7 @@
 .readOnlyHoursLabel {
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted);
   min-width: 90px;
 }
 
@@ -300,15 +351,16 @@
   min-height: 44px;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
-  color: #111827;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
   font-size: 14px;
   box-sizing: border-box;
+  cursor: default;
 }
 
 .readOnlyHoursDivider {
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
   user-select: none;
@@ -316,8 +368,9 @@
 
 .readOnlyHoursClosed {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 12px 0;
+  cursor: default;
 }
 
 .statusRow {
@@ -331,13 +384,13 @@
 .statusLabel {
   font-size: 14px;
   font-weight: 500;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .statusMessage {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -354,9 +407,9 @@
   gap: 8px;
   padding: 10px 18px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
-  color: #374151;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -364,9 +417,9 @@
 }
 
 .editButton:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-  color: #111827;
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+  color: var(--text-primary);
 }
 
 .editButton svg {
@@ -381,14 +434,14 @@
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
-  color: #374151;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .menuButton:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
 }
 

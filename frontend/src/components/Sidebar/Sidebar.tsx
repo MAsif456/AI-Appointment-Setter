@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import NotificationBell from '@/components/Notifications/NotificationBell';
+import { useEscalationNotifications } from '@/contexts/EscalationNotificationContext';
 import styles from './Sidebar.module.css';
 import {
   DashboardIcon, ClinicsIcon, ConversationsIcon,
   AnalyticsIcon, SettingsIcon, UserIcon, LogoutIcon, ShieldIcon,
+  EscalationIcon,
 } from '../Icons';
 
 const baseNavItems = [
@@ -18,11 +19,18 @@ const baseNavItems = [
   { label: 'Analytics', href: '/analytics', icon: AnalyticsIcon },
 ];
 
-// Staff-only — admins never action escalations so they should not
-// see the link at all.
-const escalationItem = { label: 'Escalations', href: '/escalations', icon: ConversationsIcon };
-
 const settingsItem = { label: 'Settings', href: '/settings', icon: SettingsIcon };
+
+/** Reads the live escalation count from context (staff only). */
+function EscalationBadge() {
+  const { unacknowledgedCount } = useEscalationNotifications();
+  if (unacknowledgedCount === 0) return null;
+  return (
+    <span className={styles.navBadge}>
+      {unacknowledgedCount > 9 ? '9+' : unacknowledgedCount}
+    </span>
+  );
+}
 
 /**
  * Fixed sidebar for the dashboard.
@@ -36,7 +44,7 @@ export default function Sidebar() {
 
   const isStaff = user?.role === 'staff';
   const navItems = isStaff
-    ? [...baseNavItems.slice(0, 3), escalationItem, ...baseNavItems.slice(3)]
+    ? [...baseNavItems.slice(0, 3), { label: 'Escalations', href: '/escalations', icon: EscalationIcon }, ...baseNavItems.slice(3)]
     : baseNavItems;
 
   const isActive = (href: string) => {
@@ -47,14 +55,10 @@ export default function Sidebar() {
   return (
     <>
       <aside className={styles.sidebar}>
-        <div
-          className={styles.brand}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-        >
+        <div className={styles.brand}>
           <span>
             AppointHealth <span className={styles.brandAi}>AI</span>
           </span>
-          <NotificationBell />
         </div>
 
         <nav className={styles.nav}>
@@ -66,6 +70,7 @@ export default function Sidebar() {
             >
               <item.icon className={styles.navIcon} />
               {item.label}
+              {item.href === '/escalations' && isStaff && <EscalationBadge />}
             </Link>
           ))}
           {isAdmin && (

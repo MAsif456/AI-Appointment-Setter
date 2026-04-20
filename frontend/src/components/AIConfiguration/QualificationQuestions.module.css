@@ -1,17 +1,18 @@
 /* Qualification questions checkbox list */
 
 .section {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .sectionTitle {
   font-size: 16px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -31,7 +32,7 @@
 .checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #4361ee;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 
@@ -42,10 +43,10 @@
 
 .label {
   font-size: 14px;
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .required {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 13px;
 }

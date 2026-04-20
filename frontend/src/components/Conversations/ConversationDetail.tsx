@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { ConversationDetail as ConversationDetailType } from '@/data/mockConversations';
 import GdprPanel from './GdprPanel';
@@ -15,6 +16,12 @@ interface Props {
  * patient info, conversation status, and booking details.
  */
 export default function ConversationDetail({ conversation, leadId }: Props) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to the latest message when the component mounts
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversation.messages]);
   const statusMap: Record<string, string> = {
     Confirmed: styles.statusConfirmed,
     Qualified: styles.statusQualified,
@@ -52,6 +59,8 @@ export default function ConversationDetail({ conversation, leadId }: Props) {
                 </div>
               </div>
             ))}
+            {/* Scroll anchor — auto-scrolls to latest message */}
+            <div ref={messagesEndRef} />
           </div>
         </div>
 
@@ -68,7 +77,6 @@ export default function ConversationDetail({ conversation, leadId }: Props) {
               statusClass={statusClass}
             />
           )}
-          <ActionButtons />
           {leadId && <GdprPanel leadId={leadId} />}
         </div>
       </div>
@@ -149,20 +157,6 @@ function BookingInfo({
           {booking.status}
         </span>
       </div>
-    </div>
-  );
-}
-
-/** Action buttons for flagging and external links */
-function ActionButtons() {
-  return (
-    <div className={styles.actions}>
-      <button className={styles.actionBtn}>
-        &#9873; Flag for Review
-      </button>
-      <button className={styles.actionBtn}>
-        &#8599; View in GHL
-      </button>
     </div>
   );
 }

@@ -3,12 +3,25 @@
  * Handles listing, individual clinic retrieval, and clinic creation.
  */
 import {
-  Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UseGuards, UsePipes, ValidationPipe,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ClinicsService } from './clinics.service';
 import { CreateClinicDto } from './dto/create-clinic.dto';
-import type { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
+import { UpdateClinicSettingsDto } from './dto/update-clinic-settings.dto';
 import { UpdateIntegrationDto } from './dto/update-integration.dto';
 
 /**

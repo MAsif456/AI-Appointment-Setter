@@ -66,6 +66,17 @@ jest.mock('@/components/clinics/ClinicOverviewTab', () => ({
   default: () => <div data-testid="clinic-overview-tab">Overview Tab</div>,
 }));
 
+// Mock RecentConversations
+jest.mock('@/components/dashboard/RecentConversations', () => ({
+  __esModule: true,
+  default: ({ title }: any) => <div data-testid="recent-conversations">{title}</div>,
+}));
+
+// Mock fetchRecentConversations
+jest.mock('@/lib/api/dashboard', () => ({
+  fetchRecentConversations: jest.fn().mockResolvedValue([]),
+}));
+
 const mockedUpdateSettings = updateClinicSettings as jest.MockedFunction<typeof updateClinicSettings>;
 
 const mockClinicData = {
@@ -114,14 +125,14 @@ describe('ClinicDetailTabs', () => {
     expect(screen.getByTestId('settings-form')).toBeInTheDocument();
     expect(screen.getAllByText('Save Settings').length).toBeGreaterThan(0);
   });
-  /** Verifies tabs without dedicated components still render the placeholder. */
-  it('renders correct placeholder for the Conversations tab', () => {
+  /** Verifies the Conversations tab renders the RecentConversations component. */
+  it('renders RecentConversations on the Conversations tab', async () => {
     render(<ClinicDetailTabs clinic={mockClinicData} />);
 
     fireEvent.click(screen.getByText('Conversations'));
-    expect(
-      screen.getByText('Clinic conversations would go here...'),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('recent-conversations')).toBeInTheDocument();
+    });
   });
 
   /** Verifies the AI Configuration tab renders the AI components after loading. */
@@ -138,9 +149,35 @@ describe('ClinicDetailTabs', () => {
       expect(screen.getByTestId('tone-selector')).toBeInTheDocument();
     });
     expect(screen.getByTestId('greeting-message')).toBeInTheDocument();
-    expect(screen.getByTestId('qualification-questions')).toBeInTheDocument();
     expect(screen.getByTestId('custom-instructions')).toBeInTheDocument();
     expect(screen.getByTestId('save-bar')).toBeInTheDocument();
+  });
+
+  /** AC-1: Qualification questions section is hidden on AI Configuration tab. */
+  it('does not render qualification questions on AI Configuration tab', async () => {
+    render(<ClinicDetailTabs clinic={mockClinicData} />);
+
+    fireEvent.click(screen.getByText('AI Configuration'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tone-selector')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('qualification-questions')).not.toBeInTheDocument();
+  });
+
+  /** AC-12: Calls onTabChange when a tab is clicked. */
+  it('calls onTabChange callback when switching tabs', () => {
+    const onTabChange = jest.fn();
+    render(<ClinicDetailTabs clinic={mockClinicData} onTabChange={onTabChange} />);
+
+    fireEvent.click(screen.getByText('Settings'));
+    expect(onTabChange).toHaveBeenCalledWith('Settings');
+
+    fireEvent.click(screen.getByText('AI Configuration'));
+    expect(onTabChange).toHaveBeenCalledWith('AI Configuration');
+
+    fireEvent.click(screen.getByText('Conversations'));
+    expect(onTabChange).toHaveBeenCalledWith('Conversations');
   });
 
   /** Verifies the save flow calls onClinicUpdated and switches back to view mode. */
