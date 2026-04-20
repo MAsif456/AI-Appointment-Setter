@@ -18,6 +18,27 @@ jest.mock('@/services/clinicService', () => ({
   createClinic: (...args: unknown[]) => mockCreateClinic(...args),
 }));
 
+// Mock ServiceConfigSection — the real component is pill-based and has no simple
+// data-field input for serviceAreas. This mock exposes a text input that sets the
+// serviceAreas array to allow the existing fillRequiredFields helper to work.
+jest.mock('@/components/clinics/ServiceConfigSection', () => ({
+  __esModule: true,
+  default: ({ serviceAreas, servicesOffered, onChange, errors }: any) => (
+    <div>
+      <input
+        data-field="serviceAreas"
+        value={(serviceAreas || []).join(', ')}
+        onChange={(e: any) => {
+          const val = e.target.value;
+          const arr = val ? val.split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean) : [];
+          onChange('serviceAreas', arr);
+        }}
+      />
+      {errors?.serviceAreas && <span>{errors.serviceAreas}</span>}
+    </div>
+  ),
+}));
+
 import AddClinicPage from '@/app/clinics/new/page';
 
 /**
@@ -203,7 +224,7 @@ describe('AddClinicPage', () => {
           clinicName: 'Test Clinic',
           address: '123 Test St',
           phoneNumber: '029 2034 5678',
-          serviceAreas: 'CF, NP',
+          serviceAreas: ['CF', 'NP'],
         }),
       );
     });

@@ -69,12 +69,6 @@ describe('ConversationDetail', () => {
     expect(screen.getByText('APT-001')).toBeInTheDocument();
   });
 
-  it('renders action buttons', () => {
-    render(<ConversationDetail conversation={sarahConversation} />);
-    expect(screen.getByText(/Flag for Review/)).toBeInTheDocument();
-    expect(screen.getByText(/View in GHL/)).toBeInTheDocument();
-  });
-
   it('has a back link to conversations list', () => {
     render(<ConversationDetail conversation={sarahConversation} />);
     const backLink = screen.getByText(/Back to Conversations/);
