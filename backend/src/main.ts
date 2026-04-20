@@ -10,6 +10,7 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
 import cookieParser from 'cookie-parser';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from "./app.module";
 import { buildHelmetOptions } from "./security-headers/security-headers.config";
 
@@ -50,6 +51,23 @@ async function bootstrap() {
     allowedHeaders: ["Content-Type", "Authorization"],
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+
+  /**
+   * Swagger (OpenAPI) — interactive API docs served at /api.
+   * Only enabled outside production so the docs are not publicly exposed
+   * on the live server. Visit http://localhost:3001/api when running locally.
+   */
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('LunaX API')
+      .setDescription('REST API for the LunaX clinic management platform')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api', app, document);
+  }
+
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`Backend running on http://localhost:${port}`);

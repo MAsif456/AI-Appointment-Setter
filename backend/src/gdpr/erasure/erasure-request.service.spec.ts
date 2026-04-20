@@ -112,7 +112,7 @@ describe('ErasureRequestService', () => {
     });
 
     it('triggers erasure and updates request status on approval', async () => {
-      const mockRequest = {
+      const mockRequest: Record<string, unknown> = {
         _id: REQUEST_ID,
         leadId: new Types.ObjectId(LEAD_ID),
         clinicId: CLINIC_ID,
@@ -136,7 +136,7 @@ describe('ErasureRequestService', () => {
       );
       expect(mockRequest.status).toBe('approved');
       expect(mockRequest.reviewedBy).toBe('admin@clinic.com');
-      expect(mockRequest.save).toHaveBeenCalled();
+      expect(mockRequest.save as jest.Mock).toHaveBeenCalled();
       expect(mockAuditLogModel.create).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'erasure.approved' }),
       );
@@ -153,7 +153,7 @@ describe('ErasureRequestService', () => {
     });
 
     it('sets status to rejected with reason', async () => {
-      const mockRequest = {
+      const mockRequest: Record<string, unknown> = {
         _id: REQUEST_ID,
         leadId: new Types.ObjectId(LEAD_ID),
         clinicId: CLINIC_ID,
@@ -173,7 +173,7 @@ describe('ErasureRequestService', () => {
 
       expect(mockRequest.status).toBe('rejected');
       expect(mockRequest.rejectionReason).toBe('Data still needed');
-      expect(mockRequest.save).toHaveBeenCalled();
+      expect(mockRequest.save as jest.Mock).toHaveBeenCalled();
       expect(erasureService.erasePatientData).not.toHaveBeenCalled();
       expect(mockAuditLogModel.create).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'erasure.rejected', severity: 'info' }),
