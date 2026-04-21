@@ -6,9 +6,11 @@ import { Types } from 'mongoose';
 import { FollowUpService } from './follow-up.service';
 import { Conversation } from '../database/schemas/conversation.schema';
 import { Lead } from '../database/schemas/lead.schema';
+import { Clinic } from '../database/schemas/clinic.schema';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { InboxNotificationService } from '../notifications/inbox-notification.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
 
 const MON_10AM = new Date('2026-04-06T10:00:00.000Z');
 
@@ -42,9 +44,11 @@ describe('FollowUpService — first follow-up (followUpCount 0)', () => {
         FollowUpService,
         { provide: getModelToken(Conversation.name), useValue: mockConversationModel },
         { provide: getModelToken(Lead.name), useValue: mockLeadModel },
+        { provide: getModelToken(Clinic.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: InboxNotificationService, useValue: mockInboxNotificationService },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();
 
@@ -67,6 +71,7 @@ describe('FollowUpService — first follow-up (followUpCount 0)', () => {
   it('sends the correct first follow-up message with the lead name', async () => {
     await service.checkAndSendFollowUps(MON_10AM);
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ message: 'Hi Jane, just checking in! Still interested in booking?' }),
     );
   });
@@ -75,6 +80,7 @@ describe('FollowUpService — first follow-up (followUpCount 0)', () => {
     mockLeadModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
     await service.checkAndSendFollowUps(MON_10AM);
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ message: 'Hi there, just checking in! Still interested in booking?' }),
     );
   });
@@ -106,6 +112,7 @@ describe('FollowUpService — first follow-up (followUpCount 0)', () => {
   it('sends via GHL with the correct contactId', async () => {
     await service.checkAndSendFollowUps(MON_10AM);
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ contactId: 'contact_001' }),
     );
   });
@@ -120,9 +127,11 @@ describe('FollowUpService — second follow-up (followUpCount 1)', () => {
         FollowUpService,
         { provide: getModelToken(Conversation.name), useValue: mockConversationModel },
         { provide: getModelToken(Lead.name), useValue: mockLeadModel },
+        { provide: getModelToken(Clinic.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: InboxNotificationService, useValue: mockInboxNotificationService },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();
 
@@ -145,6 +154,7 @@ describe('FollowUpService — second follow-up (followUpCount 1)', () => {
   it('sends the correct second follow-up message with the lead name', async () => {
     await service.checkAndSendFollowUps(MON_10AM);
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ message: "Hey Jane, I don't want to keep bothering you! Let me know if I can help." }),
     );
   });

@@ -4,6 +4,8 @@ import { ClinicsModule } from "./clinics.module";
 import { ClinicsController } from "./clinics.controller";
 import { ClinicsService } from "./clinics.service";
 import { Clinic } from "../database/schemas/clinic.schema";
+import { EncryptionService } from "../common/encryption/encryption.service";
+import { GhlApiService } from "../ghl/ghl-api.service";
 
 /**
  * Integration test for ClinicsModule.
@@ -29,6 +31,10 @@ describe("ClinicsModule", () => {
       .useValue({
         aggregate: jest.fn().mockResolvedValue([]),
       })
+      .overrideProvider(EncryptionService)
+      .useValue({ encrypt: jest.fn(), decrypt: jest.fn() })
+      .overrideProvider(GhlApiService)
+      .useValue({ testConnectionWithKey: jest.fn() })
       .compile();
   });
 

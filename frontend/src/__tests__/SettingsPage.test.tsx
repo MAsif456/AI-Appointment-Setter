@@ -5,6 +5,9 @@ import SettingsPage from '@/app/settings/page';
 jest.mock('@/app/settings/components/AccountSettings', () => () => <div>Account Settings Content</div>);
 jest.mock('@/app/settings/components/UserManagement', () => () => <div>User Management Content</div>);
 jest.mock('@/app/settings/components/NotificationPreferences', () => () => <div>Notification Preferences Content</div>);
+jest.mock('@/app/settings/components/IntegrationsSettings', () => () => (
+  <><h2>Integrations</h2><p>Coming soon.</p></>
+));
 
 // Mock AuthContext to control role
 const mockUseAuth = jest.fn();
@@ -65,7 +68,7 @@ describe('SettingsPage', () => {
       expect(screen.getByRole('button', { name: 'Account Settings' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'User Management' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Notifications' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Integrations' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Integrations' })).not.toBeInTheDocument();
     });
 
     it('shows Account Settings content by default', () => {

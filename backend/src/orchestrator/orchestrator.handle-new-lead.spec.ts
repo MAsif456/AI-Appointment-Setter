@@ -194,6 +194,7 @@ describe("OrchestratorService — handleNewLead", () => {
     );
     // New patients route to 'consenting' so the consent statement is appended
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         message: `${FALLBACK_MESSAGE}\n\n${CONSENT_STATEMENT_TEXT}`,
       }),
@@ -260,6 +261,7 @@ describe("OrchestratorService — handleNewLead", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ type: "Email" }),
     );
   });
@@ -275,7 +277,7 @@ describe("OrchestratorService — handleNewLead", () => {
       } as any,
       clinicConfig,
     );
-    const sendCall = mockGhlApiService.sendMessageWithRetry.mock.calls[0][0];
+    const sendCall = mockGhlApiService.sendMessageWithRetry.mock.calls[0][1];
     expect(sendCall.html).toBeDefined();
     expect(sendCall.subject).toBeDefined();
   });
@@ -334,6 +336,7 @@ describe("OrchestratorService — handleNewLead", () => {
     );
     // New patients route to 'consenting' so the consent statement is appended
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         message: `Safe fallback\n\n${CONSENT_STATEMENT_TEXT}`,
       }),
@@ -355,6 +358,7 @@ describe("OrchestratorService — handleNewLead", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ conversationId: "conv_thread_001" }),
     );
   });
@@ -371,6 +375,7 @@ describe("OrchestratorService — handleNewLead", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ type: "SMS" }),
     );
   });

@@ -242,4 +242,20 @@ export class AuthService {
     await user.save();
     return { message: 'Password updated successfully.' };
   }
+
+  /**
+   * Decodes a JWT without verifying its signature or checking expiry.
+   * This is intentionally unverified — it is only used to extract userId from an
+   * expired access token during the refresh flow. The HttpOnly refresh token cookie
+   * is the actual security proof; the access token payload is used only to look up
+   * the current user in the database so we can embed fresh claims.
+   */
+  decodeToken(token: string): Record<string, unknown> | null {
+    if (!token) return null;
+    try {
+      return this.jwtService.decode(token) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
 }

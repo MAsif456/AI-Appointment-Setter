@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { EscalationGhlService } from "./escalation-ghl.service";
 import { GhlApiService } from "../ghl/ghl-api.service";
+import { EncryptionService } from "../common/encryption/encryption.service";
 
 // Stub retryWithBackoff so tests don't wait on exponential delays.
 jest.mock("../common/retry-utils", () => ({
@@ -25,8 +26,8 @@ describe("EscalationGhlService", () => {
     ghlContactId: "ghl_c1",
     ghlTags: [],
   };
-  const baseConversation: any = { _id: "conv_1", ghlContactId: "ghl_c1" };
-  const baseClinic: any = { _id: "clinic_1", name: "Smile Dental Bristol" };
+  const baseConversation: any = { _id: "conv_1", ghlContactId: "ghl_c1", channel: "sms" };
+  const baseClinic: any = { _id: "clinic_1", name: "Smile Dental Bristol", ghlLocationId: "loc_001" };
   const reason = "3 consecutive AI comprehension failures";
 
   beforeEach(async () => {
@@ -41,6 +42,7 @@ describe("EscalationGhlService", () => {
       providers: [
         EscalationGhlService,
         { provide: GhlApiService, useValue: mockGhlApi },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
         { provide: getModelToken("Lead"), useValue: mockLeadModel },
       ],
     }).compile();
@@ -63,6 +65,7 @@ describe("EscalationGhlService", () => {
       { $addToSet: { ghlTags: "escalated" } },
     );
     expect(mockGhlApi.addContactTag).toHaveBeenCalledWith(
+      expect.any(String),
       "ghl_c1",
       "escalated",
     );
@@ -90,9 +93,11 @@ describe("EscalationGhlService", () => {
     );
 
     expect(mockGhlApi.updateContactCustomField).toHaveBeenCalledWith(
+      expect.any(String),
       "ghl_c1",
       "escalation_reason",
       reason,
+      "loc_001",
     );
   });
 
@@ -105,9 +110,11 @@ describe("EscalationGhlService", () => {
     );
 
     expect(mockGhlApi.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         type: "SMS",
         contactId: "ghl_c1",
+        locationId: "loc_001",
       }),
     );
   });
@@ -122,6 +129,7 @@ describe("EscalationGhlService", () => {
     );
 
     expect(mockGhlApi.addContactTag).toHaveBeenCalledWith(
+      expect.any(String),
       "ghl_c1",
       "escalated",
     );
@@ -133,6 +141,7 @@ describe("EscalationGhlService", () => {
     await service.applyEscalationToGhl(noGhl, noConvGhl, baseClinic, reason);
 
     expect(mockGhlApi.addContactTag).toHaveBeenCalledWith(
+      expect.any(String),
       "lead_1",
       "escalated",
     );
@@ -179,6 +188,24 @@ describe("EscalationGhlService", () => {
         reason,
       ),
     ).resolves.toBeUndefined();
+  });
+
+  it("falls back to empty string when decryption of clinic API key throws", async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EscalationGhlService,
+        { provide: GhlApiService, useValue: mockGhlApi },
+        { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockImplementation(() => { throw new Error('bad key'); }) } },
+        { provide: getModelToken("Lead"), useValue: mockLeadModel },
+      ],
+    }).compile();
+    const svc = module.get(EscalationGhlService);
+
+    const clinicWithKey: any = { ...baseClinic, ghlApiKey: 'corrupted' };
+    await svc.applyEscalationToGhl(baseLead, baseConversation, clinicWithKey, reason);
+
+    // GHL calls still fire with empty apiKey — the decryption error is swallowed
+    expect(mockGhlApi.addContactTag).toHaveBeenCalledWith('', 'ghl_c1', 'escalated');
   });
 
   it("runs all three GHL calls independently", async () => {

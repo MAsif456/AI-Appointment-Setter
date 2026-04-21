@@ -7,6 +7,7 @@
  */
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { HttpModule } from '@nestjs/axios';
 import { Clinic, ClinicSchema } from "../database/schemas/clinic.schema";
 import {
   Conversation,
@@ -14,10 +15,17 @@ import {
 } from "../database/schemas/conversation.schema";
 import { ClinicsController } from "./clinics.controller";
 import { ClinicsService } from "./clinics.service";
+import { EncryptionService } from '../common/encryption/encryption.service';
+import { GhlApiService } from '../ghl/ghl-api.service';
 
 /**
  * Feature module that wires up the Clinic Mongoose model,
  * the ClinicsController, and the ClinicsService.
+ *
+ * GhlApiService is provided directly (not via GhlModule) to avoid the
+ * circular dependency that would arise because GhlModule already imports
+ * ClinicsModule. The testConnectionWithKey method uses an absolute URL
+ * so it works correctly with a plain HttpModule instance.
  */
 @Module({
   imports: [
@@ -25,9 +33,10 @@ import { ClinicsService } from "./clinics.service";
       { name: Clinic.name, schema: ClinicSchema },
       { name: Conversation.name, schema: ConversationSchema },
     ]),
+    HttpModule,
   ],
   controllers: [ClinicsController],
-  providers: [ClinicsService],
+  providers: [ClinicsService, EncryptionService, GhlApiService],
   exports: [ClinicsService],
 })
 export class ClinicsModule {}

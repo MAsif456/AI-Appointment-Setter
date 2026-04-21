@@ -138,11 +138,11 @@ export function HighPriorityIcon({ className }: IconProps) {
 export function AIBotIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 36 36" fill="none">
-      <circle cx="18" cy="18" r="18" fill="#4361ee" />
+      <circle cx="18" cy="18" r="18" fill="currentColor" />
       <circle cx="12.5" cy="15" r="2" fill="#fff" />
       <circle cx="23.5" cy="15" r="2" fill="#fff" />
       <path d="M12 22c0 2.5 2.7 4.5 6 4.5s6-2 6-4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M18 4V2M26 7l1.5-1.5M10 7L8.5 5.5" stroke="#4361ee" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M18 4V2M26 7l1.5-1.5M10 7L8.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <rect x="8" y="10" width="20" height="14" rx="7" stroke="#fff" strokeWidth="1.2" />
     </svg>
   );
@@ -207,6 +207,17 @@ export function ChevronRightIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+/** Escalation icon — alert triangle with upward arrow, signals urgency. */
+export function EscalationIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   );
 }

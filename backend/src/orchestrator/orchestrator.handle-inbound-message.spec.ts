@@ -223,6 +223,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ message: "AI pipeline response" }),
     );
   });
@@ -241,6 +242,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ message: FALLBACK_AI_UNAVAILABLE }),
     );
     expect(
@@ -268,6 +270,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ emailMessageId: "msg-id-abc-123" }),
     );
   });
@@ -287,7 +290,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
       } as any,
       clinicConfig,
     );
-    const sendCall = mockGhlApiService.sendMessageWithRetry.mock.calls[0][0];
+    const sendCall = mockGhlApiService.sendMessageWithRetry.mock.calls[0][1];
     expect(sendCall.type).toBe("Email");
     expect(sendCall.html).toBeDefined();
     expect(sendCall.subject).toBeDefined();
@@ -331,6 +334,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
     );
     expect(mockChatConversationsService.sendMessage).not.toHaveBeenCalled();
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         message: expect.stringContaining("attachment"),
       }),
@@ -353,6 +357,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
       clinicConfig,
     );
     expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({ conversationId: "conv_thread_001" }),
     );
   });
@@ -501,6 +506,7 @@ describe("OrchestratorService — handleInboundMessage", () => {
       );
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           conversationId: "conv_001",
           emailMessageId: "msg-id-123",

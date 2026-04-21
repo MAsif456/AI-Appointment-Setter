@@ -11,7 +11,7 @@ interface BasicInfoSectionProps {
   errors: Record<string, string>;
 }
 
-/** Basic clinic details — name (required), address, and phone number. */
+/** Basic clinic details — name, address, and phone number are all required. */
 export default function BasicInfoSection({
   clinicName,
   address,
@@ -38,17 +38,25 @@ export default function BasicInfoSection({
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label}>Address</label>
+        <label className={styles.label}>
+          Address<span className={styles.required}>*</span>
+        </label>
         <input
-          className={styles.input}
+          className={`${styles.input} ${errors.address ? styles.inputError : ''}`}
           type="text"
           value={address}
           onChange={(e) => onChange('address', e.target.value)}
+          data-field="address"
         />
+        {errors.address && (
+          <span className={styles.errorText}>{errors.address}</span>
+        )}
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label}>Phone Number</label>
+        <label className={styles.label}>
+          Phone Number<span className={styles.required}>*</span>
+        </label>
         <input
           className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`}
           type="text"

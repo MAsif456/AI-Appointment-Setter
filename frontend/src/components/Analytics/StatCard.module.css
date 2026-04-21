@@ -1,9 +1,10 @@
 /* Stat card for displaying a single analytics metric */
 .card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   padding: 24px 28px;
-  background: #ffffff;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
   flex: 1;
   min-width: 180px;
   display: flex;
@@ -20,7 +21,7 @@
 
 .title {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-muted);
   margin: 0;
   font-weight: 400;
 }
@@ -34,7 +35,7 @@
 .value {
   font-size: 36px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
   line-height: 1;
 }
 
@@ -53,7 +54,7 @@
 .cornerIcon {
   width: 24px;
   height: 24px;
-  color: #6b7280;
+  color: var(--text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -79,11 +80,14 @@
   font-weight: 600;
 }
 
+:global([data-theme="dark"]) .deltaUp { color: #f472b6; }
+:global([data-theme="dark"]) .deltaDown { color: #9898b0; }
+
 .deltaFlat {
-  color: #6b7280;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
 .deltaContext {
-  color: #6b7280;
+  color: var(--text-muted);
 }

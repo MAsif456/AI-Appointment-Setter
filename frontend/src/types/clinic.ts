@@ -58,6 +58,9 @@ export interface Clinic {
   name: string;
   ghlLocationId: string;
   ghlCalendarId: string;
+  /** Masked API key, e.g. "••••••••••••abc123". Empty string if not configured. */
+  ghlApiKey?: string;
+  webhookUrl?: string;
   address?: string;
   phone?: string;
   email?: string;

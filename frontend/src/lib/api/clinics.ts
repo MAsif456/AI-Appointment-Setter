@@ -1,4 +1,5 @@
 import { Clinic } from '@/types/clinic';
+import api from '@/lib/apiAxios';
 
 /** Base URL for the backend API. Falls back to localhost for local development. */
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -85,4 +86,51 @@ export async function updateClinicSettings(
   }
 
   return res.json();
+}
+
+/**
+ * Saves a per-clinic GHL API key (and optional webhook URL).
+ * The backend validates the key against GHL before storing it encrypted.
+ * Uses apiAxios so the JWT token is automatically attached.
+ * @throws Error with the backend message if the key is rejected.
+ */
+export async function updateClinicIntegration(
+  id: string,
+  ghlApiKey: string,
+  webhookUrl?: string,
+): Promise<void> {
+  try {
+    await api.put(`/clinics/${id}/integrations`, {
+      ghlApiKey,
+      ...(webhookUrl ? { webhookUrl } : {}),
+    });
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ??
+      err?.message ??
+      'Failed to update integration settings';
+    throw new Error(Array.isArray(message) ? message[0] : message);
+  }
+}
+
+/**
+ * Tests the stored GHL API key for a clinic against the live GHL API.
+ * Uses apiAxios so the JWT token is automatically attached.
+ * @returns `{ connected: boolean }`
+ */
+export async function testClinicIntegration(
+  id: string,
+): Promise<{ connected: boolean }> {
+  const res = await api.post<{ connected: boolean }>(
+    `/clinics/${id}/integrations/test`,
+  );
+  return res.data;
+}
+
+/**
+ * Removes the stored GHL API key and webhook URL for a clinic.
+ * Uses apiAxios so the JWT token is automatically attached.
+ */
+export async function disconnectClinicIntegration(id: string): Promise<void> {
+  await api.delete(`/clinics/${id}/integrations`);
 }

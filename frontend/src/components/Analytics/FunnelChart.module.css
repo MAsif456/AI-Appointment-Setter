@@ -1,15 +1,16 @@
 /* Conversion funnel Recharts horizontal bar chart */
 .container {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   padding: 24px 28px;
-  background: #ffffff;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
 
 .title {
   font-size: 18px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin: 0 0 20px 0;
 }
 

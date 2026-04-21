@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import ClinicDetailPage from '@/app/clinics/[id]/page';
 import * as clinicsApi from '@/lib/api/clinics';
 import { Clinic } from '@/types/clinic';
@@ -30,8 +30,23 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-// Stub ClinicDetailTabs to keep test output clean
-jest.mock('@/components/clinics/ClinicDetailTabs', () => () => <div>Clinic Tabs</div>);
+// Stub ClinicDetailTabs — exposes onTabChange so the page test can simulate tab switching
+jest.mock('@/components/clinics/ClinicDetailTabs', () => {
+  const { forwardRef } = require('react');
+  return {
+    __esModule: true,
+    default: forwardRef(function MockClinicDetailTabs(props: any, _ref: any) {
+      return (
+        <div data-testid="clinic-detail-tabs">
+          <button onClick={() => props.onTabChange?.('Settings')}>Switch to Settings</button>
+          <button onClick={() => props.onTabChange?.('AI Configuration')}>Switch to AI Config</button>
+          <button onClick={() => props.onTabChange?.('Overview')}>Switch to Overview</button>
+          <button onClick={() => props.onTabChange?.('Conversations')}>Switch to Conversations</button>
+        </div>
+      );
+    }),
+  };
+});
 
 function makeClinic(overrides: Partial<Clinic> = {}): Clinic {
   return {
@@ -124,5 +139,42 @@ describe('ClinicDetailPage', () => {
     mockedApi.getClinicById.mockReturnValue(new Promise(() => {}));
     render(<ClinicDetailPage />);
     expect(screen.getByText('Loading clinic...')).toBeInTheDocument();
+  });
+
+  // AC-12: Edit settings button visibility
+  describe('edit settings button visibility (AC-12)', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({ isAdmin: true, user: { role: 'admin', assignedClinics: [] } });
+      mockedApi.getClinicById.mockResolvedValue(makeClinic());
+    });
+
+    it('does not show edit button on Overview tab by default', async () => {
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Cardiff Physio')).toBeInTheDocument());
+      expect(screen.queryByText('Edit Settings')).not.toBeInTheDocument();
+    });
+
+    it('shows edit button when on Settings tab', async () => {
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Cardiff Physio')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Switch to Settings'));
+      expect(screen.getByText('Edit Settings')).toBeInTheDocument();
+    });
+
+    it('shows edit button when on AI Configuration tab', async () => {
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Cardiff Physio')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Switch to AI Config'));
+      expect(screen.getByText('Edit Settings')).toBeInTheDocument();
+    });
+
+    it('hides edit button when switching back to Conversations tab', async () => {
+      render(<ClinicDetailPage />);
+      await waitFor(() => expect(screen.getByText('Cardiff Physio')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Switch to Settings'));
+      expect(screen.getByText('Edit Settings')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Switch to Conversations'));
+      expect(screen.queryByText('Edit Settings')).not.toBeInTheDocument();
+    });
   });
 });

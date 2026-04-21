@@ -17,14 +17,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #6b7280;
+  color: var(--text-muted);
   text-decoration: none;
   font-size: 14px;
   transition: color 0.15s;
 }
 
 .backLink:hover {
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .backIcon {
@@ -36,7 +36,7 @@
 .title {
   font-size: 24px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -51,9 +51,10 @@
 
 /* Chat panel — fills its grid column and available height */
 .chatPanel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -61,7 +62,7 @@
 
 .chatHeader {
   padding: 14px 20px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -80,12 +81,12 @@
 .chatHeaderTitle {
   font-size: 15px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .chatHeaderSub {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 /* Messages area — scrollable, messages pushed to bottom via spacer */
@@ -96,7 +97,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background-color: #f9fafb;
+  background-color: var(--bg-input);
 }
 
 .messagesSpacer {
@@ -131,9 +132,9 @@
 
 .aiMessage {
   composes: messageBubble;
-  background-color: #ffffff;
-  color: #1a1a2e;
-  border: 1px solid #e5e7eb;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
   border-bottom-left-radius: 2px;
 }
 
@@ -141,16 +142,16 @@
   composes: messageBubble;
   align-self: flex-end;
   max-width: 85%;
-  background-color: #4361ee;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
   border-bottom-right-radius: 2px;
 }
 
 /* Typing indicator */
 .typing {
   align-self: flex-start;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
   padding: 10px 16px;
   border-radius: 8px;
   border-bottom-left-radius: 2px;
@@ -164,7 +165,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: #9ca3af;
+  background-color: var(--text-muted);
   animation: bounce 1.4s infinite ease-in-out both;
 }
 
@@ -186,12 +187,22 @@
   font-weight: 600;
 }
 
-.phaseGreeting { background-color: #dbeafe; color: #1d4ed8; }
-.phaseQualifying { background-color: #fef3c7; color: #92400e; }
-.phaseBooking { background-color: #ede9fe; color: #6d28d9; }
-.phaseConfirmed { background-color: #d1fae5; color: #065f46; }
-.phaseEscalated { background-color: #fee2e2; color: #991b1b; }
-.phaseDeclined { background-color: #f3f4f6; color: #6b7280; }
+.phaseGreeting,
+.phaseQualifying,
+.phaseBooking,
+.phaseConfirmed,
+.phaseEscalated,
+.phaseDeclined {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* Dark mode: all phase badges pink */
+:global([data-theme="dark"]) .phaseGreeting,
+:global([data-theme="dark"]) .phaseQualifying,
+:global([data-theme="dark"]) .phaseBooking,
+:global([data-theme="dark"]) .phaseConfirmed,
+:global([data-theme="dark"]) .phaseEscalated { background-color: rgba(244, 114, 182, 0.12); color: #f472b6; }
 
 .errorMessage {
   align-self: center;
@@ -202,39 +213,46 @@
   font-size: 13px;
 }
 
+:global([data-theme="dark"]) .errorMessage {
+  color: #f472b6;
+  background-color: #2a2a38;
+}
+
 /* Input area */
 .inputArea {
   display: flex;
   gap: 10px;
   padding: 14px 20px;
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-card);
   border-radius: 0 0 12px 12px;
 }
 
 .input {
   flex: 1;
   padding: 10px 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 20px;
   font-size: 14px;
   outline: none;
-  background: #f9fafb;
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
 .input:focus {
-  border-color: #4361ee;
-  background: #fff;
+  border-color: var(--color-primary);
+  background: var(--bg-card);
 }
 
 .input:disabled {
-  background-color: #f3f4f6;
+  background-color: var(--bg-input);
+  opacity: 0.6;
 }
 
 .sendBtn {
   padding: 10px 20px;
-  background-color: #4361ee;
-  color: #fff;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
   border: none;
   border-radius: 20px;
   font-size: 14px;
@@ -244,7 +262,7 @@
 }
 
 .sendBtn:hover:not(:disabled) {
-  background-color: #3a56d4;
+  background-color: var(--color-primary-hover);
 }
 
 .sendBtn:disabled {
@@ -261,16 +279,17 @@
 }
 
 .infoCard {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .cardTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -280,14 +299,15 @@
 
 .infoLabel {
   font-size: 12px;
-  color: #4361ee;
+  color: var(--color-primary);
   font-weight: 500;
   margin-bottom: 2px;
 }
 
 .infoValue {
   font-size: 14px;
-  color: #1a1a2e;
+  color: var(--text-primary);
+  cursor: default;
 }
 
 .statusBadge {
@@ -296,6 +316,11 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+:global([data-theme="dark"]) .statusBadge {
+  background-color: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
 }

@@ -8,6 +8,7 @@ import { Message, MessageSchema } from '../database/schemas/message.schema';
 import { GhlModule } from '../ghl/ghl.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReminderService } from './reminder.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
 import { ReminderTrackerService } from './reminder-tracker.service';
 import { ReminderController } from './reminder.controller';
@@ -29,6 +30,7 @@ import { ReminderController } from './reminder.controller';
     ReminderService,
     ReminderSchedulerService,
     ReminderTrackerService,
+    EncryptionService,
   ],
   exports: [ReminderService],
 })

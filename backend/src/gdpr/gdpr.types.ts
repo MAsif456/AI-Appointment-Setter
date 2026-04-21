@@ -24,16 +24,17 @@ export const CONSENT_STATEMENT_TEXT =
 export const CONSENT_GRANTED_KEYWORDS = [
   'yes', 'sure', 'ok', 'okay', "that's fine", 'i agree', 'go ahead',
   'fine', 'alright', 'sounds good', 'happy to', 'no problem',
-  'that is fine', 'agree', 'accepted', 'i consent', 'i do',
+  'that is fine', 'agree', 'accepted', 'i consent',
   'actually i do', 'actually yes', 'changed my mind', 'i changed my mind',
   "i'm happy to", 'yeah', 'yep', 'yea', 'of course',
 ];
 
 /** Keywords indicating patient declines consent. */
 export const CONSENT_DECLINED_KEYWORDS = [
-  'no', 'no thanks', "i don't want that", 'decline', 'refuse',
-  "i don't agree", "i'd rather not", 'no thank you',
-  "don't want to", "i don't consent",
+  'no', 'no thanks', "i don't want that", 'i dont want that',
+  'decline', 'refuse', "i don't agree", 'i dont agree',
+  "i'd rather not", 'id rather not', 'no thank you',
+  "don't want to", 'dont want to', "i don't consent", 'i dont consent',
 ];
 
 /** Sent after consent is granted — transitions to qualifying phase. */

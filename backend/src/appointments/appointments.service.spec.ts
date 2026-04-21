@@ -1,16 +1,17 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { getModelToken } from "@nestjs/mongoose";
-import { Types } from "mongoose";
-import { AppointmentsService } from "./appointments.service";
-import { GhlApiService } from "../ghl/ghl-api.service";
-import { Appointment } from "../database/schemas/appointment.schema";
-import { Clinic } from "../database/schemas/clinic.schema";
-import { Conversation } from "../database/schemas/conversation.schema";
-import { Lead } from "../database/schemas/lead.schema";
-import { PatientHistoryService } from "../patient-history/patient-history.service";
-import { CreateAppointmentDto } from "./dto/create-appointment.dto";
+import { Test, TestingModule } from '@nestjs/testing';
+import { getModelToken } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
+import { AppointmentsService } from './appointments.service';
+import { GhlApiService } from '../ghl/ghl-api.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
+import { Appointment } from '../database/schemas/appointment.schema';
+import { Clinic } from '../database/schemas/clinic.schema';
+import { Conversation } from '../database/schemas/conversation.schema';
+import { Lead } from '../database/schemas/lead.schema';
+import { PatientHistoryService } from '../patient-history/patient-history.service';
+import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
-describe("AppointmentsService", () => {
+describe('AppointmentsService', () => {
   let service: AppointmentsService;
   let appointmentModel: { create: jest.Mock };
   let clinicModel: { findById: jest.Mock };
@@ -21,27 +22,32 @@ describe("AppointmentsService", () => {
 
   const mockClinic = {
     _id: new Types.ObjectId(),
-    name: "Cardiff Physiotherapy Centre",
-    ghlCalendarId: "cal_123",
-    ghlLocationId: "loc_123",
-    address: "123 Queen Street, Cardiff, CF10 2BX",
+    name: 'Cardiff Physiotherapy Centre',
+    ghlCalendarId: 'cal_123',
+    ghlLocationId: 'loc_123',
+    ghlApiKey: 'encrypted-key',
+    address: '123 Queen Street, Cardiff, CF10 2BX',
     defaultAppointmentDuration: 30,
-    itemsToBring: "Photo ID",
+    itemsToBring: 'Photo ID',
     services: [
-      { name: "Physiotherapy", durationMinutes: 45 },
-      { name: "Consultation", durationMinutes: 20 },
+      { name: 'Physiotherapy', durationMinutes: 45 },
+      { name: 'Consultation', durationMinutes: 20 },
     ],
+  };
+
+  const mockEncryptionService = {
+    decrypt: jest.fn().mockReturnValue('decrypted-api-key'),
   };
 
   const mockDto: CreateAppointmentDto = {
     clinicId: mockClinic._id.toString(),
-    contactId: "ghl_contact_123",
+    contactId: 'ghl_contact_123',
     conversationId: new Types.ObjectId().toString(),
     leadId: new Types.ObjectId().toString(),
-    startTime: "2026-03-17T14:00:00Z",
+    startTime: '2026-03-17T14:00:00Z',
   };
 
-  const mockGhlResponse = { id: "ghl_apt_001" };
+  const mockGhlResponse = { id: 'ghl_apt_001' };
   const mockAppointment = { _id: new Types.ObjectId() };
 
   beforeEach(async () => {
@@ -79,13 +85,14 @@ describe("AppointmentsService", () => {
         { provide: getModelToken(Lead.name), useValue: leadModel },
         { provide: PatientHistoryService, useValue: patientHistoryService },
         { provide: GhlApiService, useValue: ghlApiService },
+        { provide: EncryptionService, useValue: mockEncryptionService },
       ],
     }).compile();
 
     service = module.get<AppointmentsService>(AppointmentsService);
   });
 
-  it("should successfully book an appointment", async () => {
+  it('should successfully book an appointment', async () => {
     const result = await service.bookAppointment(mockDto);
 
     expect(result.success).toBe(true);
@@ -101,10 +108,11 @@ describe("AppointmentsService", () => {
     await service.bookAppointment(mockDto);
 
     expect(ghlApiService.createAppointment).toHaveBeenCalledWith(
-      "cal_123",
-      "loc_123",
-      "ghl_contact_123",
-      "2026-03-17T14:00:00Z",
+      'decrypted-api-key',
+      'cal_123',
+      'loc_123',
+      'ghl_contact_123',
+      '2026-03-17T14:00:00Z',
       expect.any(String),
     );
   });
@@ -116,8 +124,9 @@ describe("AppointmentsService", () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      "2026-03-17T14:00:00Z",
-      "2026-03-17T14:30:00.000Z",
+      expect.any(String),
+      '2026-03-17T14:00:00Z',
+      '2026-03-17T14:30:00.000Z',
     );
   });
 
@@ -129,8 +138,9 @@ describe("AppointmentsService", () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      "2026-03-17T14:00:00Z",
-      "2026-03-17T14:45:00.000Z",
+      expect.any(String),
+      '2026-03-17T14:00:00Z',
+      '2026-03-17T14:45:00.000Z',
     );
   });
 
@@ -142,8 +152,9 @@ describe("AppointmentsService", () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      "2026-03-17T14:00:00Z",
-      "2026-03-17T14:30:00.000Z",
+      expect.any(String),
+      '2026-03-17T14:00:00Z',
+      '2026-03-17T14:30:00.000Z',
     );
   });
 

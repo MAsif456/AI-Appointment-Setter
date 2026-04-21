@@ -240,19 +240,12 @@ describe("CancellationService", () => {
       mockGhlApiService.sendMessageWithRetry.mockResolvedValue({});
     });
 
-    it("should cancel in GHL and update local records", async () => {
-      const result = await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-        "Too busy",
-      );
+    it('should cancel in GHL and update local records', async () => {
+      const result = await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key', 'Too busy');
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("cancelled");
-      expect(mockGhlApiService.cancelAppointment).toHaveBeenCalledWith(
-        "ghl_apt_123",
-      );
+      expect(result.message).toContain('cancelled');
+      expect(mockGhlApiService.cancelAppointment).toHaveBeenCalledWith('test-api-key', 'ghl_apt_123');
       expect(mockAppointmentModel.findByIdAndUpdate).toHaveBeenCalledWith(
         appointmentId,
         expect.objectContaining({
@@ -262,12 +255,8 @@ describe("CancellationService", () => {
       );
     });
 
-    it("should push to cancelledAppointments audit array", async () => {
-      await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-      );
+    it('should push to cancelledAppointments audit array', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key');
 
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         conversationId,
@@ -284,31 +273,17 @@ describe("CancellationService", () => {
       );
     });
 
-    it("should add cancelled tag and remove appointment-booked tag", async () => {
-      await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-      );
+    it('should add cancelled tag and remove appointment-booked tag', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key');
 
-      expect(mockGhlApiService.addContactTag).toHaveBeenCalledWith(
-        "contact_123",
-        "cancelled",
-      );
-      expect(mockGhlApiService.removeContactTag).toHaveBeenCalledWith(
-        "contact_123",
-        "appointment-booked",
-      );
+      expect(mockGhlApiService.addContactTag).toHaveBeenCalledWith('test-api-key', 'contact_123', 'cancelled');
+      expect(mockGhlApiService.removeContactTag).toHaveBeenCalledWith('test-api-key', 'contact_123', 'appointment-booked');
     });
 
     it("should still succeed locally when GHL cancel returns null", async () => {
       mockGhlApiService.cancelAppointment.mockResolvedValue(null);
 
-      const result = await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-      );
+      const result = await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key');
 
       expect(result.success).toBe(true);
       expect(mockAppointmentModel.findByIdAndUpdate).toHaveBeenCalled();
@@ -319,23 +294,14 @@ describe("CancellationService", () => {
         exec: jest.fn().mockResolvedValue(null),
       });
 
-      const result = await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-      );
+      const result = await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("not found");
     });
 
-    it("should store cancellationReason when provided", async () => {
-      await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-        "Moving away",
-      );
+    it('should store cancellationReason when provided', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key', 'Moving away');
 
       expect(mockConversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         conversationId,
@@ -343,15 +309,11 @@ describe("CancellationService", () => {
       );
     });
 
-    it("should send clinic notification via GHL messaging", async () => {
-      await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-        "Schedule conflict",
-      );
+    it('should send clinic notification via GHL messaging', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key', 'Schedule conflict');
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        'test-api-key',
         expect.objectContaining({
           type: "SMS",
           contactId: "contact_123",
@@ -360,15 +322,11 @@ describe("CancellationService", () => {
       );
     });
 
-    it("should include reason in clinic notification when provided", async () => {
-      await service.executeCancellation(
-        conversationId,
-        appointmentId,
-        "contact_123",
-        "Too expensive",
-      );
+    it('should include reason in clinic notification when provided', async () => {
+      await service.executeCancellation(conversationId, appointmentId, 'contact_123', 'test-api-key', 'Too expensive');
 
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        'test-api-key',
         expect.objectContaining({
           message: expect.stringContaining("Reason: Too expensive"),
         }),

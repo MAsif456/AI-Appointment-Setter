@@ -1,11 +1,13 @@
 .container {
-  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .title {
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -13,7 +15,7 @@
   display: flex;
   gap: 0;
   margin-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .tab,
@@ -24,18 +26,18 @@
   border: none;
   background: none;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-muted);
   border-bottom: 2px solid transparent;
   transition: color 0.15s, border-color 0.15s;
 }
 
 .tab:hover {
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .tabActive {
-  color: #4361ee;
-  border-bottom-color: #4361ee;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 /* Compact priority banner — icon colored, text grey */
@@ -48,15 +50,15 @@
   margin-bottom: 12px;
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  color: var(--text-muted);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-default);
 }
 
 .priorityBannerIcon {
   width: 16px;
   height: 16px;
-  color: #f59e0b;
+  color: #111827;
   flex-shrink: 0;
 }
 
@@ -71,7 +73,7 @@
 .searchInput {
   flex: 1;
   padding: 10px 14px 10px 36px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 14px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239ca3af' viewBox='0 0 24 24'%3E%3Cpath d='M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z' stroke='%239ca3af' stroke-width='2' fill='none'/%3E%3C/svg%3E");
@@ -81,15 +83,15 @@
 }
 
 .searchInput:focus {
-  border-color: #4361ee;
+  border-color: var(--color-primary);
 }
 
 .filterSelect {
   padding: 10px 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 14px;
-  background: #fff;
+  background: var(--bg-card);
   cursor: pointer;
   min-width: 140px;
 }
@@ -108,19 +110,19 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6b7280;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .table td {
   padding: 14px 16px;
   font-size: 14px;
-  color: #1a1a2e;
-  border-bottom: 1px solid #f3f4f6;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .table tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-hover);
   cursor: pointer;
 }
 
@@ -134,37 +136,54 @@
 .priorityIcon {
   width: 16px;
   height: 16px;
-  color: #f59e0b;
+  color: #111827;
   flex-shrink: 0;
 }
 
-/* Phase badges — no colour fills, icon-driven distinction */
+/* Phase badges — text + coloured icon, no background bubble */
 .phaseBadge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 4px 0;
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
 }
 
 .phaseIcon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #374151;
 }
+
+/* Phase-specific icon colours — unified for accessibility */
+.phaseIconBooking,
+.phaseIconConfirmed,
+.phaseIconQualified,
+.phaseIconDeclined,
+.phaseIconEscalated { color: #111827; }
+.phaseIconDefault { color: var(--text-muted); }
+
+/* Dark mode: all phase icons pink */
+:global([data-theme="dark"]) .phaseIconBooking,
+:global([data-theme="dark"]) .phaseIconConfirmed,
+:global([data-theme="dark"]) .phaseIconQualified,
+:global([data-theme="dark"]) .phaseIconDeclined,
+:global([data-theme="dark"]) .phaseIconEscalated { color: #f472b6; }
+
+/* Dark mode: priority icon */
+:global([data-theme="dark"]) .priorityBannerIcon { color: #f472b6; }
+:global([data-theme="dark"]) .priorityIcon { color: #f472b6; }
 
 .lastMessage {
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 /* Pagination */
@@ -174,12 +193,12 @@
   justify-content: space-between;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-default);
 }
 
 .pageInfo {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .pageControls {
@@ -194,18 +213,18 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-card);
   cursor: pointer;
   font-size: 13px;
-  color: #1a1a2e;
+  color: var(--text-primary);
   transition: all 0.15s;
 }
 
 .pageBtn:hover:not(:disabled) {
-  border-color: #4361ee;
-  color: #4361ee;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .pageBtn:disabled {
@@ -215,9 +234,9 @@
 
 .pageBtnActive {
   composes: pageBtn;
-  background-color: #4361ee;
-  color: #fff;
-  border-color: #4361ee;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  border-color: var(--color-primary);
 }
 
 .pageBtnIcon {

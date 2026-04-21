@@ -318,14 +318,39 @@ describe('ConversationList', () => {
 
   it('formats time correctly for recent messages', async () => {
     render(<ConversationList />);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Rachel Green')).toBeInTheDocument();
     });
-    
+
     // Should show time in "Xm ago" or "Xh ago" format - use getAllByText since there are multiple
     const timeElements = screen.getAllByText(/\d+m ago|\d+h ago|\d+d ago/);
     expect(timeElements.length).toBeGreaterThan(0);
     expect(timeElements[0]).toBeInTheDocument();
+  });
+
+  it('sorts urgent conversations before non-urgent ones', async () => {
+    // Lisa (last item, 1 day ago) is urgent; Rachel (first item, 5min ago) is not
+    const urgentConversations = [
+      { ...mockConversations[0], isHighPriority: false }, // Rachel — 5m ago
+      { ...mockConversations[1], isHighPriority: false }, // Sarah — 1h ago
+      { ...mockConversations[2], isHighPriority: false }, // John — 2h ago
+      { ...mockConversations[3], isHighPriority: true },  // Lisa — 1d ago, URGENT
+    ];
+
+    mockedApi.get.mockResolvedValueOnce({ data: urgentConversations } as any);
+
+    render(<ConversationList />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Lisa Evans')).toBeInTheDocument();
+    });
+
+    // Get all table rows (tbody tr)
+    const rows = screen.getAllByRole('row').filter((r) => r.closest('tbody'));
+    const firstRowText = rows[0]?.textContent ?? '';
+
+    // Lisa should be first because she's high priority
+    expect(firstRowText).toContain('Lisa Evans');
   });
 });

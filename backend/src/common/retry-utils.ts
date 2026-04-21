@@ -57,6 +57,12 @@ export async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error as Error;
 
+      // 4xx errors are client mistakes — retrying won't fix them.
+      const status = (error as any)?.response?.status;
+      if (status !== undefined && status >= 400 && status < 500) {
+        break;
+      }
+
       if (attempt === maxRetries - 1) {
         break;
       }

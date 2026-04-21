@@ -1,14 +1,15 @@
 .card {
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 28px 32px;
-  background-color: #ffffff;
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-card);
 }
 
 .cardTitle {
   font-size: 18px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text-primary);
   margin-bottom: 24px;
 }
 
@@ -27,7 +28,7 @@
 .label {
   font-size: 14px;
   font-weight: 500;
-  color: #1a1a2e;
+  color: var(--text-primary);
 }
 
 .required {
@@ -38,23 +39,23 @@
 .input,
 .select {
   padding: 10px 14px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
-  color: #1a1a2e;
-  background-color: #f8f9fa;
+  color: var(--text-primary);
+  background-color: var(--bg-input);
   outline: none;
   transition: border-color 0.15s;
 }
 
 .input:focus,
 .select:focus {
-  border-color: #4361ee;
+  border-color: var(--color-primary);
 }
 
 .input::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .input:disabled {
@@ -69,7 +70,7 @@
 
 .helperText {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .errorText {
@@ -85,3 +86,7 @@
 .inputError:focus {
   border-color: #dc2626;
 }
+
+:global([data-theme="dark"]) .errorText { color: #f472b6; }
+:global([data-theme="dark"]) .inputError { border-color: #f472b6; }
+:global([data-theme="dark"]) .inputError:focus { border-color: #f472b6; }

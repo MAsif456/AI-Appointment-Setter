@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import {
@@ -11,10 +12,9 @@ import {
 } from './dto/auth.dto';
 import { LoginDto } from './dto/login.dto';
 
-/** Bypass guards in unit tests — we test guard logic separately */
+/** Bypass guards in unit tests — guard logic is tested separately */
 const mockGuard = { canActivate: () => true };
 
-/** Mock AuthService — all methods return simple resolved values */
 const mockAuthService = {
   createUser: jest.fn(),
   verifyEmail: jest.fn(),
@@ -25,14 +25,25 @@ const mockAuthService = {
   changePassword: jest.fn(),
 };
 
-/** Unit tests for AuthController */
+const mockRefreshTokenService = {
+  generateTokenPair: jest.fn().mockResolvedValue({ accessToken: 'new-jwt', rawRefreshToken: 'raw' }),
+  rotate: jest.fn().mockResolvedValue({ accessToken: 'rotated-jwt', rawRefreshToken: 'new-raw' }),
+  revokeSingle: jest.fn().mockResolvedValue(undefined),
+  revokeAll: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockRes = { cookie: jest.fn() };
+
 describe('AuthController', () => {
   let controller: AuthController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: mockAuthService }],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: RefreshTokenService, useValue: mockRefreshTokenService },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .overrideGuard(AdminGuard).useValue(mockGuard)
@@ -40,6 +51,11 @@ describe('AuthController', () => {
 
     controller = module.get<AuthController>(AuthController);
     jest.clearAllMocks();
+    mockRefreshTokenService.generateTokenPair.mockResolvedValue({ accessToken: 'new-jwt', rawRefreshToken: 'raw' });
+    mockRefreshTokenService.rotate.mockResolvedValue({ accessToken: 'rotated-jwt', rawRefreshToken: 'new-raw' });
+    mockRefreshTokenService.revokeSingle.mockResolvedValue(undefined);
+    mockRefreshTokenService.revokeAll.mockResolvedValue(undefined);
+    mockRes.cookie.mockClear();
   });
 
   // createUser
@@ -79,33 +95,60 @@ describe('AuthController', () => {
 
   // login
   describe('login', () => {
-    const mockReq = { ip: '192.168.1.1', socket: { remoteAddress: '192.168.1.1' } } as any;
+    const baseUser = { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', assignedClinics: [] };
 
-    it('delegates to authService.login with dto and extracted IP', async () => {
+    it('calls authService.login, passes userId+role to generateTokenPair, sets cookie', async () => {
       const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
-      const response = {
-        user: { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', assignedClinics: [] },
-        accessToken: 'jwt',
-      };
-      mockAuthService.login.mockResolvedValue(response);
-      const result = await controller.login(dto, mockReq);
+      const req = { ip: '192.168.1.1', socket: {}, headers: { 'user-agent': 'jest' } } as any;
+      mockAuthService.login.mockResolvedValue({ user: baseUser });
+
+      const result = await controller.login(dto, req, mockRes as any);
+
       expect(mockAuthService.login).toHaveBeenCalledWith(dto, '192.168.1.1');
-      expect(result).toEqual(response);
+      expect(mockRefreshTokenService.generateTokenPair).toHaveBeenCalledWith(
+        { userId: baseUser._id, role: baseUser.role },
+        '192.168.1.1',
+        'jest',
+      );
+      expect(mockRes.cookie).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({ accessToken: 'new-jwt' });
     });
 
     it('falls back to req.socket.remoteAddress when req.ip is missing', async () => {
       const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
-      const req = { socket: { remoteAddress: '10.0.0.5' } } as any;
-      mockAuthService.login.mockResolvedValue({});
-      await controller.login(dto, req);
+      const req = { socket: { remoteAddress: '10.0.0.5' }, headers: {} } as any;
+      mockAuthService.login.mockResolvedValue({ user: baseUser });
+      await controller.login(dto, req, mockRes as any);
       expect(mockAuthService.login).toHaveBeenCalledWith(dto, '10.0.0.5');
     });
 
     it('falls back to "unknown" when no IP can be extracted', async () => {
       const dto: LoginDto = { email: 'admin@test.com', password: 'Pass1!' };
-      mockAuthService.login.mockResolvedValue({});
-      await controller.login(dto, {} as any);
+      mockAuthService.login.mockResolvedValue({ user: baseUser });
+      await controller.login(dto, { headers: {} } as any, mockRes as any);
       expect(mockAuthService.login).toHaveBeenCalledWith(dto, 'unknown');
+    });
+  });
+
+  // refresh
+  describe('refresh', () => {
+    it('throws 401 when no refresh cookie present', async () => {
+      const req = { cookies: {}, ip: '127.0.0.1', headers: {} } as any;
+      await expect(controller.refresh(req, mockRes as any)).rejects.toThrow('No refresh token');
+    });
+
+    it('happy path: calls rotate with cookie, sets new cookie, returns accessToken', async () => {
+      const req = {
+        cookies: { refresh_token: 'raw-token' },
+        ip: '127.0.0.1',
+        headers: { 'user-agent': 'jest' },
+      } as any;
+
+      const result = await controller.refresh(req, mockRes as any);
+
+      expect(mockRefreshTokenService.rotate).toHaveBeenCalledWith('raw-token', '127.0.0.1', 'jest');
+      expect(mockRes.cookie).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ accessToken: 'rotated-jwt' });
     });
   });
 
@@ -145,9 +188,26 @@ describe('AuthController', () => {
 
   // logout
   describe('logout', () => {
-    it('returns logout confirmation message', async () => {
-      const result = await controller.logout();
+    it('revokes only current device token, clears cookie, returns confirmation', async () => {
+      const req = {
+        user: { _id: 'user_123' },
+        cookies: { refresh_token: 'raw-cookie-token' },
+      } as any;
+      const result = await controller.logout(req, mockRes as any);
+      expect(mockRefreshTokenService.revokeSingle).toHaveBeenCalledWith('raw-cookie-token');
+      expect(mockRefreshTokenService.revokeAll).not.toHaveBeenCalled();
+      expect(mockRes.cookie).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ message: 'Logged out successfully' });
+    });
+  });
+
+  // revokeAll — role check is now delegated to AdminGuard, not inline
+  describe('revokeAll', () => {
+    it('revokes all sessions for userId and returns confirmation', async () => {
+      const req = { user: { _id: 'admin-id' } } as any;
+      const result = await controller.revokeAll(req, 'target-id');
+      expect(mockRefreshTokenService.revokeAll).toHaveBeenCalledWith('target-id');
+      expect(result).toEqual({ message: 'All sessions revoked', revokedUserId: 'target-id' });
     });
   });
 

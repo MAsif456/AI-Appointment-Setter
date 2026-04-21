@@ -45,10 +45,14 @@ export function detectOrchestratorIntent(
     if (matchesKeywords(lower, DETAILS_CHANGED_KEYWORDS)) return { intent: 'DETAILS_CHANGED' };
   }
 
-  // Consent intents — only in 'consenting' or 'consent_declined' phase
+  // Consent intents — only in 'consenting' or 'consent_declined' phase.
+  // Decline is checked before grant so an unambiguous "no" signal wins over
+  // an incidental substring match in the grant list. Punctuation is stripped
+  // so "No." / "no thanks!" equal their bare forms for single-word matching.
   if (currentPhase === 'consenting' || currentPhase === 'consent_declined') {
-    if (matchesKeywords(lower, CONSENT_GRANTED_KEYWORDS)) return { intent: 'CONSENT_GRANTED' };
-    if (matchesKeywords(lower, CONSENT_DECLINED_KEYWORDS)) return { intent: 'CONSENT_DECLINED' };
+    const consentLower = lower.replace(/[.,!?;:]/g, '').trim();
+    if (matchesKeywords(consentLower, CONSENT_DECLINED_KEYWORDS)) return { intent: 'CONSENT_DECLINED' };
+    if (matchesKeywords(consentLower, CONSENT_GRANTED_KEYWORDS)) return { intent: 'CONSENT_GRANTED' };
   }
 
   if (currentPhase === 'qualifying') {

@@ -103,43 +103,48 @@ export default function GdprPanel({ leadId }: GdprPanelProps) {
         <p role="status" className={styles.result}>{result}</p>
       )}
 
-      {confirmOpen ? (
-        <div className={styles.confirmBox}>
-          <p className={styles.confirmText}>
-            {isAdmin
-              ? 'This will permanently anonymise all personal data for this patient. This action cannot be undone.'
-              : 'This will send an erasure request to an admin for approval.'}
-          </p>
-          {!isAdmin && (
-            <textarea
-              className={styles.reasonInput}
-              placeholder="Reason for erasure request..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={2}
-            />
-          )}
-          <div className={styles.confirmActions}>
-            <button
-              className={styles.confirmBtn}
-              onClick={handleSubmit}
-              disabled={submitting || (!isAdmin && !reason.trim())}
-            >
-              {isAdmin ? 'Confirm Delete' : 'Submit Request'}
-            </button>
-            <button className={styles.cancelBtn} onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </button>
+      <button
+        className={styles.eraseBtn}
+        onClick={() => setConfirmOpen(true)}
+        disabled={submitting}
+      >
+        {isAdmin ? 'Delete Patient Data' : 'Request Data Deletion'}
+      </button>
+
+      {confirmOpen && (
+        <div className={styles.overlay} onClick={() => setConfirmOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>
+              {isAdmin ? 'Delete Patient Data' : 'Request Data Deletion'}
+            </h3>
+            <p className={styles.modalText}>
+              {isAdmin
+                ? 'This will permanently anonymise all personal data for this patient. This action cannot be undone.'
+                : 'This will send an erasure request to an admin for approval.'}
+            </p>
+            {!isAdmin && (
+              <textarea
+                className={styles.reasonInput}
+                placeholder="Reason for erasure request..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+              />
+            )}
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.confirmBtn}
+                onClick={handleSubmit}
+                disabled={submitting || (!isAdmin && !reason.trim())}
+              >
+                {isAdmin ? 'Confirm Delete' : 'Submit Request'}
+              </button>
+            </div>
           </div>
         </div>
-      ) : (
-        <button
-          className={styles.eraseBtn}
-          onClick={() => setConfirmOpen(true)}
-          disabled={submitting}
-        >
-          {isAdmin ? 'Delete Patient Data' : 'Request Data Deletion'}
-        </button>
       )}
     </div>
   );
