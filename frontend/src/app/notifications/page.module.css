@@ -13,21 +13,21 @@
 .title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .markAllBtn {
   background: none;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
   padding: 0.4rem 0.9rem;
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.15s;
 }
 .markAllBtn:hover {
-  background: #f3f4f6;
+  background: var(--bg-hover);
 }
 
 /* Toolbar */
@@ -42,7 +42,7 @@
 
 .statusTabs {
   display: flex;
-  background: #f1f5f9;
+  background: var(--bg-input);
   border-radius: 10px;
   padding: 3px;
   gap: 2px;
@@ -58,18 +58,18 @@
   background: transparent;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
 .statusTab:hover {
-  color: #1e293b;
+  color: var(--text-primary);
 }
 .statusTabActive {
-  background: #fff;
-  color: #1e293b;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
 }
 
 .tabBadge {
@@ -104,18 +104,18 @@
   left: 10px;
   width: 15px;
   height: 15px;
-  color: #94a3b8;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
 .select {
   appearance: none;
   padding: 0.4rem 2rem 0.4rem 2rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg-card);
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--text-primary);
   cursor: pointer;
   outline: none;
   transition: border-color 0.15s;
@@ -125,17 +125,16 @@
 }
 .select:hover,
 .select:focus {
-  border-color: #94a3b8;
+  border-color: var(--text-muted);
 }
 
 /* Skeleton loading */
 .skeleton {
-  background: #f3f4f6;
   border-radius: 8px;
   height: 72px;
   margin-bottom: 0.75rem;
   animation: shimmer 1.2s infinite linear;
-  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-hover) 50%, var(--bg-input) 75%);
   background-size: 400% 100%;
 }
 @keyframes shimmer {
@@ -155,25 +154,30 @@
   align-items: flex-start;
   gap: 0.875rem;
   padding: 1rem 1.125rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.12s, box-shadow 0.12s;
   position: relative;
 }
 .item:hover {
-  background: #f9fafb;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-card);
 }
 .itemUnread {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: var(--bg-unread, #eff6ff);
+  border-color: var(--border-unread, #bfdbfe);
 }
 .itemUnread:hover {
-  background: #dbeafe;
+  background: var(--bg-unread-hover, #dbeafe);
 }
 
+[data-theme="dark"] .itemUnread {
+  --bg-unread: rgba(244, 114, 182, 0.07);
+  --border-unread: rgba(244, 114, 182, 0.25);
+  --bg-unread-hover: rgba(244, 114, 182, 0.13);
+}
 
 .iconWrap {
   width: 36px;
@@ -184,13 +188,24 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.iconEmail { background: #dbeafe; color: #2563eb; }
-.iconStalled { background: #fef3c7; color: #d97706; }
-.iconAppt { background: #d1fae5; color: #059669; }
-.iconEscalated { background: #fee2e2; color: #dc2626; }
-.iconCancelled { background: #fce7f3; color: #db2777; }
-.iconUser { background: #ede9fe; color: #7c3aed; }
-.iconGdpr { background: #cffafe; color: #0891b2; }
+
+/* Icon colour pairs — background + foreground */
+.iconEmail    { background: #dbeafe; color: #2563eb; }
+.iconStalled  { background: #fef3c7; color: #d97706; }
+.iconAppt     { background: #d1fae5; color: #059669; }
+.iconEscalated{ background: #fee2e2; color: #dc2626; }
+.iconCancelled{ background: #fce7f3; color: #db2777; }
+.iconUser     { background: #ede9fe; color: #7c3aed; }
+.iconGdpr     { background: #cffafe; color: #0891b2; }
+
+/* Dark mode icon overrides — desaturated tints to avoid neon blobs */
+[data-theme="dark"] .iconEmail    { background: #1e2d47; color: #7eb3f7; }
+[data-theme="dark"] .iconStalled  { background: #2a2010; color: #fbbf24; }
+[data-theme="dark"] .iconAppt     { background: #0f2a1e; color: #34d399; }
+[data-theme="dark"] .iconEscalated{ background: #2d1212; color: #f87171; }
+[data-theme="dark"] .iconCancelled{ background: #2d1229; color: #f472b6; }
+[data-theme="dark"] .iconUser     { background: #1e1530; color: #a78bfa; }
+[data-theme="dark"] .iconGdpr     { background: #0d2530; color: #22d3ee; }
 
 .icon {
   width: 18px;
@@ -204,26 +219,26 @@
 .notifTitle {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 0.2rem;
 }
 .notifDesc {
   font-size: 0.82rem;
-  color: #6b7280;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .notifTime {
   font-size: 0.78rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
 .dismissBtn {
   background: none;
   border: none;
-  color: #9ca3af;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0.2rem;
   border-radius: 4px;
@@ -233,7 +248,7 @@
 }
 .dismissBtn:hover {
   color: #ef4444;
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 /* Pagination */
@@ -250,38 +265,38 @@
   min-width: 36px;
   height: 36px;
   padding: 0 0.6rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
   font-weight: 500;
 }
 .pageBtn:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
 }
 .pageBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 .pageBtnActive {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-on-primary);
 }
 .pageBtnActive:hover:not(:disabled) {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 /* Empty state */
 .empty {
   text-align: center;
   padding: 4rem 1rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 .emptyIcon {
   font-size: 2.5rem;
@@ -290,7 +305,7 @@
 .emptyTitle {
   font-size: 1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
   margin-bottom: 0.4rem;
 }
 .emptyText {
