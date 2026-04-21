@@ -89,7 +89,7 @@ describe('UsersService', () => {
 
   describe('getNotificationPreferences', () => {
     it('returns stored preferences when the user exists', async () => {
-      const prefs = { generalNotifications: true, emailNotifications: false, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true };
+      const prefs = { generalNotifications: true, emailNotifications: false, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true, gdprDataDeletion: true, newLead: true, appointmentRescheduled: true };
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: prefs }) });
       expect(await service.getNotificationPreferences('uid')).toEqual(prefs);
     });
@@ -97,7 +97,7 @@ describe('UsersService', () => {
     it('returns all-true defaults when notificationPreferences is undefined', async () => {
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: undefined }) });
       const result = await service.getNotificationPreferences('uid');
-      expect(result).toEqual({ generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true });
+      expect(result).toEqual({ generalNotifications: true, emailNotifications: true, stalledConversations: true, escalatedConversations: true, bookingCancelled: true, newUserJoined: true, appointmentReminders: true, gdprDataDeletion: true, newLead: true, appointmentRescheduled: true });
     });
 
     it('throws NotFoundException when user does not exist', async () => {
@@ -130,7 +130,7 @@ describe('UsersService', () => {
       model.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({ notificationPreferences: undefined }) });
       model.findByIdAndUpdate.mockResolvedValue({});
 
-      const dto = { generalNotifications: false, emailNotifications: false, stalledConversations: false, escalatedConversations: false, bookingCancelled: false, newUserJoined: false, appointmentReminders: false };
+      const dto = { generalNotifications: false, emailNotifications: false, stalledConversations: false, escalatedConversations: false, bookingCancelled: false, newUserJoined: false, appointmentReminders: false, gdprDataDeletion: false, newLead: false, appointmentRescheduled: false };
       const result = await service.updateNotificationPreferences('uid', dto);
 
       expect(result).toEqual(dto);

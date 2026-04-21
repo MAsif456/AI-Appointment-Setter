@@ -70,9 +70,10 @@ function buildDeps(overrides: Partial<RescheduleDeps> = {}): RescheduleDeps {
         confirmationMessage: 'Appointment confirmed!',
       }),
     } as any,
+    inboxNotificationService: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } as any,
     logger: { log: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as Logger,
     ...overrides,
-  };
+  } as RescheduleDeps;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

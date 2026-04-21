@@ -67,8 +67,9 @@ describe('AuthController', () => {
         assignedClinics: ['507f1f77bcf86cd799439011'],
       };
       mockAuthService.createUser.mockResolvedValue({ message: 'Account created.' });
-      const result = await controller.createUser(dto);
-      expect(mockAuthService.createUser).toHaveBeenCalledWith(dto);
+      const req = { user: { email: 'admin@test.com' } } as any;
+      const result = await controller.createUser(dto, req);
+      expect(mockAuthService.createUser).toHaveBeenCalledWith(dto, 'admin@test.com');
       expect(result).toEqual({ message: 'Account created.' });
     });
   });
