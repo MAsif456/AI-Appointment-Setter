@@ -6,6 +6,7 @@ import { Conversation } from '../database/schemas/conversation.schema';
 import { Clinic } from '../database/schemas/clinic.schema';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ReminderTrackerService } from './reminder-tracker.service';
+import { InboxNotificationService } from '../notifications/inbox-notification.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
 
 /** Shared 15-min window helpers — keeps tests readable */
@@ -29,6 +30,7 @@ describe('ReminderService', () => {
   const mockClinicModel = { findById: jest.fn() };
   const mockGhlApiService = { sendMessageWithRetry: jest.fn() };
   const mockReminderTrackerService = { trackSent: jest.fn(), trackFailed: jest.fn() };
+  const mockInboxNotificationService = { createForClinicStaff: jest.fn().mockResolvedValue(undefined) };
 
   /** Reusable factory for a clinic with enabled reminders */
   const makeClinic = (reminderTimes = [24, 1]) => ({
@@ -55,6 +57,7 @@ describe('ReminderService', () => {
         { provide: getModelToken(Clinic.name), useValue: mockClinicModel },
         { provide: GhlApiService, useValue: mockGhlApiService },
         { provide: ReminderTrackerService, useValue: mockReminderTrackerService },
+        { provide: InboxNotificationService, useValue: mockInboxNotificationService },
         { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();

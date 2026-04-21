@@ -13,6 +13,9 @@ interface NotificationPrefs {
   bookingCancelled: boolean;
   newUserJoined: boolean;
   appointmentReminders: boolean;
+  gdprDataDeletion: boolean;
+  newLead: boolean;
+  appointmentRescheduled: boolean;
 }
 
 const DEFAULTS: NotificationPrefs = {
@@ -23,6 +26,9 @@ const DEFAULTS: NotificationPrefs = {
   bookingCancelled: true,
   newUserJoined: true,
   appointmentReminders: true,
+  gdprDataDeletion: true,
+  newLead: true,
+  appointmentRescheduled: true,
 };
 
 type ToggleConfig = { key: keyof Omit<NotificationPrefs, 'generalNotifications'>; label: string; description: string; adminOnly?: boolean };
@@ -32,8 +38,11 @@ const TOGGLES: ToggleConfig[] = [
   { key: 'stalledConversations', label: 'Stalled conversations', description: 'Alert when a conversation has gone quiet' },
   { key: 'escalatedConversations', label: 'Escalated conversations', description: 'Alert when a conversation is escalated and needs urgent attention' },
   { key: 'bookingCancelled', label: 'Booking cancelled', description: 'Notify when a patient cancels a booked appointment' },
-  { key: 'newUserJoined', label: 'New user joined', description: 'Notify when a new staff account is created', adminOnly: true },
+  { key: 'newLead', label: 'New lead', description: 'Notify when a new lead starts a conversation' },
   { key: 'appointmentReminders', label: 'Appointment reminders', description: 'Get notified about upcoming scheduled appointments' },
+  { key: 'appointmentRescheduled', label: 'Appointment rescheduled', description: 'Notify when a patient reschedules their appointment' },
+  { key: 'newUserJoined', label: 'New staff member account created', description: 'Notify when a new staff account is created', adminOnly: true },
+  { key: 'gdprDataDeletion', label: 'Data deletion requests', description: 'Notify when a staff member requests erasure of a patient\'s data', adminOnly: true },
 ];
 
 /**
@@ -132,8 +141,8 @@ export default function NotificationPreferences() {
           isMaster
         />
 
-        {/* Individual toggles — adminOnly ones are hidden from staff */}
-        {TOGGLES.filter(t => !t.adminOnly || isAdmin).map(({ key, label, description }) => (
+        {/* Individual toggles — admins see only admin-only types; staff see only non-admin types */}
+        {TOGGLES.filter(t => isAdmin ? !!t.adminOnly : !t.adminOnly).map(({ key, label, description }) => (
           <ToggleRow
             key={key}
             label={label}

@@ -16,6 +16,7 @@ import { ConversationsModule } from "../conversations/conversations.module";
 import { GdprModule } from "../gdpr/gdpr.module";
 import { OrchestratorService } from "./orchestrator.service";
 import { PostcodeValidationService } from "./postcode-validation.service";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PostcodeValidationService } from "./postcode-validation.service";
     PatientHistoryModule,
     ConversationsModule,
     GdprModule,
+    NotificationsModule,
   ],
   providers: [OrchestratorService, PostcodeValidationService],
   exports: [OrchestratorService],

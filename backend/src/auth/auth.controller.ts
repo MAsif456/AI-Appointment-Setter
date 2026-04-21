@@ -55,8 +55,8 @@ export class AuthController {
   @Post('create-user')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async createUser(@Body() dto: CreateUserDto) {
-    return this.authService.createUser(dto);
+  async createUser(@Body() dto: CreateUserDto, @Req() req: any) {
+    return this.authService.createUser(dto, req.user?.email);
   }
 
   /** Verifies a user's email address using the token from the link email. */

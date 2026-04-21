@@ -24,6 +24,7 @@ import { ConversationsService as ChatConversationsService } from "../conversatio
 import { SlotProvider } from "../ai/slot-provider";
 import { AppointmentsService } from "../appointments/appointments.service";
 import { ConsentService } from "../gdpr/consent/consent.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 const mockSlotProvider = { getAvailableSlots: jest.fn() };
 const mockAppointmentsService = { bookAppointment: jest.fn() };
@@ -98,6 +99,7 @@ describe("OrchestratorService — detectIntent", () => {
           useValue: { sendMessage: jest.fn() },
         },
         { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
+        { provide: InboxNotificationService, useValue: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

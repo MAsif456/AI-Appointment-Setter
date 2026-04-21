@@ -7,6 +7,7 @@ import {
 import { Lead, LeadSchema } from '../database/schemas/lead.schema';
 import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { GhlModule } from '../ghl/ghl.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { FollowUpService } from './follow-up.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
 
@@ -18,6 +19,7 @@ import { EncryptionService } from '../common/encryption/encryption.service';
       { name: Clinic.name, schema: ClinicSchema },
     ]),
     GhlModule,
+    NotificationsModule,
   ],
   providers: [FollowUpService, EncryptionService],
   exports: [FollowUpService],

@@ -8,6 +8,7 @@ import { Lead } from '../../database/schemas/lead.schema';
 import { Clinic } from '../../database/schemas/clinic.schema';
 import { AuditLog } from '../../database/schemas/audit-log.schema';
 import { ErasureService } from './erasure.service';
+import { InboxNotificationService } from '../../notifications/inbox-notification.service';
 
 const LEAD_ID = new Types.ObjectId().toHexString();
 const CLINIC_ID = new Types.ObjectId();
@@ -44,6 +45,7 @@ describe('ErasureRequestService', () => {
         { provide: getModelToken(Clinic.name), useValue: mockClinicModel },
         { provide: getModelToken(AuditLog.name), useValue: mockAuditLogModel },
         { provide: ErasureService, useValue: erasureService },
+        { provide: InboxNotificationService, useValue: { createForAdmins: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -70,7 +72,7 @@ describe('ErasureRequestService', () => {
     });
 
     it('creates a request and audit log on success', async () => {
-      const mockRequest = { leadId: LEAD_ID, clinicId: CLINIC_ID, status: 'pending' };
+      const mockRequest = { _id: new Types.ObjectId(), leadId: LEAD_ID, clinicId: CLINIC_ID, status: 'pending' };
       mockLeadModel.findById.mockResolvedValue({
         clinicId: CLINIC_ID, firstName: 'Test', lastName: 'Patient', email: 'test@example.com',
       });
