@@ -100,6 +100,14 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   gdprDataDeletion?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  newLead?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  appointmentRescheduled?: boolean;
 }
 
 /** Completes the reset-password flow — token comes from the link in the email */

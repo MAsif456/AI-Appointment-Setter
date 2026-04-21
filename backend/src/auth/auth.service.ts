@@ -48,7 +48,7 @@ export class AuthService {
     private readonly analyticsService: AnalyticsService,
   ) {}
 
-  async createUser(dto: CreateUserDto): Promise<{ message: string }> {
+  async createUser(dto: CreateUserDto, createdByEmail?: string): Promise<{ message: string }> {
     const existing = await this.userModel.findOne({ email: dto.email.toLowerCase() });
     if (existing) throw new ConflictException('Email is already in use');
 
@@ -86,8 +86,8 @@ export class AuthService {
           this.notificationModel.create({
             userId: (a as any)._id,
             type: 'new_user_joined',
-            title: 'New user joined',
-            description: `${dto.name} joined as ${dto.role}`,
+            title: 'New staff member account created',
+            description: `Email: ${dto.email}${createdByEmail ? ` • Made by Admin: ${createdByEmail}` : ''}`,
           }),
         ),
       );

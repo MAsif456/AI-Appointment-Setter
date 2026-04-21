@@ -94,6 +94,30 @@ function NotifIcon({ type }: { type: InboxNotification['type'] }) {
       </span>
     );
   }
+  if (type === 'new_lead') {
+    return (
+      <span className={`${styles.iconWrap} ${styles.iconUser}`}>
+        <svg className={styles.icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </span>
+    );
+  }
+  if (type === 'appointment_rescheduled') {
+    return (
+      <span className={`${styles.iconWrap} ${styles.iconAppt}`}>
+        <svg className={styles.icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <polyline points="17 14 15 16 13 14" />
+          <line x1="15" y1="16" x2="15" y2="12" />
+        </svg>
+      </span>
+    );
+  }
   return (
     <span className={`${styles.iconWrap} ${styles.iconAppt}`}>
       <svg className={styles.icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -111,14 +135,18 @@ type TypeFilter = 'all' | InboxNotification['type'];
 type SortOrder = 'newest' | 'oldest';
 
 const TYPE_LABELS: Record<InboxNotification['type'], string> = {
-  email_notification:     'New enquiry',
-  stalled_conversation:   'Stalled conversation',
-  escalated_conversation: 'Escalated conversation',
-  booking_cancelled:      'Booking cancelled',
-  new_user_joined:        'New user joined',
-  appointment_reminder:   'Appointment reminder',
-  gdpr_data_deletion:     'Data deletion request',
+  email_notification:       'New enquiry',
+  stalled_conversation:     'Stalled conversation',
+  escalated_conversation:   'Escalated conversation',
+  booking_cancelled:        'Booking cancelled',
+  new_user_joined:          'New staff member account created',
+  appointment_reminder:     'Appointment reminder',
+  gdpr_data_deletion:       'Data deletion request',
+  new_lead:                 'New lead',
+  appointment_rescheduled:  'Appointment rescheduled',
 };
+
+const ADMIN_ONLY_FILTER_TYPES: InboxNotification['type'][] = ['new_user_joined', 'gdpr_data_deletion'];
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -174,7 +202,11 @@ export default function NotificationsPage() {
         prev.map((x) => (x._id === n._id ? { ...x, isRead: true } : x)),
       );
     }
-    if (n.relatedEntityType === 'conversation' && n.relatedEntityId) {
+    if (n.type === 'gdpr_data_deletion') {
+      router.push('/data-protection');
+    } else if (n.type === 'escalated_conversation') {
+      router.push('/escalations');
+    } else if (n.relatedEntityType === 'conversation' && n.relatedEntityId) {
       router.push(`/conversations/${n.relatedEntityId}`);
     } else if (n.relatedEntityType === 'appointment' && n.relatedEntityId) {
       router.push(`/clinics/${n.relatedEntityId}`);
@@ -194,9 +226,9 @@ export default function NotificationsPage() {
 
   const hasUnread = visibleNotifications.some((n) => !n.isRead);
 
-  // Type filter options — exclude admin-only types for staff
+  // Type filter options — admins see only their types; staff see everything except admin-only types
   const typeFilterOptions = (Object.entries(TYPE_LABELS) as [InboxNotification['type'], string][])
-    .filter(([value]) => isAdmin || !ADMIN_ONLY_TYPES.includes(value));
+    .filter(([value]) => isAdmin ? ADMIN_ONLY_FILTER_TYPES.includes(value) : !ADMIN_ONLY_TYPES.includes(value));
 
   return (
     <div className={styles.page}>

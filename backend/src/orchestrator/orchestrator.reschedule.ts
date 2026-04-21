@@ -21,6 +21,7 @@ import { GroqService } from '../ai/groq.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ConversationsService } from '../ghl/conversations.service';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { InboxNotificationService } from '../notifications/inbox-notification.service';
 import { ConversationDocument } from '../database/schemas/conversation.schema';
 import { formatDateBritish } from '../appointments/confirmation-message.builder';
 import { buildSingleTurnPrompt } from './orchestrator.prompts';
@@ -35,6 +36,7 @@ export interface RescheduleDeps {
   ghlApiService: GhlApiService;
   conversationsService: ConversationsService;
   appointmentsService: AppointmentsService;
+  inboxNotificationService: InboxNotificationService;
   logger: Logger;
 }
 
@@ -117,7 +119,7 @@ async function executeReschedule(
   clinicConfig: ClinicConfig,
   deps: RescheduleDeps,
 ): Promise<RescheduleFlowResult> {
-  const { ghlApiService, appointmentsService, conversationsService, logger } = deps;
+  const { ghlApiService, appointmentsService, conversationsService, inboxNotificationService, logger } = deps;
   const conversationId = conversation._id as Types.ObjectId;
   const leadId = (conversation.leadId as Types.ObjectId).toString();
   const ghlAppointmentId = conversation.context?.get('ghlAppointmentId') ?? '';
@@ -161,6 +163,16 @@ async function executeReschedule(
   } catch (e) {
     logger.warn(`Could not update appointment_date custom field for contact ${contactId}: ${(e as Error).message}`);
   }
+
+  // Notify clinic staff of the rescheduled appointment (fire-and-forget)
+  inboxNotificationService.createForClinicStaff(
+    clinicConfig.clinicId,
+    'appointment_rescheduled',
+    'Appointment rescheduled',
+    `A lead has rescheduled their appointment to ${selectedSlot.displayText}`,
+    bookingResult.appointmentId,
+    'appointment',
+  ).catch((err: Error) => logger.warn(`Failed to create appointment_rescheduled notification: ${err.message}`));
 
   // Clear the offered-slots buffer now that the reschedule is done
   await conversationsService.setContext(conversationId, OFFERED_SLOTS_KEY, '');

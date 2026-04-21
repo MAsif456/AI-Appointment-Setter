@@ -132,9 +132,9 @@ export async function handleNewLeadFlow(
   const leadName = `${first_name ?? ''} ${last_name ?? ''}`.trim() || 'Unknown';
   inboxNotificationService.createForClinicStaff(
     clinicConfig.clinicId,
-    'email_notification',
-    'New enquiry received',
-    `${leadName} has sent a new enquiry`,
+    'new_lead',
+    'New lead',
+    `${leadName} has started a new conversation`,
     conversation._id.toString(),
     'conversation',
   ).catch((err: Error) => logger.warn(`Failed to create inbox notification: ${err.message}`));

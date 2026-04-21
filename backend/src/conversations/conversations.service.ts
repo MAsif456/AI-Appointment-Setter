@@ -56,6 +56,7 @@ import { PatientHistoryService } from "../patient-history/patient-history.servic
 import { handleDetailsChanged } from "../orchestrator/orchestrator.returning-patient-handlers";
 import { PostcodeValidationService } from "../orchestrator/postcode-validation.service";
 import { EncryptionService } from "../common/encryption/encryption.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 @Injectable()
 export class ConversationsService {
@@ -82,6 +83,7 @@ export class ConversationsService {
     private readonly postcodeValidationService: PostcodeValidationService,
     private readonly encryptionService: EncryptionService,
     private readonly consentService: ConsentService,
+    private readonly inboxNotificationService: InboxNotificationService,
   ) {}
 
   /** Retrieves a conversation with its messages and related clinic/lead data. */
@@ -550,6 +552,18 @@ export class ConversationsService {
         this.appointmentsService,
         this.logger,
       );
+
+      if (bookingResult?.success && conversation.phase === 'rescheduling') {
+        const displayText = selectionResult.selectedSlot?.displayText ?? bookingResult.appointmentId ?? '';
+        this.inboxNotificationService.createForClinicStaff(
+          clinic._id.toString(),
+          'appointment_rescheduled',
+          'Appointment rescheduled',
+          `A lead has rescheduled their appointment to ${displayText}`,
+          bookingResult.appointmentId,
+          'appointment',
+        ).catch((err: Error) => this.logger.warn(`Failed to create appointment_rescheduled notification: ${err.message}`));
+      }
     }
 
     const replyDeps = {
