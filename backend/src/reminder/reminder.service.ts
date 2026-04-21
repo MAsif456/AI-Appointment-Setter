@@ -97,35 +97,28 @@ export class ReminderService {
       const lead = conversation.leadId as any;
       const message = generateReminderMessage(appointment, clinic, hoursBeforeAppointment);
       let anySent = false;
-      let primaryFailed = false;
 
       const apiKey = clinic.ghlApiKey ? this.encryptionService.decrypt(clinic.ghlApiKey) : '';
 
-      // Attempt primary channel send (SMS, WhatsApp, FB, IG)
-      if (conversation.channel !== 'email') {
-        try {
-          await this.ghlApiService.sendMessageWithRetry(apiKey, {
-            type: this.channelToGhlType(conversation.channel),
-            contactId: conversation.ghlContactId,
-            conversationId: conversation.ghlConversationId,
-            locationId: clinic.ghlLocationId,
-            message,
-          });
-          anySent = true;
-          this.logger.log(`${conversation.channel.toUpperCase()} reminder sent for appointment ${appointment._id}`);
-        } catch (channelError) {
-          primaryFailed = true;
-          const body = channelError?.response?.data;
-          this.logger.warn(
-            `Primary channel (${conversation.channel}) reminder failed for appointment ${appointment._id}: ${channelError.message}` +
-              (body ? ` | GHL: ${JSON.stringify(body)}` : ''),
-          );
-        }
+      try {
+        await this.ghlApiService.sendMessageWithRetry(apiKey, {
+          type: this.channelToGhlType(conversation.channel),
+          contactId: conversation.ghlContactId,
+          conversationId: conversation.ghlConversationId,
+          locationId: clinic.ghlLocationId,
+          message,
+        });
+        anySent = true;
+        this.logger.log(`${conversation.channel.toUpperCase()} reminder sent for appointment ${appointment._id}`);
+      } catch (channelError) {
+        const body = channelError?.response?.data;
+        this.logger.warn(
+          `Channel (${conversation.channel}) reminder failed for appointment ${appointment._id}: ${channelError.message}` +
+            (body ? ` | GHL: ${JSON.stringify(body)}` : ''),
+        );
       }
 
-      // Send email when: channel IS email, OR primary channel failed (true fallback).
-      // Avoids double-delivery when GHL also converts a failed SMS send to an email.
-      if (lead?.email && (conversation.channel === 'email' || primaryFailed)) {
+      if (lead?.email && conversation.channel !== 'email') {
         try {
           const emailHtml = generateReminderEmailHtml(appointment, clinic, hoursBeforeAppointment);
           await this.ghlApiService.sendMessageWithRetry(apiKey, {

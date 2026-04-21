@@ -327,7 +327,7 @@ describe('ReminderService', () => {
       expect(mockReminderTrackerService.trackSent).toHaveBeenCalled();
     });
 
-    it('should only send the primary channel (not email) when primary channel succeeds and lead has an email', async () => {
+    it('should send both SMS and email independently when primary channel succeeds and lead has an email', async () => {
       const convWithLeadEmail = {
         ...makeConversation('sms'),
         leadId: { _id: 'lead123', email: 'patient@example.com' },
@@ -340,11 +340,15 @@ describe('ReminderService', () => {
       const result = await service.sendReminder(baseAppointment, '24_hour', 24);
 
       expect(result).toBe(true);
-      // Email is only sent as a fallback when the primary channel fails — not additionally.
-      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
+      // Both channels are attempted independently regardless of each other's outcome.
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ type: 'SMS' }),
+      );
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ type: 'Email', subject: expect.stringContaining('Test Clinic') }),
       );
     });
 
@@ -384,7 +388,7 @@ describe('ReminderService', () => {
       );
     });
 
-    it('should only send email once when channel is email (no duplicate)', async () => {
+    it('should send email only once when channel is email and lead has an email address', async () => {
       const convEmailChannel = {
         ...makeConversation('email'),
         leadId: { _id: 'lead123', email: 'patient@example.com' },
@@ -396,6 +400,7 @@ describe('ReminderService', () => {
 
       await service.sendReminder(baseAppointment, '24_hour', 24);
 
+      // Email channel is handled by the first block; the email block is skipped to avoid duplicates.
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
         expect.any(String),
