@@ -565,6 +565,18 @@ describe("ConversationsService", () => {
       expect(mockChatService.sendMessage).not.toHaveBeenCalled();
     });
 
+    it('DETAILS_CHANGED: negation phrase "no they are not" triggers qualifying branch', async () => {
+      mockConversationModel.findById.mockResolvedValue(returningConversation);
+
+      const result = await service.sendMessage("conv1", "No they are not");
+
+      expect(result).not.toBeNull();
+      expect(
+        mockPersistenceService.updateConversationMeta,
+      ).toHaveBeenCalledWith(expect.anything(), "ai", "qualifying");
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+
     it("non-matching message falls through to normal AI flow", async () => {
       mockConversationModel.findById.mockResolvedValue(returningConversation);
       mockChatService.sendMessage.mockResolvedValue(

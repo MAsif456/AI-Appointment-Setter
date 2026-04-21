@@ -716,7 +716,6 @@ export class ConversationsService {
         ...(returningPostcode
           ? {
               "context.returningPatientPostcode": returningPostcode,
-              "context.validatedPostcode": returningPostcode,
             }
           : {}),
       },

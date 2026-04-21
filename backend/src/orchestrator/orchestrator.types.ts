@@ -135,6 +135,10 @@ export const DETAILS_CHANGED_KEYWORDS = [
   "no",
   "nope",
   "not the same",
+  "they are not",
+  "they aren't",
+  "they're not",
+  "not same",
   "they have changed",
   "details have changed",
 ];

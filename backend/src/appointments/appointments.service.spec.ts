@@ -65,7 +65,7 @@ describe('AppointmentsService', () => {
     };
     leadModel = {
       findById: jest.fn().mockReturnValue({
-        lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+        exec: jest.fn().mockResolvedValue(null),
       }),
     };
     patientHistoryService = { persistHistory: jest.fn().mockResolvedValue(undefined) };
@@ -271,9 +271,7 @@ describe('AppointmentsService', () => {
       lastName: 'Doe',
     };
     leadModel.findById.mockReturnValue({
-      lean: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockLead),
-      }),
+      exec: jest.fn().mockResolvedValue(mockLead),
     });
     conversationModel.findById = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue({
