@@ -23,6 +23,7 @@ import { GhlApiService } from '../ghl/ghl-api.service';
 import { ComprehensionClassifier } from '../ai/comprehension-classifier';
 import { ConsentService } from "../gdpr/consent/consent.service";
 import { EncryptionService } from "../common/encryption/encryption.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 describe("ConversationsService – slot selection detection", () => {
   let service: ConversationsService;
@@ -207,6 +208,7 @@ describe("ConversationsService – slot selection detection", () => {
         { provide: ComprehensionClassifier, useValue: { classify: jest.fn().mockResolvedValue('understood') } },
         { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn() } },
         { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
+        { provide: InboxNotificationService, useValue: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

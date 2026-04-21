@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { EscalationNotifierService } from "./escalation-notifier.service";
 import { NotificationBusService } from "../notifications/notification-bus.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 describe("EscalationNotifierService", () => {
   let service: EscalationNotifierService;
@@ -35,6 +36,7 @@ describe("EscalationNotifierService", () => {
           useValue: mockNotificationModel,
         },
         { provide: NotificationBusService, useValue: mockBus },
+        { provide: InboxNotificationService, useValue: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

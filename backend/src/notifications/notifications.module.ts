@@ -1,20 +1,36 @@
 import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationBusService } from "./notification-bus.service";
+import { InboxNotificationController } from "./inbox-notification.controller";
+import { InboxNotificationService } from "./inbox-notification.service";
 import { AuthModule } from "../auth/auth.module";
+import {
+  Notification,
+  NotificationSchema,
+} from "../database/schemas/notification.schema";
+import { User, UserSchema } from "../database/schemas/user.schema";
 
 /**
- * Wires the staff-facing SSE notifications endpoint.
+ * NotificationsModule provides two separate systems:
  *
- * The bus is provided and exported so other modules (the escalation
- * pipeline) can inject it to publish events. `AuthModule` is imported
- * so the controller can verify the short-lived stream-token JWT that
- * query-string auth relies on.
+ * 1. SSE escalation bus (NotificationBusService + NotificationsController)
+ *    — real-time escalation events pushed to staff browsers.
+ *
+ * 2. Persistent inbox (InboxNotificationService + InboxNotificationController)
+ *    — persisted per-user notifications with read/dismiss state, polled
+ *    from the sidebar badge and rendered in the /notifications inbox page.
  */
 @Module({
-  imports: [AuthModule],
-  controllers: [NotificationsController],
-  providers: [NotificationBusService],
-  exports: [NotificationBusService],
+  imports: [
+    AuthModule,
+    MongooseModule.forFeature([
+      { name: Notification.name, schema: NotificationSchema },
+      { name: User.name, schema: UserSchema },
+    ]),
+  ],
+  controllers: [NotificationsController, InboxNotificationController],
+  providers: [NotificationBusService, InboxNotificationService],
+  exports: [NotificationBusService, InboxNotificationService],
 })
 export class NotificationsModule {}

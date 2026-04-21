@@ -8,6 +8,7 @@
  */
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ConsentRecordEntry, ConsentRecordSchema } from '../database/schemas/consent-record.schema';
 import { ErasureRecord, ErasureRecordSchema } from '../database/schemas/erasure-record.schema';
 import { ErasureRequest, ErasureRequestSchema } from '../database/schemas/erasure-request.schema';
@@ -27,6 +28,7 @@ import { GdprAuditInterceptor } from './audit/gdpr-audit.interceptor';
 
 @Module({
   imports: [
+    NotificationsModule,
     MongooseModule.forFeature([
       { name: ConsentRecordEntry.name, schema: ConsentRecordSchema },
       { name: ErasureRecord.name, schema: ErasureRecordSchema },

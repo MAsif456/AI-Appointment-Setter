@@ -18,6 +18,7 @@ import {
 import { Clinic, ClinicDocument } from "../database/schemas/clinic.schema";
 import { GhlApiService } from "../ghl/ghl-api.service";
 import { formatDateBritish } from "../appointments/confirmation-message.builder";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 import { PolicyResult, CancellationResult } from "./cancellation.types";
 
 @Injectable()
@@ -32,6 +33,7 @@ export class CancellationService {
     @InjectModel(Clinic.name)
     private readonly clinicModel: Model<ClinicDocument>,
     private readonly ghlApiService: GhlApiService,
+    private readonly inboxNotificationService: InboxNotificationService,
   ) {}
 
   /**
@@ -158,6 +160,16 @@ export class CancellationService {
     // Update GHL contact tags (fire-and-forget, failures are logged internally)
     await this.ghlApiService.addContactTag(apiKey, contactId, "cancelled");
     await this.ghlApiService.removeContactTag(apiKey, contactId, "appointment-booked");
+
+    // Notify clinic staff via inbox
+    this.inboxNotificationService.createForClinicStaff(
+      appointment.clinicId.toString(),
+      'booking_cancelled',
+      'Booking cancelled',
+      `A patient cancelled their appointment on ${date} at ${time}`,
+      appointmentId.toString(),
+      'appointment',
+    ).catch((err: Error) => this.logger.warn(`Failed to create cancellation inbox notification: ${err.message}`));
 
     // Notify the clinic about the cancellation
     await this.sendClinicNotification(conversationId, contactId, `${date} at ${time}`, apiKey, reason, locationId);

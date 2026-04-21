@@ -17,6 +17,7 @@ import { PostcodeValidationService } from "../orchestrator/postcode-validation.s
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { ConsentService } from "../gdpr/consent/consent.service";
 import { EncryptionService } from "../common/encryption/encryption.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 describe("ConversationsService", () => {
   let service: ConversationsService;
@@ -205,6 +206,7 @@ describe("ConversationsService", () => {
         PostcodeValidationService,
         { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn() } },
         { provide: ConsentService, useValue: { recordConsent: jest.fn(), hasActiveConsent: jest.fn().mockResolvedValue(false), getConsentHistory: jest.fn(), withdrawConsent: jest.fn() } },
+        { provide: InboxNotificationService, useValue: { createForClinicStaff: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

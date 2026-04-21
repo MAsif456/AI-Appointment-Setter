@@ -6,6 +6,7 @@ import {
   EscalationNotificationDocument,
 } from "../database/schemas/escalation-notification.schema";
 import { NotificationBusService } from "../notifications/notification-bus.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 import { EscalationContext } from "./escalation.types";
 
 /**
@@ -23,6 +24,7 @@ export class EscalationNotifierService {
     @InjectModel(EscalationNotification.name)
     private readonly notificationModel: Model<EscalationNotificationDocument>,
     private readonly bus: NotificationBusService,
+    private readonly inboxNotificationService: InboxNotificationService,
   ) {}
 
   /**
@@ -72,6 +74,15 @@ export class EscalationNotifierService {
           `Notification bus publish failed (doc still persisted): ${(busError as Error).message}`,
         );
       }
+
+      this.inboxNotificationService.createForClinicStaff(
+        ctx.clinic._id.toString(),
+        'escalated_conversation',
+        'Conversation escalated',
+        `${leadName} needs urgent attention`,
+        ctx.conversation._id.toString(),
+        'conversation',
+      ).catch((err: Error) => this.logger.warn(`Failed to create escalation inbox notification: ${err.message}`));
 
       return created._id.toString();
     } catch (error) {

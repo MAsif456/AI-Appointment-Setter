@@ -22,5 +22,10 @@
     "noFallthroughCasesInSwitch": false,
     "strictPropertyInitialization": false,
     "types": ["jest", "node"]
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "docs-backend"
+  ]
 }
