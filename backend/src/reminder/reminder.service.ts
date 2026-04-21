@@ -118,7 +118,7 @@ export class ReminderService {
         );
       }
 
-      if (lead?.email) {
+      if (lead?.email && conversation.channel !== 'email') {
         try {
           const emailHtml = generateReminderEmailHtml(appointment, clinic, hoursBeforeAppointment);
           await this.ghlApiService.sendMessageWithRetry(apiKey, {

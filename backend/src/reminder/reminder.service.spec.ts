@@ -388,7 +388,7 @@ describe('ReminderService', () => {
       );
     });
 
-    it('should send email twice when channel is email and lead has an email address', async () => {
+    it('should send email only once when channel is email and lead has an email address', async () => {
       const convEmailChannel = {
         ...makeConversation('email'),
         leadId: { _id: 'lead123', email: 'patient@example.com' },
@@ -400,8 +400,8 @@ describe('ReminderService', () => {
 
       await service.sendReminder(baseAppointment, '24_hour', 24);
 
-      // Both the channel send (type=Email) and the independent email block are attempted.
-      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(2);
+      // Email channel is handled by the first block; the email block is skipped to avoid duplicates.
+      expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledTimes(1);
       expect(mockGhlApiService.sendMessageWithRetry).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ type: 'Email' }),
