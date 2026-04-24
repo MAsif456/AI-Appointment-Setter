@@ -6,6 +6,8 @@ stages:
 
 default:
   image: node:20
+  tags:
+    - comsc-ci
 
 variables:
   COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'

@@ -14,6 +14,7 @@ import { AuthThrottleService } from './auth-throttle.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { RefreshTokenCleanupService } from './refresh-token-cleanup.service';
 import { User, UserSchema } from '../database/schemas/user.schema';
+import { Notification, NotificationSchema } from '../database/schemas/notification.schema';
 import {
   LoginAttempt,
   LoginAttemptSchema,
@@ -36,6 +37,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: LoginAttempt.name, schema: LoginAttemptSchema },
+      { name: Notification.name, schema: NotificationSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),

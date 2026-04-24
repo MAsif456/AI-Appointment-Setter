@@ -6,6 +6,7 @@ import { Conversation, ConversationSchema } from '../database/schemas/conversati
 import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
 import { Message, MessageSchema } from '../database/schemas/message.schema';
 import { GhlModule } from '../ghl/ghl.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ReminderService } from './reminder.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
 import { ReminderSchedulerService } from './reminder-scheduler.service';
@@ -21,6 +22,7 @@ import { ReminderController } from './reminder.controller';
       { name: Message.name, schema: MessageSchema },
     ]),
     GhlModule, // Provides GhlApiService and MessagesService
+    NotificationsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [ReminderController],

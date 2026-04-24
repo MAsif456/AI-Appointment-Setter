@@ -9,6 +9,7 @@ import { Lead } from '../database/schemas/lead.schema';
 import { Clinic } from '../database/schemas/clinic.schema';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { InboxNotificationService } from '../notifications/inbox-notification.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
 
 const MON_10AM = new Date('2026-04-06T10:00:00.000Z');
@@ -32,6 +33,7 @@ const mockConversationModel = { find: jest.fn(), findByIdAndUpdate: jest.fn() };
 const mockLeadModel = { findById: jest.fn() };
 const mockMessagesService = { addMessage: jest.fn() };
 const mockGhlApiService = { sendMessageWithRetry: jest.fn(), addContactTag: jest.fn() };
+const mockInboxNotificationService = { createForClinicStaff: jest.fn().mockResolvedValue(undefined) };
 
 describe('FollowUpService — first follow-up (followUpCount 0)', () => {
   let service: FollowUpService;
@@ -45,6 +47,7 @@ describe('FollowUpService — first follow-up (followUpCount 0)', () => {
         { provide: getModelToken(Clinic.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: InboxNotificationService, useValue: mockInboxNotificationService },
         { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();
@@ -127,6 +130,7 @@ describe('FollowUpService — second follow-up (followUpCount 1)', () => {
         { provide: getModelToken(Clinic.name), useValue: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }) } },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: GhlApiService, useValue: mockGhlApiService },
+        { provide: InboxNotificationService, useValue: mockInboxNotificationService },
         { provide: EncryptionService, useValue: { encrypt: jest.fn(), decrypt: jest.fn().mockReturnValue('') } },
       ],
     }).compile();

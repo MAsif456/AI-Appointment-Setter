@@ -9,9 +9,9 @@ jest.mock('@/lib/apiAxios', () => ({
 }));
 
 // Mock useAuth so the component doesn't need a real AuthProvider in tests.
-// Default to admin so all toggles (including admin-only newUserJoined) are visible.
+// Default to staff so the standard staff toggles are visible.
 jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: jest.fn(() => ({ isAdmin: true })),
+  useAuth: jest.fn(() => ({ isAdmin: false })),
 }));
 
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
@@ -26,13 +26,16 @@ const DEFAULT_PREFS = {
   bookingCancelled: true,
   newUserJoined: true,
   appointmentReminders: true,
+  gdprDataDeletion: true,
+  newLead: true,
+  appointmentRescheduled: true,
 };
 
 describe('NotificationPreferences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    mockedUseAuth.mockReturnValue({ isAdmin: true } as any);
+    mockedUseAuth.mockReturnValue({ isAdmin: false } as any);
   });
 
   afterEach(() => {
@@ -63,7 +66,7 @@ describe('NotificationPreferences', () => {
 
   // ── Renders preferences from API ──────────────────────────────────────────
 
-  it('renders all toggles after successful load', async () => {
+  it('renders staff toggles after successful load', async () => {
     mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
     render(<NotificationPreferences />);
     await waitFor(() => {
@@ -72,9 +75,22 @@ describe('NotificationPreferences', () => {
       expect(screen.getByRole('switch', { name: 'Stalled conversations' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Escalated conversations' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Booking cancelled' })).toBeInTheDocument();
-      expect(screen.getByRole('switch', { name: 'New user joined' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Appointment reminders' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'New lead' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Appointment rescheduled' })).toBeInTheDocument();
     });
+  });
+
+  it('renders admin toggles after successful load', async () => {
+    mockedUseAuth.mockReturnValue({ isAdmin: true } as any);
+    mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
+    render(<NotificationPreferences />);
+    await waitFor(() => {
+      expect(screen.getByRole('switch', { name: 'General notifications' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'New staff member account created' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Data deletion requests' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('switch', { name: 'Email notifications' })).not.toBeInTheDocument();
   });
 
   it('reflects saved preference state — emailNotifications false on load', async () => {
@@ -87,11 +103,10 @@ describe('NotificationPreferences', () => {
   });
 
   it('hides newUserJoined toggle for non-admin users', async () => {
-    mockedUseAuth.mockReturnValue({ isAdmin: false } as any);
     mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
     render(<NotificationPreferences />);
     await waitFor(() => screen.getByRole('switch', { name: 'Email notifications' }));
-    expect(screen.queryByRole('switch', { name: 'New user joined' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'New staff member account created' })).not.toBeInTheDocument();
   });
 
   // ── General notifications master switch ───────────────────────────────────
@@ -257,12 +272,13 @@ describe('NotificationPreferences', () => {
   });
 
   it('sends newUserJoined false when toggled off and saved', async () => {
+    mockedUseAuth.mockReturnValue({ isAdmin: true } as any);
     mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
     mockedApi.patch.mockResolvedValue({ data: { ...DEFAULT_PREFS, newUserJoined: false } });
     render(<NotificationPreferences />);
-    await waitFor(() => screen.getByRole('switch', { name: 'New user joined' }));
+    await waitFor(() => screen.getByRole('switch', { name: 'New staff member account created' }));
 
-    fireEvent.click(screen.getByRole('switch', { name: 'New user joined' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'New staff member account created' }));
     fireEvent.click(screen.getByText('Save Preferences'));
 
     await waitFor(() =>
@@ -275,7 +291,7 @@ describe('NotificationPreferences', () => {
 
   // ── All-true defaults ─────────────────────────────────────────────────────
 
-  it('shows all toggles on when API returns all-true defaults', async () => {
+  it('shows all staff toggles on when API returns all-true defaults', async () => {
     mockedApi.get.mockResolvedValue({ data: DEFAULT_PREFS });
     render(<NotificationPreferences />);
     await waitFor(() => screen.getByRole('switch', { name: 'General notifications' }));

@@ -37,6 +37,7 @@ import { generateOrchestratorResponse } from "./orchestrator.generate-response";
 import { detectOrchestratorIntent } from "./orchestrator.detect-intent";
 import { SecurityPipelineService } from "../security/security-pipeline.service";
 import { ConsentService } from "../gdpr/consent/consent.service";
+import { InboxNotificationService } from "../notifications/inbox-notification.service";
 
 export { FALLBACK_MESSAGE };
 export type { OrchestratorMessage, OrchestratorContext, IntentResult };
@@ -59,6 +60,7 @@ export class OrchestratorService {
     private readonly patientHistoryService: PatientHistoryService,
     private readonly chatConversationsService: ChatConversationsService,
     private readonly consentService: ConsentService,
+    private readonly inboxNotificationService: InboxNotificationService,
   ) {}
 
   async handleNewLead(
@@ -74,6 +76,7 @@ export class OrchestratorService {
       patientHistoryService: this.patientHistoryService,
       securityPipeline: this.securityPipeline,
       consentService: this.consentService,
+      inboxNotificationService: this.inboxNotificationService,
       logger: this.logger,
       correlationId,
     });

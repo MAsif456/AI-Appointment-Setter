@@ -21,6 +21,7 @@ import { Lead, LeadDocument } from '../database/schemas/lead.schema';
 import { Clinic, ClinicDocument } from '../database/schemas/clinic.schema';
 import { MessagesService } from '../ghl/messages.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { InboxNotificationService } from '../notifications/inbox-notification.service';
 import { EncryptionService } from '../common/encryption/encryption.service';
 
 const FIRST_FOLLOW_UP_DELAY_MS = 24 * 60 * 60 * 1000;
@@ -62,6 +63,7 @@ export class FollowUpService {
     private readonly clinicModel: Model<ClinicDocument>,
     private readonly messagesService: MessagesService,
     private readonly ghlApiService: GhlApiService,
+    private readonly inboxNotificationService: InboxNotificationService,
     private readonly encryptionService: EncryptionService,
   ) {}
 
@@ -166,6 +168,17 @@ export class FollowUpService {
       $inc: { followUpCount: 1 },
       lastFollowUpAt: now,
     });
+
+    if (followUpCount === 0) {
+      this.inboxNotificationService.createForClinicStaff(
+        conversation.clinicId.toString(),
+        'stalled_conversation',
+        'Lead not responding',
+        `${firstName} has not responded in 24 hours`,
+        conversation._id.toString(),
+        'conversation',
+      ).catch((err: Error) => this.logger.warn(`Failed to create stalled notification: ${err.message}`));
+    }
 
     return 'sent';
   }
