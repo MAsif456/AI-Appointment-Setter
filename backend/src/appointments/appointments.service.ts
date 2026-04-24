@@ -129,7 +129,7 @@ export class AppointmentsService {
     const conversation = await this.conversationModel
       .findById(dto.conversationId)
       .exec();
-    const lead = await this.leadModel.findById(dto.leadId).lean().exec();
+    const lead = await this.leadModel.findById(dto.leadId).exec();
     if (lead) {
       await this.patientHistoryService.persistHistory(
         dto.clinicId,
