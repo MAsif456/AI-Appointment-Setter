@@ -71,10 +71,10 @@ export class FollowUpService {
    * Runs every hour. Finds all conversations overdue for a follow-up and
    * either sends a follow-up message or closes the conversation.
    *
-   * Accepts an optional `now` parameter for testability — in production
+   * Accepts an optional `now` parameter for testability in production
    * the cron scheduler calls this with no arguments so it defaults to new Date().
    */
-  @Cron('*/1 * * * *')
+  @Cron('0 * * * *')
   async checkAndSendFollowUps(now: Date = new Date()): Promise<void> {
     const threshold24h = new Date(now.getTime() - FIRST_FOLLOW_UP_DELAY_MS);
     const threshold48h = new Date(now.getTime() - SECOND_FOLLOW_UP_DELAY_MS);
@@ -84,7 +84,7 @@ export class FollowUpService {
     try {
       conversations = await this.conversationModel
         .find({
-          phase: { $in: ['greeting', 'qualifying', 'booking'] },
+          phase: { $in: ['qualifying', 'booking'] },
           lastMessageFrom: 'ai',
           $or: [
             { followUpCount: 0, lastMessageAt: { $lte: threshold24h } },
@@ -126,8 +126,13 @@ export class FollowUpService {
   ): Promise<'sent' | 'closed' | 'skipped'> {
     const { followUpCount } = conversation;
 
-    // Demo mode: only send the first follow-up, skip close and business hours
-    if (followUpCount >= 1) {
+    // Close conversation (no message sent, business hours not required)
+    if (followUpCount >= 2) {
+      return this.closeConversation(conversation, now);
+    }
+
+    // Follow-up messages respect business hours
+    if (!isWithinBusinessHours(now)) {
       return 'skipped';
     }
 
