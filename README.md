@@ -1,307 +1,392 @@
-# Large Team Project Team 22b- Lunax Digital
+# AppointHealth AI - User Guide
 
-# AppointHealth AI
-
-This repo contains a full-stack app:
-
-- **Frontend:** Next.js (React + TypeScript + Tailwind), runs on port **3000**
-- **Backend:** NestJS (TypeScript) with MongoDB, runs on port **3001**
-
-This guide walks you from a fresh clone to running the project with `npm run dev` in their own folders.
+AppointHealth AI is an intelligent appointment booking platform. It uses AI to automatically qualify leads, book appointments, send follow-up messages, and escalate conversations to human staff when needed - all through email, and live chat.
 
 ---
 
-## What you need before starting
+## Table of Contents
 
-IMPORTANT! Install these on your machine (if you don’t have them yet):
-
-| Tool       | Purpose              | How to check           |
-|-----------|----------------------|------------------------|
-| **Node.js** (v18 or newer) | Runs frontend and backend | `node -v`              |
-| **npm**    | Installs dependencies | `npm -v` (comes with Node) |
-| **MongoDB** | Database for the backend | Local install or [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (free tier) |
-
-If any of these commands fail, install Node from [nodejs.org](https://nodejs.org/) and set up MongoDB locally or create an Atlas cluster and get a connection string.
+1. [Logging In](#1-logging-in)
+2. [Dashboard](#2-dashboard)
+3. [Managing Clinics](#3-managing-clinics)
+4. [Connecting GoHighLevel (GHL)](#4-connecting-gohighlevel-ghl)
+5. [Configuring the AI](#5-configuring-the-ai)
+6. [Managing Users (Admin only)](#6-managing-users-admin-only)
+7. [Conversations](#7-conversations)
+8. [Escalations](#8-escalations)
+9. [Analytics](#9-analytics)
+10. [Notifications & Inbox](#10-notifications--inbox)
+11. [Data Protection & GDPR](#11-data-protection--gdpr)
+12. [Settings & Account](#12-settings--account)
+13. [Roles: Admin vs Staff](#13-roles-admin-vs-staff)
+14. [How the AI Booking Flow Works](#14-how-the-ai-booking-flow-works)
+15. [Automated Follow-Ups](#15-automated-follow-ups)
 
 ---
 
-## Step 1: Get the project
+## 1. Logging In
 
-Clone or download the repo and open a terminal in the **project root** (the folder that contains `frontend/` and `backend/`).
+Go to the application URL and log in with your email and password.
+
+- If you have forgotten your password, click **Forgot password** and follow the link sent to your email.
+- New accounts require email verification before you can log in. Check your inbox for a verification email after signing up.
+
+**Default admin login (development seed data):**
+- Email: `admin@lunaxdigital.com`
+- Password: `admin123`
+
+---
+
+## 2. Dashboard
+
+The dashboard gives you an at-a-glance overview of the platform:
+
+- **Total leads** - how many leads have come in
+- **Bookings** - how many appointments have been booked
+- **Active conversations** - conversations currently in progress
+- **Escalations** - conversations flagged for human attention
+- **Recent conversations** - a quick list of the latest activity
+- **Clinic performance table** - per-clinic breakdown of key metrics
+
+---
+
+## 3. Managing Clinics
+
+Clinics are the core unit of the platform. Each clinic has its own AI configuration, GHL integration, and team.
+
+### Adding a new clinic (Admin only)
+
+1. Click **Clinics** in the sidebar
+2. Click **Add Clinic**
+3. Fill in:
+   - **Clinic name**
+   - **Address**
+   - **Phone number**
+   - **GHL Location ID** - from your GoHighLevel sub-account (see Section 4)
+   - **GHL Calendar ID** - the calendar where appointments will be booked
+   - **Services offered** - list the treatments or services available
+   - **Service areas** - postcodes or regions the clinic covers
+   - **Business hours** - days and times the clinic operates
+4. Click **Save**
+
+### Editing a clinic
+
+1. Click **Clinics** in the sidebar
+2. Click on a clinic name to open it
+3. Use the tabs - **Overview**, **AI Configuration**, **Integrations** - to manage different aspects
+4. Click **Edit** to update details, then **Save**
+
+### Activating / Deactivating a clinic
+
+From the clinic detail page, use the **Activate** or **Deactivate** button. Deactivated clinics will not receive or process new leads.
+
+---
+
+## 4. Connecting GoHighLevel (GHL)
+
+AppointHealth AI uses GoHighLevel (GHL) to send messages and book appointments. Each clinic must be connected to a GHL sub-account.
+
+### What you need from GHL
+
+| Field | Where to find it in GHL |
+|---|---|
+| **GHL Location ID** | Settings → Business Info → Location ID |
+| **GHL Calendar ID** | Calendars → click your calendar → Settings → Calendar ID |
+| **GHL Private Integration Token** | Settings → Integrations → Private Integrations → create one and copy the token |
+
+### Connecting a clinic to GHL
+
+1. Open the clinic → **Integrations** tab
+2. Enter the **Location ID**, **Calendar ID**, and **Private Integration Token**
+3. Click **Test Connection** to verify it works
+4. Click **Save**
+
+Once connected, the AI can send messages to leads and create calendar appointments directly in GHL.
+
+---
+
+## 5. Configuring the AI
+
+Each clinic has its own AI configuration that controls how the bot talks to leads.
+
+1. Open the clinic → **AI Configuration** tab
+2. Configure:
+   - **Greeting message** - the first message the AI sends when a lead starts a conversation
+   - **AI tone** - choose between Professional, Friendly, or Empathetic
+   - **Qualification questions** - questions the AI asks to qualify the lead (e.g. location, issue type, urgency)
+   - **Services & locations** - what services and areas the AI should know about
+   - **Custom instructions** - any specific rules or information the AI should follow
+3. Click **Save**
+
+The AI uses this configuration to qualify leads, answer questions, and guide them towards booking an appointment.
+
+---
+
+## 6. Managing Users (Admin only)
+
+Admins can create and manage staff accounts from the Settings page.
+
+### Creating a staff account
+
+1. Go to **Settings** → **User Management**
+2. Click **Add User**
+3. Enter:
+   - **First name** and **Last name**
+   - **Email address**
+   - **Role** - Staff or Admin
+   - **Clinic** - which clinic they belong to (staff are tied to one clinic; admins see all)
+4. Click **Save**
+
+The new user will receive a verification email. They must verify their email before they can log in.
+
+### Roles
+
+| Role | What they can do |
+|---|---|
+| **Admin** | Full access - manage all clinics, all conversations, all users, analytics, data protection |
+| **Staff** | Access to their assigned clinic's conversations, escalations, and notifications |
+
+### Editing or removing a user
+
+From **Settings → User Management**, click the menu icon next to a user to edit their details or delete their account.
+
+---
+
+## 7. Conversations
+
+The Conversations page shows all AI-managed conversations with leads.
+
+### Conversation phases
+
+| Phase | Meaning |
+|---|---|
+| **Greeting** | AI has just started talking to the lead |
+| **Qualifying** | AI is asking qualification questions |
+| **Booking** | AI is in the process of booking an appointment |
+| **Confirmed** | Appointment successfully booked |
+| **Declined** | Lead is outside service area or not suitable |
+| **Closed** | Conversation ended (no response, cancelled, or complete) |
+
+### Viewing a conversation
+
+Click any conversation to open the full chat history, lead details, and appointment information.
+
+### Live chat
+
+Click **Live** in the sidebar under Conversations to see conversations happening in real time via the website chat widget.
+
+### High priority
+
+Conversations marked as high priority are flagged in the list. These are leads that the AI has identified as urgent.
+
+---
+
+## 8. Escalations
+
+When the AI cannot handle a conversation (e.g. the lead is frustrated, has an unusual request, or asks something the AI cannot answer), it escalates it to a human.
+
+1. Click **Escalations** in the sidebar
+2. You will see all conversations waiting for human attention
+3. Click an escalation to open the conversation and take over
+4. Once resolved, click **Resolve** to close the escalation
+5. The AI will resume or the conversation can be handled manually
+
+Staff members are notified in real time when a new escalation comes in.
+
+---
+
+## 9. Analytics
+
+The Analytics page gives a detailed breakdown of performance.
+
+- **Overview stats** - total leads, bookings, conversion rate, response time
+- **Bookings chart** - bookings over time
+- **Funnel chart** - how many leads pass through each phase
+- **Lead sources** - where leads are coming from (Facebook, Google Ads, website, referral)
+- **Phase distribution** - breakdown of conversations by current phase
+- **Clinic comparison table** - side-by-side performance across clinics (Admin only)
+
+Use the **date range selector** to filter by last 7 days, last 30 days, or a custom range.
+
+---
+
+## 10. Notifications & Inbox
+
+The notification bell in the top bar shows real-time alerts. Click it to see recent activity.
+
+### Notification types
+
+| Type | Triggered by |
+|---|---|
+| **New lead** | A new lead starts a conversation |
+| **Escalation** | The AI escalates a conversation to staff |
+| **Appointment rescheduled** | A lead reschedules an existing appointment |
+| **Stalled conversation** | A lead has not responded for 24 hours |
+| **GDPR data deletion** | A data erasure request has been submitted |
+
+### Notification preferences
+
+Go to **Settings → Notifications** to choose which alerts you receive. Staff can toggle lead and appointment notifications. Admins have additional options for platform-wide alerts.
+
+---
+
+## 11. Data Protection & GDPR
+
+AppointHealth AI includes built-in GDPR tools to handle data erasure requests.
+
+1. Click **Data Protection** in the sidebar
+2. You will see any pending erasure requests submitted by leads
+3. Review the request details
+4. Click **Approve** to permanently delete the lead's data from the system
+5. The system logs the action for compliance purposes
+
+Only admins can action erasure requests.
+
+---
+
+## 12. Settings & Account
+
+Access **Settings** from the sidebar at the bottom.
+
+### Account settings
+- Update your name, email, and password
+- Change your profile details
+
+### Appearance
+- Toggle between **Light** and **Dark** mode
+
+### Notification preferences
+- Control which notifications you receive (see Section 10)
+
+### Integrations
+- View and manage your connected GHL integration
+
+### User Management (Admin only)
+- Add, edit, or remove staff and admin accounts (see Section 6)
+
+---
+
+## 13. Roles: Admin vs Staff
+
+| Feature | Admin | Staff |
+|---|---|---|
+| View all clinics | Yes | No (own clinic only) |
+| Add / edit clinics | Yes | No |
+| Manage users | Yes | No |
+| View all conversations | Yes | No (own clinic only) |
+| Handle escalations | Yes | Yes (own clinic only) |
+| View analytics | Yes | Limited |
+| Data protection / GDPR | Yes | No |
+| Notification preferences | All types | Lead & appointment types |
+
+---
+
+## 14. How the AI Booking Flow Works
+
+1. A lead sends a message via Email.
+2. GHL receives the message and forwards it to AppointHealth AI via a webhook
+3. The AI greets the lead and begins the qualification process
+4. The AI asks configured qualification questions (location, issue, urgency, etc.)
+5. If the lead qualifies, the AI checks available slots and proposes an appointment time
+6. The lead confirms and the AI books directly into the GHL calendar
+7. A confirmation message is sent to the lead
+8. If the lead does not respond, the **automated follow-up** system kicks in (see Section 15)
+9. If the AI cannot handle the conversation, it escalates to a human staff member
+
+---
+
+## 15. Automated Follow-Ups
+
+If a lead stops responding, AppointHealth AI automatically sends follow-up messages.
+
+| Trigger | Action |
+|---|---|
+| No response for **24 hours** | Sends: *"Hi [name], just checking in! Still interested in booking?"* |
+| No response for **48 hours** | Sends: *"Hey [name], I don't want to keep bothering you! Let me know if I can help."* |
+| No response for **7 days** | Conversation is closed, marked as `no_response`, and the lead is tagged as `unresponsive` in GHL |
+
+Follow-up messages are only sent during business hours (Monday–Friday, 9am–6pm UTC). Closing a conversation happens regardless of the time of day.
+
+---
+
+## Developer Setup
+
+For developers setting up the project locally, see the sections below.
+
+### Prerequisites
+
+| Tool | Purpose | Check |
+|---|---|---|
+| **Node.js v18+** | Runs frontend and backend | `node -v` |
+| **npm** | Installs dependencies | `npm -v` |
+| **MongoDB** | Database | Local or [Atlas](https://www.mongodb.com/cloud/atlas) |
+
+### Installation
 
 ```bash
-cd path/to/AppointHealth AI
+# Install backend dependencies
+cd backend && npm install && cd ..
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 ```
 
-You should see:
+### Backend environment variables (`backend/.env`)
 
-- `frontend/` – Next.js app  
-- `backend/` – NestJS API  
-- `README.md` – this file  
-
----
-
-## Step 2: Install dependencies
-
-Each app has its own `package.json`, so you install dependencies **twice**—once for the frontend, once for the backend.
-
-**2a. Frontend**
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-**2b. Backend**
-
-```bash
-cd backend
-npm install
-cd ..
-```
-
-After this, both `frontend/node_modules` and `backend/node_modules` should exist. You only need to run these when you first clone or when dependencies change (e.g. after a pull).
-
----
-
-## Step 3: Set up the backend (env + MongoDB)
-
-The backend needs a `.env` file and a running MongoDB instance.
-
-**3a. Create the env file**
-
-In the `backend/` folder, create a new file named `.env` with at least these values (you can customize them):
-
-```bash
+```env
 PORT=3001
-MONGODB_URI=mongodb(url is whatever is in the connect on your mongodb atlas screen)
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/databaseName
 FRONTEND_URL=http://localhost:3000
-```
-
-If you use MongoDB Atlas, replace `MONGODB_URI` with your Atlas connection string.
-
-**3b. Make sure MongoDB is available**
-
-- **Local MongoDB:** Start the MongoDB service on your machine. The default is in `.env`.
-- **MongoDB Atlas:** In `.env`, set `MONGODB_URI` to your Atlas connection string (replace the default).
-
-If MongoDB isn’t running or the URI is wrong, the backend will fail to start when you run `npm run dev`.
-
----
-
-## Step 4: Run the backend
-
-Open a terminal and run the backend from **its own folder**:
-
-```bash
-cd backend
-npm run dev
-```
-
-- The API will start and listen on **http://localhost:3001**.
-- Leave this terminal open; the backend needs to keep running while you work.
-- You should see NestJS compile and a message that the app is listening.
-
-If you see a MongoDB connection error, go back to Step 3 and fix your MongoDB URI or ensure MongoDB is running.
-
----
-
-## Step 5: Seed the Database (Development Only)
-
-After starting the backend, populate the database with dummy data.
-
-In a new terminal:
-
-```bash
-cd backend
-npm run seed
-```
-
-This will:
-
-- Clear existing collections
-- Create 1 admin user
-- Create 4 clinics
-- Create 7 leads
-- Create 7 conversations
-- Create messages
-- Create 1 appointment
-- Create audit logs
-
-You can re-run this command anytime to reset and repopulate the database during development.
-
----
-
-## Step 6: Run the frontend
-
-Open a **second** terminal (the first one is still running the backend). Run the frontend from **its own folder**:
-
-```bash
-cd frontend
-npm run dev
-```
-
-- The app will start and be available at **http://localhost:3000**.
-- Leave this terminal open too.
-- In the browser, open **http://localhost:3000** to use the app.
-
-You now have:
-
-- **Terminal 1:** backend at http://localhost:3001  
-- **Terminal 2:** frontend at http://localhost:3000  
-
-Both are running via `npm run dev` in their respective roots (`backend/` and `frontend/`).
-
----
-
-## Summary: from scratch to running
-
-1. **Prerequisites:** Node.js 18+, npm, MongoDB (local or Atlas).  
-2. **Get the project:** Clone repo, `cd` to project root.  
-3. **Install deps:** `cd frontend && npm install`, then `cd backend && npm install`.  
-4. **Backend setup:** In `backend/`, create a `.env` file (see Step 3) and set `MONGODB_URI` if needed.  
-5. **Run backend:** In one terminal, `cd backend` → `npm run dev`.  
-6. **Run frontend:** In another terminal, `cd frontend` → `npm run dev`.  
-
-After that, use http://localhost:3000 for the app and http://localhost:3001 for the API.
-
----
-
-## Project structure
-
-```
-├── frontend/          # Next.js app (run: npm run dev from here)
-├── backend/           # NestJS API (run: npm run dev from here)
-├── package.json       # Root scripts (e.g. install:all)
-```
-
----
-
-## Backend environment variables
-
-Stored in `backend/.env`:
-
-| Variable       | What it’s for                     | Default |
-|----------------|-----------------------------------|--------|
-| `PORT`         | Port the API listens on           | `3001` |
-| `MONGODB_URI`  | MongoDB connection string         | `mongodb(URL)` |
-| `FRONTEND_URL` | Allowed CORS origin for the app   | `http://localhost:3000` |
-
-Change these if your ports or URLs differ. For frontend calls to the API from the browser, you can set `NEXT_PUBLIC_API_URL=http://localhost:3001` in the frontend env if needed.
-
----
-
-## Email configuration
-
-The backend sends transactional emails (account verification, password reset). The transport security mode is determined automatically from `EMAIL_PORT`, so you only need to set the right port for your environment.
-
-### Development
-
-Use [Mailhog](https://github.com/mailhog/MailHog) (a local mail catcher) so emails never leave your machine:
-
-```bash
-# Install and run Mailhog (one-off)
-brew install mailhog   # macOS
-mailhog                # starts SMTP on 1025, web UI on http://localhost:8025
-```
-
-Add to `backend/.env`:
-
-```env
-EMAIL_HOST=localhost
-EMAIL_PORT=1025
-EMAIL_USER=
-EMAIL_PASS=
-EMAIL_FROM=noreply@appointhealth.com
-```
-
-Port 1025 is the only port that skips TLS enforcement — this is intentional and safe for local-only use. Emails are captured by Mailhog and never sent to real inboxes.
-
-Alternatively, [Mailtrap](https://mailtrap.io/) provides a free hosted sandbox. Use port `587` with the credentials they give you.
-
-### Production
-
-All production email must travel over an encrypted connection. Set **one** of the following port options:
-
-**Option A — Port 587 (STARTTLS, most common):**
-
-```env
-EMAIL_HOST=smtp.gmail.com   # or your provider’s SMTP host
+JWT_SECRET=your-secret-key
+GHL_API_BASE_URL=https://services.leadconnectorhq.com/
+EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=your-smtp-user@example.com
+EMAIL_USER=your-email@gmail.com
 EMAIL_PASS=your-app-password
 EMAIL_FROM=noreply@appointhealth.com
+FIELD_ENCRYPTION_KEY=your-32-byte-hex-key
+ENCRYPTION_KEY=your-encryption-key
 ```
 
-Port 587 automatically enables `requireTLS: true`, which forces the connection to upgrade to TLS and blocks STARTTLS-stripping attacks. This is correct for Gmail, SendGrid, Mailgun, and most providers.
+### Running locally
 
-**Option B — Port 465 (implicit TLS):**
+```bash
+# Terminal 1 - backend
+cd backend && npm run dev
 
-```env
-EMAIL_HOST=smtp.example.com
-EMAIL_PORT=465
-EMAIL_USER=your-smtp-user@example.com
-EMAIL_PASS=your-app-password
-EMAIL_FROM=noreply@appointhealth.com
+# Terminal 2 - frontend
+cd frontend && npm run dev
 ```
 
-Port 465 automatically enables `secure: true` (implicit TLS from the start). Use this if your provider specifically requires it.
+Frontend: http://localhost:3000
+Backend: http://localhost:3001
 
-> **Never use `EMAIL_PORT=25` in production.** The backend logs an error on startup if port 25 is detected outside of a development environment, as it transmits credentials in plaintext.
+### Seeding the database (development only)
 
-#### Gmail setup note
+```bash
+cd backend && npm run seed
+```
 
-Gmail requires an **App Password** (not your account password) when 2-factor authentication is enabled. Generate one at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) and use it as `EMAIL_PASS`.
+This clears the database and creates sample clinics, leads, conversations, and a default admin account (`admin@lunaxdigital.com` / `admin123`).
 
----
+> **Warning:** Running `npm run seed` wipes all existing data. Never run this against your production database.
 
-## Deployment
+### Useful commands
 
-The app is deployed using **Render** (backend) and **Vercel** (frontend), with the GitLab repo mirrored to GitHub to enable OAuth integration.
-
-| Service | Platform | URL |
-|---------|----------|-----|
-| Backend API | Render (free tier) | `https://appointhealth-backend.onrender.com` |
-| Frontend | Vercel (free tier) | `https://appointhealth-frontend.vercel.app` |
-
-### How auto-deploy works
-
-Pushes to the `development` branch on GitLab are automatically mirrored to the connected GitHub repo. Render and Vercel detect the push and redeploy automatically - no manual steps needed.
-
-### Environment variables (set in platform dashboards, not committed to the repo)
-
-**Render (backend):**
-
-| Variable | Value |
-|---|---|
-| `MONGODB_URI` | MongoDB Atlas connection string |
-| `FRONTEND_URL` | Vercel frontend URL (for CORS) |
-| `EMAIL_HOST` | Your SMTP provider host (e.g. `smtp.gmail.com`) |
-| `EMAIL_PORT` | `587` (STARTTLS) or `465` (implicit TLS) |
-| `EMAIL_USER` | SMTP username |
-| `EMAIL_PASS` | SMTP password or app password |
-| `EMAIL_FROM` | Sender address shown in emails |
-| `NODE_ENV` | `production` |
-
-**Vercel (frontend):**
-
-| Variable | Value |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Render backend URL |
-
-###### Note: Render’s free tier spins down after 15 minutes of inactivity. The first request after sleep may take 30 seconds.
-###### Due to limitations of the Vercel free tier, only the account owner is able to trigger production deployments. As a result, final deployments must be performed by the project owner to ensure the deployment stage of the pipeline passes successfully.
----
-
-
-## Useful commands (from each app’s root)
-
-| Command         | Run from    | What it does              |
-|-----------------|------------|----------------------------|
-| `npm run dev`   | `frontend/` | Start Next.js dev server   |
-| `npm run dev`   | `backend/`  | Start NestJS dev server    |
-| `npm run seed`   | `backend/`  | Seed database with dummy data    |
+| Command | Run from | What it does |
+|---|---|---|
+| `npm run dev` | `frontend/` or `backend/` | Start dev server |
 | `npm run build` | `frontend/` or `backend/` | Build for production |
+| `npm run seed` | `backend/` | Reset and seed the database |
+| `npm test` | `backend/` | Run backend tests |
 
-If something doesn’t work, double-check: Node version, MongoDB running (or correct Atlas URI), and that you’re running commands from the correct folder (`frontend/` or `backend/`).
+### Deployment
+
+| Service | Platform |
+|---|---|
+| Backend API | Render |
+| Frontend | Vercel |
+
+Pushes to the `development` branch auto-deploy via the GitLab → GitHub mirror. Render and Vercel detect the push and redeploy automatically.
+
+> Render's free tier spins down after 15 minutes of inactivity. The first request after sleep may take up to 30 seconds.
