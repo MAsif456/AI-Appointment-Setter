@@ -74,10 +74,10 @@ const MONTHS: string[] = [
  * console.log(formatted); // 'Thursday 17th March at 2:00 pm'
  */
 export function formatSlotDisplay(slot: Slot): string {
-  const date = new Date(`${slot.date}T${slot.startTime}:00`);
-  const dayName = DAYS[date.getDay()];
-  const dayNum = ordinal(date.getDate());
-  const monthName = MONTHS[date.getMonth()];
+  const date = new Date(`${slot.date}T00:00:00Z`);
+  const dayName = DAYS[date.getUTCDay()];
+  const dayNum = ordinal(date.getUTCDate());
+  const monthName = MONTHS[date.getUTCMonth()];
   const time = formatTime(slot.startTime);
   return `${dayName} ${dayNum} ${monthName} at ${time}`;
 }

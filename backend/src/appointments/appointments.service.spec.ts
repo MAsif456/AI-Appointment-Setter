@@ -263,6 +263,28 @@ describe('AppointmentsService', () => {
     expect(conversationModel.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
+  describe('BST timezone regression', () => {
+    it('should store appointmentTime as 11:00 for 10:00 UTC input during BST (UTC+1)', async () => {
+      // 2026-04-01T10:00:00.000Z = 11:00 AM BST — must be stored as '11:00', not '10:00'
+      const bstDto = { ...mockDto, startTime: '2026-04-01T10:00:00.000Z' };
+      await service.bookAppointment(bstDto);
+
+      expect(appointmentModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ appointmentTime: '11:00' }),
+      );
+    });
+
+    it('should store appointmentTime as 10:00 for 10:00 UTC input during GMT (UTC+0)', async () => {
+      // 2026-01-15T10:00:00.000Z = 10:00 AM GMT — must be stored as '10:00'
+      const gmtDto = { ...mockDto, startTime: '2026-01-15T10:00:00.000Z' };
+      await service.bookAppointment(gmtDto);
+
+      expect(appointmentModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ appointmentTime: '10:00' }),
+      );
+    });
+  });
+
   it('should call persistHistory when lead is found', async () => {
     const mockLead = {
       phone: '+441234567890',

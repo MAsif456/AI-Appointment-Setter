@@ -31,6 +31,25 @@ import { OrchestratorContext } from './orchestrator.types';
 export const FULLY_BOOKED_RESPONSE =
   "We're fully booked on that date. Would you like to try a different day?";
 
+/**
+ * Cancels an existing GHL appointment before rebooking.
+ * Returns true on success, false if the cancellation call failed.
+ * Exported so conversations.service.ts can reuse the same cancel logic.
+ */
+export async function cancelOldGhlAppointment(
+  ghlApiService: GhlApiService,
+  ghlApiKey: string,
+  appointmentId: string,
+  logger: Logger,
+): Promise<boolean> {
+  const result = await ghlApiService.cancelAppointment(ghlApiKey, appointmentId);
+  if (result === null) {
+    logger.error(`Failed to cancel old GHL appointment ${appointmentId}`);
+    return false;
+  }
+  return true;
+}
+
 export interface RescheduleDeps {
   slotProvider: SlotProvider;
   groqService: GroqService;
@@ -126,10 +145,9 @@ async function executeReschedule(
   const leadId = (conversation.leadId as Types.ObjectId).toString();
   const ghlAppointmentId = conversation.context?.get('ghlAppointmentId') ?? '';
 
-  // Step 1: Cancel the old appointment (returns null on failure)
-  const cancelled = await ghlApiService.cancelAppointment(clinicConfig.ghlApiKey ?? '', ghlAppointmentId);
-  if (cancelled === null) {
-    logger.error(`Failed to cancel appointment ${ghlAppointmentId} for contact ${contactId}`);
+  // Step 1: Cancel the old appointment via the shared helper
+  const cancelled = await cancelOldGhlAppointment(ghlApiService, clinicConfig.ghlApiKey ?? '', ghlAppointmentId, logger);
+  if (!cancelled) {
     return {
       response: 'Sorry, there was an issue rescheduling your appointment. Please try again.',
       completedReschedule: false,
@@ -205,7 +223,14 @@ function parseBritishDate(britishDate?: string): string | null {
   const month = MONTHS[monthName];
   if (!month) return null;
   const day = dayStr.padStart(2, '0');
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const currentMonth = now.getUTCMonth() + 1;
+  const parsedMonth = Number(month);
+  let year = now.getUTCFullYear();
+  // Guard Jan/Dec rollover: date in Jan mentioned while still in Dec → next year
+  if (currentMonth === 12 && parsedMonth <= 3) year += 1;
+  // Date in Dec/Nov mentioned while in Jan → previous year (stale reference)
+  if (currentMonth === 1 && parsedMonth >= 10) year -= 1;
   return `${year}-${month}-${day}`;
 }
 
@@ -283,5 +308,13 @@ function extractTimeFromIso(isoDateTime?: string): string | null {
   if (!isoDateTime) return null;
   const date = new Date(isoDateTime);
   if (Number.isNaN(date.getTime())) return null;
-  return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const hour = parts.find((p) => p.type === 'hour')?.value ?? '00';
+  const minute = parts.find((p) => p.type === 'minute')?.value ?? '00';
+  return `${hour}:${minute}`;
 }
