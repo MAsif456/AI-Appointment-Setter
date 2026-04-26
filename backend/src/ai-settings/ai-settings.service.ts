@@ -99,7 +99,7 @@ export class AiSettingsService {
     }
 
     const clinic = await this.clinicModel
-      .findByIdAndUpdate(clinicId, { $set: setFields }, { new: true })
+      .findByIdAndUpdate(clinicId, { $set: setFields }, { returnDocument: 'after' })
       .lean()
       .exec();
 

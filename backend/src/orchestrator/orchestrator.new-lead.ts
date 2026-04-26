@@ -50,9 +50,14 @@ export interface NewLeadDeps {
  *   6. Send the greeting to the lead via the GHL API (with retry).
  *   7. Persist the AI greeting as a message in MongoDB.
  */
+/**
+ * Detects the appropriate messaging channel for a new lead.
+ * Email is checked first: if the contact provided an email address they expect
+ * an email response. Phone-only contacts receive SMS.
+ */
 function detectLeadChannel(payload: GhlContactCreatePayload): string {
-  if (payload.phone) return "sms";
   if (payload.email) return "email";
+  if (payload.phone) return "sms";
   return "sms";
 }
 

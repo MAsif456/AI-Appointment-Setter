@@ -79,8 +79,15 @@ export class AppointmentsService {
       try {
         apiKey = this.encryptionService.decrypt(clinic.ghlApiKey);
       } catch {
-        this.logger.error(`Failed to decrypt GHL API key for clinic ${dto.clinicId}`);
+        // Key may be stored as plaintext (pre-encryption migration) — use as-is.
+        this.logger.warn(`GHL API key decrypt failed for clinic ${dto.clinicId} — falling back to plaintext`);
+        apiKey = clinic.ghlApiKey;
       }
+    }
+
+    if (!apiKey) {
+      this.logger.error(`No GHL API key configured for clinic ${dto.clinicId}`);
+      return { success: false, error: 'GHL API key not configured for this clinic' };
     }
 
     let ghlResponse: any;

@@ -103,7 +103,7 @@ export async function seedConversations(
       messageCount: 3 + (i % 6),
       startedAt: createdAt,
       lastMessageAt,
-      lastMessageFrom: i % 2 === 0 ? "lead" : "ai",
+      lastMessageFrom: "lead",
       isHighPriority: false,
       requiresHumanIntervention: false,
       ...(phase === "declined"

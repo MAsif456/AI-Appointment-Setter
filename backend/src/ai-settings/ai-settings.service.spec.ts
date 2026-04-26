@@ -141,7 +141,7 @@ describe("AiSettingsService", () => {
       expect(mockClinicModel.findByIdAndUpdate).toHaveBeenCalledWith(
         "507f1f77bcf86cd799439011",
         { $set: { "aiConfig.tone": AIToneEnum.Friendly } },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
@@ -179,7 +179,7 @@ describe("AiSettingsService", () => {
             ],
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
@@ -202,7 +202,7 @@ describe("AiSettingsService", () => {
       expect(mockClinicModel.findByIdAndUpdate).toHaveBeenCalledWith(
         "507f1f77bcf86cd799439011",
         { $set: { "aiConfig.customInstructions": "Only this" } },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
   });

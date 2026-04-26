@@ -461,6 +461,7 @@ describe("ConversationsService", () => {
 
     it("should intercept decline keyword and reassure appointment is kept", async () => {
       mockConversationModel.findById.mockResolvedValue(cancellingConversation);
+      mockCancellationService.isAwaitingReason.mockResolvedValue(false);
 
       const result = await service.sendMessage("conv1", "no, keep it");
 

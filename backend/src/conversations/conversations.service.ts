@@ -33,6 +33,7 @@ import {
   DETAILS_CHANGED_KEYWORDS,
   RESCHEDULE_KEYWORDS, matchesKeywords,
 } from "../orchestrator/orchestrator.types";
+import { cancelOldGhlAppointment } from "../orchestrator/orchestrator.reschedule";
 import {
   CONSENT_GRANTED_KEYWORDS,
   CONSENT_DECLINED_KEYWORDS,
@@ -307,7 +308,11 @@ export class ConversationsService {
 
     let clinicApiKey = '';
     if (clinic.ghlApiKey) {
-      try { clinicApiKey = this.encryptionService.decrypt(clinic.ghlApiKey); } catch { /* no key */ }
+      try {
+        clinicApiKey = this.encryptionService.decrypt(clinic.ghlApiKey);
+      } catch {
+        clinicApiKey = clinic.ghlApiKey; // plaintext fallback for pre-encryption migration
+      }
     }
     const cancelResult = await handleCancellationIntercept(
       conversation,
@@ -327,7 +332,6 @@ export class ConversationsService {
       (lastFrom, phase) =>
         this.persistence.updateConversationMeta(conversation, lastFrom, phase),
       clinicApiKey,
-      clinic.ghlLocationId ?? '',
     );
     if (cancelResult) return cancelResult;
 
@@ -538,10 +542,7 @@ export class ConversationsService {
       if (conversation.phase === 'rescheduling') {
         const oldGhlApptId = conversation.context?.get('ghlAppointmentId');
         if (oldGhlApptId) {
-          const cancelled = await this.ghlApiService.cancelAppointment(clinicApiKey, oldGhlApptId);
-          if (cancelled === null) {
-            this.logger.error(`Failed to cancel old appointment ${oldGhlApptId} during reschedule`);
-          }
+          await cancelOldGhlAppointment(this.ghlApiService, clinicApiKey, oldGhlApptId, this.logger);
         }
       }
       bookingResult = await handleBooking(

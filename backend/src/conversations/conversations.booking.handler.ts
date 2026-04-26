@@ -9,6 +9,7 @@ import {
 } from "../appointments/appointments.service";
 import { SlotSelectionResult } from "../ai/slot-selector";
 
+
 /**
  * Extracts the selected slot datetime and delegates to AppointmentsService.
  * @param conversation - The active conversation document.
@@ -28,10 +29,14 @@ export async function handleBooking(
   logger: Logger,
 ): Promise<BookingResult> {
   const selectedSlot = selectionResult.selectedSlot!;
-  const startTime =
+  const utcDate =
     selectedSlot.dateTime instanceof Date
-      ? selectedSlot.dateTime.toISOString()
-      : new Date(selectedSlot.dateTime).toISOString();
+      ? selectedSlot.dateTime
+      : new Date(selectedSlot.dateTime);
+  // GHL treats the time component as UTC regardless of any offset suffix,
+  // so send pure UTC here. GHL's calendar (set to Europe/London) will display
+  // it correctly in BST/GMT without any double-conversion.
+  const startTime = utcDate.toISOString();
 
   const contactId =
     lead.ghlContactId ?? conversation.ghlContactId;
@@ -61,7 +66,7 @@ export async function handleBooking(
     }
     return result;
   } catch (error) {
-    logger.error(`Auto-booking failed: ${error.message}`);
+    logger.error(`Auto-booking failed: ${(error as Error).message}`);
     return { success: false, error: "Booking failed unexpectedly" };
   }
 }

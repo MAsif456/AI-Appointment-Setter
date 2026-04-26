@@ -98,6 +98,24 @@ describe("formatSlotDisplay", () => {
     expect(formatSlotDisplay(slot)).toContain("12pm");
   });
 
+  describe('BST timezone regression', () => {
+    it('should display Wednesday for 2026-04-01 regardless of server timezone', () => {
+      // 2026-04-01 is a Wednesday. Without UTC anchoring, a UTC-offset server
+      // could interpret '2026-04-01T00:00:00' as 2026-03-31 (Tuesday) or
+      // 2026-04-01 (Wednesday) depending on local time. The fix pins to
+      // '2026-04-01T00:00:00Z' and uses getUTCDay() to guarantee Wednesday.
+      const slot: Slot = { date: '2026-04-01', startTime: '11:00', endTime: '11:30' };
+      expect(formatSlotDisplay(slot)).toBe('Wednesday 1st April at 11am');
+    });
+
+    it('should display correct day on the BST clock-change date (2026-03-29)', () => {
+      // 2026-03-29 is a Sunday (clocks go forward at 1am UTC). The date part
+      // must still resolve to Sunday regardless of offset.
+      const slot: Slot = { date: '2026-03-29', startTime: '09:00', endTime: '09:30' };
+      expect(formatSlotDisplay(slot)).toContain('Sunday 29th March');
+    });
+  });
+
   it("should never contain American date format (MM/DD)", () => {
     const slot: Slot = {
       date: "2026-03-17",
@@ -233,7 +251,7 @@ describe("buildSlotPromptSection", () => {
   it("should offer multiple options naturally for 2+ slots", () => {
     const result = buildSlotPromptSection(threeSlots, "routine");
     expect(result).toContain("Offer these 3 options naturally");
-    expect(result).toContain("Here are a few times I have available");
+    expect(result).toContain("Which works best for you?");
     expect(result).toContain("not the only available slots");
   });
 

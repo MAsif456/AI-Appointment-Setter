@@ -97,17 +97,21 @@ export class GHLCalendarService {
 
   /**
    * Create appointment in GHL Calendar.
+   * startTime must be a UTC ISO 8601 string (e.g. "2026-04-20T09:00:00.000Z").
+   * GHL reads the calendar's timezone (Europe/London) and displays the time in BST/GMT.
    *
    * @param {string} apiKey - The per-clinic GHL private integration token.
    */
   async createAppointment(
     apiKey: string,
     calendarId: string,
+    locationId: string,
     contactId: string,
-    slotId: string,
-  ): Promise<{ appointmentId: string }> {
+    startTime: string,
+    endTime: string,
+  ): Promise<{ id: string }> {
     this.logger.log(
-      `Creating appointment for contact ${contactId} in calendar ${calendarId}`,
+      `Creating appointment for contact ${contactId} in calendar ${calendarId} at ${startTime}`,
     );
 
     try {
@@ -116,7 +120,16 @@ export class GHLCalendarService {
       const response = await firstValueFrom(
         this.httpService.post(
           url,
-          { contactId, slotId },
+          {
+            calendarId,
+            locationId,
+            contactId,
+            startTime,
+            endTime,
+            title: 'Appointment',
+            appointmentStatus: 'confirmed',
+            toNotify: false,
+          },
           {
             headers: {
               Authorization: `Bearer ${apiKey}`,
@@ -129,7 +142,7 @@ export class GHLCalendarService {
       );
 
       this.logger.log(`Created appointment with ID: ${response.data.id}`);
-      return { appointmentId: response.data.id };
+      return { id: response.data.id };
     } catch (error) {
       this.logger.error(`Failed to create appointment: ${error.message}`);
       throw error;

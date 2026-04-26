@@ -71,7 +71,7 @@ export class FollowUpService {
    * Runs every hour. Finds all conversations overdue for a follow-up and
    * either sends a follow-up message or closes the conversation.
    *
-   * Accepts an optional `now` parameter for testability — in production
+   * Accepts an optional `now` parameter for testability in production
    * the cron scheduler calls this with no arguments so it defaults to new Date().
    */
   @Cron('0 * * * *')

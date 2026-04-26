@@ -229,7 +229,7 @@ describe("PatientHistoryService", () => {
           previousConversationId: CONV_ID,
         }),
       }),
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: 'after' },
     );
   });
 
@@ -305,7 +305,7 @@ describe("PatientHistoryService", () => {
           email: "jane@example.com",
         }),
       }),
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: 'after' },
     );
     // Phone-keyed filter should NOT be used
     const filterArg = mockModel.findOneAndUpdate.mock.calls[0][0];

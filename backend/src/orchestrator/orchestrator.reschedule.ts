@@ -13,6 +13,7 @@
 import { Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ClinicConfig } from '../ai/interfaces/clinic-config.interface';
+import { Slot } from '../ai/interfaces/slot.interface';
 import { SlotProvider } from '../ai/slot-provider';
 import { selectSlots, buildSlotPromptSection, formatSlotDisplay } from '../ai/slot-formatter';
 import { detectSlotSelection } from '../ai/slot-selector';
@@ -29,6 +30,25 @@ import { OrchestratorContext } from './orchestrator.types';
 
 export const FULLY_BOOKED_RESPONSE =
   "We're fully booked on that date. Would you like to try a different day?";
+
+/**
+ * Cancels an existing GHL appointment before rebooking.
+ * Returns true on success, false if the cancellation call failed.
+ * Exported so conversations.service.ts can reuse the same cancel logic.
+ */
+export async function cancelOldGhlAppointment(
+  ghlApiService: GhlApiService,
+  ghlApiKey: string,
+  appointmentId: string,
+  logger: Logger,
+): Promise<boolean> {
+  const result = await ghlApiService.cancelAppointment(ghlApiKey, appointmentId);
+  if (result === null) {
+    logger.error(`Failed to cancel old GHL appointment ${appointmentId}`);
+    return false;
+  }
+  return true;
+}
 
 export interface RescheduleDeps {
   slotProvider: SlotProvider;
@@ -74,18 +94,19 @@ export async function handleReschedulingSlotFlow(
     }
   }
 
-  // Fetch available slots and offer them, excluding the current appointment's date.
-  // Primary: use stored ISO startTime. Fallback: parse the British date string (e.g. "Thursday 9th April")
-  // so that appointments booked before startTime was persisted still get same-day filtering.
+  // Fetch available slots and offer:
+  //   - all remaining slots on the same day as the current booking
+  //   - plus 3 slots from one different day (same week where possible, otherwise next available day)
+  // Fallback to the default selector when the current appointment date is unavailable.
   const currentApptDateStr =
     (context.currentAppointment?.startTime
       ? new Date(context.currentAppointment.startTime).toISOString().split('T')[0]
       : null) ?? parseBritishDate(context.currentAppointment?.appointmentDate);
+  const currentApptTimeStr =
+    parseTimeLabelTo24h(context.currentAppointment?.appointmentTime) ??
+    extractTimeFromIso(context.currentAppointment?.startTime);
   const allSlots = await deps.slotProvider.getAvailableSlots(clinicConfig.clinicId);
-  const eligibleSlots = currentApptDateStr
-    ? allSlots.filter((s) => s.date !== currentApptDateStr)
-    : allSlots;
-  const slots = selectSlots(eligibleSlots, 'routine');
+  const slots = selectRescheduleSlots(allSlots, currentApptDateStr, currentApptTimeStr);
 
   if (slots.length === 0) {
     logger.warn(`No slots available for reschedule — contactId: ${contactId}, clinicId: ${clinicConfig.clinicId}`);
@@ -124,10 +145,9 @@ async function executeReschedule(
   const leadId = (conversation.leadId as Types.ObjectId).toString();
   const ghlAppointmentId = conversation.context?.get('ghlAppointmentId') ?? '';
 
-  // Step 1: Cancel the old appointment (returns null on failure)
-  const cancelled = await ghlApiService.cancelAppointment(clinicConfig.ghlApiKey ?? '', ghlAppointmentId);
-  if (cancelled === null) {
-    logger.error(`Failed to cancel appointment ${ghlAppointmentId} for contact ${contactId}`);
+  // Step 1: Cancel the old appointment via the shared helper
+  const cancelled = await cancelOldGhlAppointment(ghlApiService, clinicConfig.ghlApiKey ?? '', ghlAppointmentId, logger);
+  if (!cancelled) {
     return {
       response: 'Sorry, there was an issue rescheduling your appointment. Please try again.',
       completedReschedule: false,
@@ -203,6 +223,98 @@ function parseBritishDate(britishDate?: string): string | null {
   const month = MONTHS[monthName];
   if (!month) return null;
   const day = dayStr.padStart(2, '0');
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const currentMonth = now.getUTCMonth() + 1;
+  const parsedMonth = Number(month);
+  let year = now.getUTCFullYear();
+  // Guard Jan/Dec rollover: date in Jan mentioned while still in Dec → next year
+  if (currentMonth === 12 && parsedMonth <= 3) year += 1;
+  // Date in Dec/Nov mentioned while in Jan → previous year (stale reference)
+  if (currentMonth === 1 && parsedMonth >= 10) year -= 1;
   return `${year}-${month}-${day}`;
+}
+
+function selectRescheduleSlots(
+  allSlots: Slot[],
+  currentApptDateStr: string | null,
+  currentApptTimeStr: string | null,
+): Slot[] {
+  if (allSlots.length === 0) return [];
+
+  const sorted = [...allSlots].sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));
+  if (!currentApptDateStr) return selectSlots(sorted, 'routine');
+
+  const currentApptMinutes = currentApptTimeStr ? hhmmToMinutes(currentApptTimeStr) : null;
+  const sameDaySlots = sorted.filter((slot) => {
+    if (slot.date !== currentApptDateStr) return false;
+    if (currentApptMinutes === null) return true;
+    return hhmmToMinutes(slot.startTime) > currentApptMinutes;
+  });
+
+  const alternateDays = Array.from(
+    new Set(
+      sorted
+        .filter((slot) => slot.date !== currentApptDateStr)
+        .map((slot) => slot.date),
+    ),
+  );
+
+  // Prefer a day in the same ISO week as the original booking; otherwise use the next available day.
+  const currentWeekStart = getWeekStart(currentApptDateStr);
+  const currentWeekEnd = new Date(currentWeekStart);
+  currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+  const alternateDate =
+    alternateDays.find((dateStr) => {
+      const date = new Date(`${dateStr}T00:00:00`);
+      return date >= currentWeekStart && date <= currentWeekEnd;
+    }) ?? alternateDays[0];
+
+  const alternateDaySlots = alternateDate
+    ? sorted.filter((slot) => slot.date === alternateDate).slice(0, 3)
+    : [];
+
+  return [...sameDaySlots, ...alternateDaySlots];
+}
+
+function getWeekStart(dateStr: string): Date {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const day = date.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + offset);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function hhmmToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+function parseTimeLabelTo24h(timeLabel?: string): string | null {
+  if (!timeLabel) return null;
+  const match = timeLabel.trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (!match) return null;
+  const [, hourStr, minuteStr, period] = match;
+  let hour = Number(hourStr);
+  if (Number.isNaN(hour) || hour < 1 || hour > 12) return null;
+  const minute = Number(minuteStr ?? '0');
+  if (Number.isNaN(minute) || minute < 0 || minute > 59) return null;
+  if (period === 'pm' && hour !== 12) hour += 12;
+  if (period === 'am' && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function extractTimeFromIso(isoDateTime?: string): string | null {
+  if (!isoDateTime) return null;
+  const date = new Date(isoDateTime);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const hour = parts.find((p) => p.type === 'hour')?.value ?? '00';
+  const minute = parts.find((p) => p.type === 'minute')?.value ?? '00';
+  return `${hour}:${minute}`;
 }

@@ -74,12 +74,18 @@ const MONTHS: string[] = [
  * console.log(formatted); // 'Thursday 17th March at 2:00 pm'
  */
 export function formatSlotDisplay(slot: Slot): string {
-  const date = new Date(`${slot.date}T${slot.startTime}:00`);
-  const dayName = DAYS[date.getDay()];
-  const dayNum = ordinal(date.getDate());
-  const monthName = MONTHS[date.getMonth()];
+  const date = new Date(`${slot.date}T00:00:00Z`);
+  const dayName = DAYS[date.getUTCDay()];
+  const dayNum = ordinal(date.getUTCDate());
+  const monthName = MONTHS[date.getUTCMonth()];
   const time = formatTime(slot.startTime);
   return `${dayName} ${dayNum} ${monthName} at ${time}`;
+}
+
+/** Converts a "HH:MM" string to total minutes since midnight. */
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + (m || 0);
 }
 
 /**
@@ -139,14 +145,45 @@ export function selectSlots(
     return [pickFromDay(earlyDay), pickFromDay(midDay), pickFromDay(lateDay)];
   }
 
-  // routine or flexible with fewer than 3 days: one slot per day, max 3
-  const byDay = new Map<string, Slot>();
+  // Group all slots by day
+  const byDay = new Map<string, Slot[]>();
   for (const slot of sorted) {
-    if (!byDay.has(slot.date) && byDay.size < 3) {
-      byDay.set(slot.date, slot);
+    if (!byDay.has(slot.date)) byDay.set(slot.date, []);
+    byDay.get(slot.date)!.push(slot);
+  }
+
+  // Take one slot per available day (up to 3 days)
+  const result: Slot[] = [];
+  for (const daySlots of byDay.values()) {
+    if (result.length >= 3) break;
+    result.push(daySlots[0]);
+  }
+
+  // If fewer than 3 days have availability, fill remaining slots from the
+  // same day(s) — but enforce a minimum 60-minute gap between offered times
+  // so we never show consecutive 10-minute slots to the lead.
+  if (result.length < 3) {
+    const MIN_GAP_MINUTES = 60;
+    for (const [date, daySlots] of byDay) {
+      if (result.length >= 3) break;
+      const pickedFromDay = result.filter((s) => s.date === date);
+      if (pickedFromDay.length === 0) continue;
+      let lastMinutes = timeToMinutes(
+        pickedFromDay[pickedFromDay.length - 1].startTime,
+      );
+      for (const slot of daySlots) {
+        if (result.length >= 3) break;
+        const slotMinutes = timeToMinutes(slot.startTime);
+        if (slotMinutes <= lastMinutes) continue;
+        if (slotMinutes - lastMinutes >= MIN_GAP_MINUTES) {
+          result.push(slot);
+          lastMinutes = slotMinutes;
+        }
+      }
     }
   }
-  return Array.from(byDay.values());
+
+  return result;
 }
 
 /**
@@ -224,11 +261,19 @@ export function buildSlotPromptSection(
       `Only ONE slot available: "${formatted[0]}"`,
       '- Say something like: "I have [slot] available — does that work, or would you prefer a different time?"',
     );
+  } else if (slots.length === 2) {
+    lines.push(
+      "",
+      `Offer these 2 options naturally.`,
+      `- e.g. "I have ${formatted[0]}, or ${formatted[1]}. Which works best for you?"`,
+      "- Make clear these are suggestions, not the only available slots.",
+    );
   } else {
     lines.push(
       "",
-      `Offer these ${slots.length} options naturally.`,
-      '- e.g. "Here are a few times I have available: [slot1], [slot2], or [slot3] — but if none of those suit, just let me know and I can check other times for you."',
+      `Offer these ${slots.length} options naturally in a conversational format.`,
+      `- e.g. "I have ${formatted[0]}, ${formatted[1]}, or ${formatted[2]}. Which works best for you?"`,
+      "- Present the options as a natural sentence, not as a list.",
       "- Make clear these are suggestions, not the only available slots.",
     );
   }

@@ -207,7 +207,7 @@ export class ClinicsService {
     if (dataRetentionMonths !== undefined) updatePayload.dataRetentionMonths = dataRetentionMonths;
 
     const clinic = await this.clinicModel
-      .findByIdAndUpdate(id, updatePayload, { new: true })
+      .findByIdAndUpdate(id, updatePayload, { returnDocument: 'after' })
       .exec();
 
     if (!clinic) {

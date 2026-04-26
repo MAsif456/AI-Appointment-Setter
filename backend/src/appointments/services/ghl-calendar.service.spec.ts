@@ -288,11 +288,13 @@ describe("GHLCalendarService", () => {
       const result = await service.createAppointment(
         TEST_API_KEY,
         "cal_123",
+        "loc_123",
         "contact_123",
-        "slot_123",
+        "2026-04-20T09:00:00.000Z",
+        "2026-04-20T09:30:00.000Z",
       );
 
-      expect(result).toEqual({ appointmentId: "appt_123" });
+      expect(result).toEqual({ id: "appt_123" });
     });
 
     it("should throw error on API failure", async () => {
@@ -301,7 +303,14 @@ describe("GHLCalendarService", () => {
       );
 
       await expect(
-        service.createAppointment(TEST_API_KEY, "cal_123", "contact_123", "slot_123"),
+        service.createAppointment(
+          TEST_API_KEY,
+          "cal_123",
+          "loc_123",
+          "contact_123",
+          "2026-04-20T09:00:00.000Z",
+          "2026-04-20T09:30:00.000Z",
+        ),
       ).rejects.toThrow("API error");
     });
   });

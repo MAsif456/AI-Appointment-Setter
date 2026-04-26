@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ScheduleModule } from '@nestjs/schedule';
 import { Appointment, AppointmentSchema } from '../database/schemas/appointment.schema';
 import { Conversation, ConversationSchema } from '../database/schemas/conversation.schema';
 import { Clinic, ClinicSchema } from '../database/schemas/clinic.schema';
@@ -23,7 +22,6 @@ import { ReminderController } from './reminder.controller';
     ]),
     GhlModule, // Provides GhlApiService and MessagesService
     NotificationsModule,
-    ScheduleModule.forRoot(),
   ],
   controllers: [ReminderController],
   providers: [
