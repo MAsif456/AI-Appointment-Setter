@@ -1,25 +1,16 @@
 import { Controller, Post, Body, Logger } from "@nestjs/common";
-import { ChatService, ChatMessage } from "./chat.service";
-import { LeadInfo } from "./interfaces/lead-info.interface";
-import { ClinicConfig } from "./interfaces/clinic-config.interface";
-
-/** Request body for starting a new conversation */
-interface StartChatDto {
-  leadInfo: LeadInfo;
-  clinicConfig: ClinicConfig;
-}
-
-/** Request body for sending a message in an ongoing conversation */
-interface SendMessageDto {
-  leadInfo: LeadInfo;
-  clinicConfig: ClinicConfig;
-  history: ChatMessage[];
-  message: string;
-}
+import { ChatService } from "./chat.service";
+import { StartChatDto } from "./dto/start-chat.dto";
+import { SendMessageDto } from "./dto/send-message.dto";
 
 /**
  * REST controller for the live AI chat feature.
  * Exposes endpoints to start conversations and send messages.
+ *
+ * Both endpoints accept validated DTOs (see ./dto/*) so the global
+ * ValidationPipe can reject oversized messages, NoSQL operator objects
+ * smuggled into nested fields, and any property outside the declared
+ * schema before the request reaches the LLM or persistence layer.
  */
 @Controller("chat")
 export class ChatController {
