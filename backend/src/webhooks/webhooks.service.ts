@@ -26,6 +26,7 @@ import {
   GhlContactCreatePayload,
   GhlInboundMessagePayload,
 } from "./dto/ghl-webhook.dto";
+import { validateGhlPayload } from "./dto/ghl-payload-validator";
 
 export interface WebhookResponse {
   success: boolean;
@@ -99,6 +100,21 @@ export class WebhooksService {
     );
 
     try {
+      // Discriminated-union validation: pick the strict DTO matching the
+      // `type` and reject malformed payloads early. Returns success
+      // regardless so GHL does not enter a retry loop on a bad payload —
+      // failures are logged for investigation.
+      const validation = await validateGhlPayload(payload);
+      if (!validation.valid) {
+        this.logger.warn(
+          `[${correlationId}] GHL payload failed validation for type=${validation.type}: ` +
+            validation.errors
+              .map((e) => `${e.property}=${Object.values(e.constraints ?? {}).join("|")}`)
+              .join(", "),
+        );
+        return { success: true };
+      }
+
       const ghlPayload = payload as GhlWebhookPayload;
       const locationId = ghlPayload.location?.id ?? ghlPayload.locationId;
       const { type } = ghlPayload;
