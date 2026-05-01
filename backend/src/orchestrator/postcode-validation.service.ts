@@ -10,6 +10,7 @@
  *   isInServiceArea(postcode, areas)  — kept for backward compatibility
  */
 import { Injectable } from "@nestjs/common";
+import { UK_POSTCODE_EXTRACT_REGEX } from "../common/validation/uk-formats";
 
 /** Possible outcomes from validate(). */
 export type PostcodeValidationStatus =
@@ -26,14 +27,10 @@ export interface PostcodeValidationResult {
 }
 
 /**
- * Extraction regex — finds the first valid UK postcode inside any string.
- * Word boundaries prevent partial matches such as extracting "CF10 1AA" from "CF10 1AAA".
- *
- * UK postcode structure:
- *   Outward code: 1–2 letters + 1 digit + optional digit-or-letter  (CF10, W1A, M1, SW1A)
- *   Inward code:  1 digit + 2 letters                                (1AA, 4AB)
+ * Word-bounded extraction regex sourced from the central uk-formats module
+ * so the extraction rule cannot drift from the strict DTO validator.
  */
-const EXTRACT_REGEX = /\b[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}\b/i;
+const EXTRACT_REGEX = UK_POSTCODE_EXTRACT_REGEX;
 
 @Injectable()
 export class PostcodeValidationService {
