@@ -29,9 +29,31 @@ describe("UpdateClinicSettingsDto validation", () => {
 
   it("should reject empty name when provided", async () => {
     const errors = await validateDto({ name: "" });
+    // SanitisedString trims first, then enforces min length — so an empty
+    // string fails the minLength constraint, not isNotEmpty.
     expect(
       errors.find((e) => e.property === "name")?.constraints,
-    ).toHaveProperty("isNotEmpty");
+    ).toHaveProperty("minLength");
+  });
+
+  it("should trim surrounding whitespace from name before validating", async () => {
+    const dto = plainToInstance(UpdateClinicSettingsDto, {
+      name: "  Cardiff  ",
+    });
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.name).toBe("Cardiff");
+  });
+
+  it("should reject names longer than 200 characters", async () => {
+    const errors = await validateDto({ name: "x".repeat(201) });
+    expect(
+      errors.find((e) => e.property === "name")?.constraints,
+    ).toHaveProperty("maxLength");
+  });
+
+  it("should reject an object as a name (NoSQL operator injection attempt)", async () => {
+    const errors = await validateDto({ name: { $gt: "" } });
+    expect(errors.find((e) => e.property === "name")).toBeDefined();
   });
 
   it("should pass with a valid address", async () => {
@@ -43,7 +65,7 @@ describe("UpdateClinicSettingsDto validation", () => {
     const errors = await validateDto({ address: "" });
     expect(
       errors.find((e) => e.property === "address")?.constraints,
-    ).toHaveProperty("isNotEmpty");
+    ).toHaveProperty("minLength");
   });
 
   it("should pass with a valid UK phone number", async () => {
@@ -65,7 +87,12 @@ describe("UpdateClinicSettingsDto validation", () => {
     const errors = await validateDto({ phone: "not a phone" });
     expect(
       errors.find((e) => e.property === "phone")?.constraints,
-    ).toHaveProperty("matches");
+    ).toHaveProperty("isUkPhone");
+  });
+
+  it("should reject phone sent as an object (NoSQL injection attempt)", async () => {
+    const errors = await validateDto({ phone: { $gt: "" } });
+    expect(errors.find((e) => e.property === "phone")).toBeDefined();
   });
 
   it("should pass with valid service areas", async () => {

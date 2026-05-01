@@ -96,9 +96,50 @@ describe("CreateClinicDto validation", () => {
       ghlLocationId: "loc_test_001",
       ghlCalendarId: "cal_test_001",
     });
+    // SanitisedString uses minLength to enforce both presence and the
+    // configured minimum (here: 2).
     expect(
       errors.find((e) => e.property === "name")!.constraints,
-    ).toHaveProperty("isNotEmpty");
+    ).toHaveProperty("minLength");
+  });
+
+  it("should trim leading/trailing whitespace from clinic name", async () => {
+    const dto = plainToInstance(CreateClinicDto, {
+      name: "  Cardiff Clinic  ",
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
+    });
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.name).toBe("Cardiff Clinic");
+  });
+
+  it("should reject clinic name longer than 200 characters", async () => {
+    const errors = await validateDto({
+      name: "x".repeat(201),
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
+    });
+    expect(
+      errors.find((e) => e.property === "name")?.constraints,
+    ).toHaveProperty("maxLength");
+  });
+
+  it("should reject clinic name sent as an object (NoSQL injection attempt)", async () => {
+    const errors = await validateDto({
+      name: { $gt: "" },
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
+    });
+    expect(errors.find((e) => e.property === "name")).toBeDefined();
   });
 
   it("should reject missing ghlLocationId", async () => {

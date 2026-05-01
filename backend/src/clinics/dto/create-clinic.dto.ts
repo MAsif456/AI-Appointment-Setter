@@ -8,9 +8,11 @@ import {
   IsArray,
   IsIn,
   Matches,
-  MinLength,
+  MaxLength,
   ValidateNested,
 } from "class-validator";
+import { IsUkPhone } from "../../common/validation/is-uk-phone.validator";
+import { SanitisedString } from "../../common/validation/sanitised-string.decorator";
 
 const VALID_DAYS = [
   "monday",
@@ -57,8 +59,9 @@ export class ServiceAreaDto {
 }
 
 export class ServiceDto {
-  @IsString()
-  @IsNotEmpty()
+  // Service name is bounded so a malicious caller cannot smuggle a megabyte
+  // of text into the clinic record via the services array.
+  @SanitisedString({ max: 200 })
   name: string;
 
   @IsNumber()
@@ -69,19 +72,19 @@ export class ServiceDto {
   @IsOptional()
   price?: number;
 
-  @IsString()
   @IsOptional()
+  @SanitisedString({ max: 1000 })
   description?: string;
 }
 
 export class CreateClinicDto {
-  @IsString()
-  @IsNotEmpty({ message: "Clinic name is required" })
-  @MinLength(2, { message: "Clinic name must be at least 2 characters" })
+  // 2-200 char clinic name; trimmed and Unicode-normalised on parse.
+  @SanitisedString({ max: 200, min: 2 })
   name: string;
 
   @IsString()
   @IsNotEmpty({ message: "GHL Location ID is required" })
+  @MaxLength(100)
   @Matches(/^[a-zA-Z0-9_]+$/, {
     message: "GHL Location ID must be alphanumeric",
   })
@@ -89,20 +92,18 @@ export class CreateClinicDto {
 
   @IsString()
   @IsNotEmpty({ message: "GHL Calendar ID is required" })
+  @MaxLength(100)
   @Matches(/^[a-zA-Z0-9_]+$/, {
     message: "GHL Calendar ID must be alphanumeric",
   })
   ghlCalendarId: string;
 
-  @IsString()
-  @IsNotEmpty({ message: "Address is required" })
+  @SanitisedString({ max: 500 })
   address: string;
 
-  @IsNotEmpty({ message: "Phone number is required" })
-  @Matches(/^(\+44\s?|0)\d[\d\s]{8,12}$/, {
-    message:
-      "Enter a valid UK phone number (e.g. 029 2034 5678 or +44 29 2034 5678)",
-  })
+  // Canonical UK phone validation lives in @IsUkPhone — see
+  // common/validation/uk-formats.ts for the single regex source.
+  @IsUkPhone()
   phone: string;
 
   @IsOptional()
