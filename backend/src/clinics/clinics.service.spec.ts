@@ -189,6 +189,40 @@ describe("ClinicsService", () => {
       );
     });
 
+    it("should escape regex metacharacters in the search term to block NoSQL/ReDoS injection", async () => {
+      model.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+        }),
+      });
+
+      // Attacker tries to dump the entire collection with `.*` and to
+      // trigger catastrophic backtracking with `(a+)+`.
+      await service.findAll(".*");
+      expect(model.find).toHaveBeenCalledWith({
+        name: { $regex: "\\.\\*", $options: "i" },
+      });
+
+      await service.findAll("(a+)+");
+      expect(model.find).toHaveBeenCalledWith({
+        name: { $regex: "\\(a\\+\\)\\+", $options: "i" },
+      });
+    });
+
+    it("should treat an empty search string as no-filter rather than match-all", async () => {
+      model.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+        }),
+      });
+      await service.findAll("");
+      expect(model.find).toHaveBeenCalledWith({});
+    });
+
     it("should return an empty array when no clinics exist", async () => {
       model.find.mockReturnValue({
         sort: jest.fn().mockReturnValue({
