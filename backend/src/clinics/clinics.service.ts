@@ -22,7 +22,10 @@ import { EncryptionService } from '../common/encryption/encryption.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
 import { escapeRegex } from "../common/security/escape-regex";
 
-const VALID_OBJECT_ID = /^[a-f0-9]{24}$/i;
+// MongoDB ObjectIds are always lowercase hex — keeping the regex case-
+// sensitive prevents an uppercase `AABB...` slipping past the guard
+// only to throw a Mongoose CastError at query time.
+const VALID_OBJECT_ID = /^[a-f0-9]{24}$/;
 
 function assertValidObjectId(id: string): void {
   if (

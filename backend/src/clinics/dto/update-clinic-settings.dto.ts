@@ -68,8 +68,8 @@ export class UpdateServiceAreaDto {
   })
   postcodePrefix: string;
 
-  @IsString()
   @IsOptional()
+  @SanitisedString({ max: 500 })
   description?: string;
 }
 
@@ -90,16 +90,18 @@ export class UpdateClinicSettingsDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: "GHL Location ID must be alphanumeric",
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      "GHL Location ID must be alphanumeric (underscore and hyphen allowed)",
   })
   ghlLocationId?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: "GHL Calendar ID must be alphanumeric",
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      "GHL Calendar ID must be alphanumeric (underscore and hyphen allowed)",
   })
   ghlCalendarId?: string;
 

@@ -86,6 +86,36 @@ describe("WebhooksService", () => {
       expect(firstLogCall).not.toContain(JSON.stringify(payload));
     });
 
+    it("should not log PII (name/phone/email/issue) for ContactCreate events", async () => {
+      const logSpy = jest.spyOn(Logger.prototype, "log");
+      await service.handleGhlWebhook(contactPayload);
+
+      const allLogLines = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      // Plain-text PII must never appear
+      expect(allLogLines).not.toContain("Jane");
+      expect(allLogLines).not.toContain("Doe");
+      expect(allLogLines).not.toContain("07700900000");
+      expect(allLogLines).not.toContain("jane@example.com");
+      expect(allLogLines).not.toContain("Back pain");
+      // Presence flags must appear
+      expect(allLogLines).toMatch(/hasFirstName=true/);
+      expect(allLogLines).toMatch(/hasPhone=true/);
+      expect(allLogLines).toMatch(/hasEmail=true/);
+      expect(allLogLines).toMatch(/hasIssue=true/);
+    });
+
+    it("should not log raw message body for InboundMessage events", async () => {
+      const logSpy = jest.spyOn(Logger.prototype, "log");
+      await service.handleGhlWebhook(messagePayload);
+
+      const allLogLines = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(allLogLines).not.toContain("I need an appointment please");
+      // Identifiers + length hint are still logged for traceability
+      expect(allLogLines).toContain("contactId=contact_abc123");
+      expect(allLogLines).toContain("conversationId=conv_xyz789");
+      expect(allLogLines).toMatch(/contentLength=\d+/);
+    });
+
     it("should warn and return 200 when the location field is absent", async () => {
       const warnSpy = jest.spyOn(Logger.prototype, "warn");
       const result = await service.handleGhlWebhook({ type: "ContactCreate" });

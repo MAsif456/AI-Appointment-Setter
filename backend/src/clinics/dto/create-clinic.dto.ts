@@ -9,6 +9,7 @@ import {
   IsIn,
   Matches,
   MaxLength,
+  ArrayMinSize,
   ValidateNested,
 } from "class-validator";
 import { IsUkPhone } from "../../common/validation/is-uk-phone.validator";
@@ -53,8 +54,8 @@ export class ServiceAreaDto {
   })
   postcodePrefix: string;
 
-  @IsString()
   @IsOptional()
+  @SanitisedString({ max: 500 })
   description?: string;
 }
 
@@ -85,16 +86,19 @@ export class CreateClinicDto {
   @IsString()
   @IsNotEmpty({ message: "GHL Location ID is required" })
   @MaxLength(100)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: "GHL Location ID must be alphanumeric",
+  // GHL identifiers are opaque tokens — alphanumeric plus `_` and `-`
+  // (real GHL Location IDs commonly contain hyphens). Anything outside
+  // this set is almost certainly an injection attempt.
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message: "GHL Location ID must be alphanumeric (underscore and hyphen allowed)",
   })
   ghlLocationId: string;
 
   @IsString()
   @IsNotEmpty({ message: "GHL Calendar ID is required" })
   @MaxLength(100)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: "GHL Calendar ID must be alphanumeric",
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message: "GHL Calendar ID must be alphanumeric (underscore and hyphen allowed)",
   })
   ghlCalendarId: string;
 
@@ -114,9 +118,12 @@ export class CreateClinicDto {
   defaultAppointmentDuration?: number;
 
   @IsArray()
+  // @IsNotEmpty treats `[]` as a present, truthy value — use ArrayMinSize
+  // so the AC ("at least one service area is required") is actually
+  // enforced for empty arrays.
+  @ArrayMinSize(1, { message: "At least one service area is required" })
   @ValidateNested({ each: true })
   @Type(() => ServiceAreaDto)
-  @IsNotEmpty({ message: "At least one service area is required" })
   serviceAreas: ServiceAreaDto[];
 
   @IsArray()

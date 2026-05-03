@@ -72,6 +72,32 @@ describe("CreateClinicDto validation", () => {
     expect(errors.find((e) => e.property === "serviceAreas")).toBeDefined();
   });
 
+  it("should reject an empty serviceAreas array (ArrayMinSize)", async () => {
+    const errors = await validateDto({
+      name: "Test Clinic",
+      ghlLocationId: "loc_test_001",
+      ghlCalendarId: "cal_test_001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [],
+    });
+    expect(
+      errors.find((e) => e.property === "serviceAreas")?.constraints,
+    ).toHaveProperty("arrayMinSize");
+  });
+
+  it("should accept GHL Location IDs containing hyphens", async () => {
+    const errors = await validateDto({
+      name: "Test Clinic",
+      ghlLocationId: "abc123-def456",
+      ghlCalendarId: "cal-test-001",
+      address: "123 Queen Street, Cardiff",
+      phone: "029 2034 5678",
+      serviceAreas: [{ postcodePrefix: "CF" }],
+    });
+    expect(errors).toHaveLength(0);
+  });
+
   it("should pass with all fields filled correctly", async () => {
     const errors = await validateDto({
       name: "Cardiff Physiotherapy Centre",

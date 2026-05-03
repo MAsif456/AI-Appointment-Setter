@@ -262,6 +262,14 @@ describe("ClinicsService", () => {
       );
     });
 
+    it("should reject uppercase-hex ObjectIds (case-sensitive guard)", async () => {
+      // 24-char hex but uppercase — would pass the old /i regex and then
+      // throw a Mongoose CastError at query time. Now caught at the boundary.
+      await expect(
+        service.findById("AABBCCDDEEFF001122334455"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it("should throw NotFoundException when clinic does not exist", async () => {
       model.findById.mockReturnValue({
         exec: jest.fn().mockResolvedValue(null),
