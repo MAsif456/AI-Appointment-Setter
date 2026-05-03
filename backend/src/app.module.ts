@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
+import mongoose from "mongoose";
 import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -35,14 +36,24 @@ import { GdprModule } from "./gdpr/gdpr.module";
       /**
        * Use the ConfigService to get the MONGODB_URI and use it to create
        * the options for the MongooseModule.
+       *
+       * `strictQuery: true` is pinned explicitly (rather than relying on the
+       * Mongoose 7+ default) so that any future major-version flip of the
+       * default does not silently re-enable loose query casting, which is a
+       * documented NoSQL injection risk.
+       * Ref: https://mongoosejs.com/docs/guide.html#strictQuery
+       *
        * @param {ConfigService} config - The ConfigService instance.
        * @returns {Promise<{ uri: string }>} - A promise that resolves to an object
        * with a single property, uri, which is the value of the MONGODB_URI
        * environment variable.
        */
-      useFactory: (config: ConfigService) => ({
-        uri: config.get<string>("MONGODB_URI"),
-      }),
+      useFactory: (config: ConfigService) => {
+        mongoose.set("strictQuery", true);
+        return {
+          uri: config.get<string>("MONGODB_URI"),
+        };
+      },
       inject: [ConfigService],
     }),
     RateLimitingModule,

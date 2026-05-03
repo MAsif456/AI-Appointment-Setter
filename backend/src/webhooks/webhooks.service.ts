@@ -26,6 +26,7 @@ import {
   GhlContactCreatePayload,
   GhlInboundMessagePayload,
 } from "./dto/ghl-webhook.dto";
+import { validateGhlPayload } from "./dto/ghl-payload-validator";
 
 export interface WebhookResponse {
   success: boolean;
@@ -99,6 +100,21 @@ export class WebhooksService {
     );
 
     try {
+      // Discriminated-union validation: pick the strict DTO matching the
+      // `type` and reject malformed payloads early. Returns success
+      // regardless so GHL does not enter a retry loop on a bad payload —
+      // failures are logged for investigation.
+      const validation = await validateGhlPayload(payload);
+      if (!validation.valid) {
+        this.logger.warn(
+          `[${correlationId}] GHL payload failed validation for type=${validation.type}: ` +
+            validation.errors
+              .map((e) => `${e.property}=${Object.values(e.constraints ?? {}).join("|")}`)
+              .join(", "),
+        );
+        return { success: true };
+      }
+
       const ghlPayload = payload as GhlWebhookPayload;
       const locationId = ghlPayload.location?.id ?? ghlPayload.locationId;
       const { type } = ghlPayload;
@@ -160,8 +176,11 @@ export class WebhooksService {
   ): Promise<void> {
     const { first_name, last_name, phone, email, issue } = payload;
     this.logger.log(`[${correlationId}] Routing lead to clinic: ${clinicName}`);
+    // Log presence flags only — names, phones, emails and free-text
+    // issues are PII and must not appear in plain text in the logs.
+    // Use the correlationId to join up the trail when investigating.
     this.logger.log(
-      `[${correlationId}] Lead details — name: ${first_name ?? ""} ${last_name ?? ""}, phone: ${phone ?? "N/A"}, email: ${email ?? "N/A"}, issue: ${issue ?? "N/A"}`,
+      `[${correlationId}] Lead presence — hasFirstName=${!!first_name} hasLastName=${!!last_name} hasPhone=${!!phone} hasEmail=${!!email} hasIssue=${!!issue}`,
     );
     await this.orchestratorService.handleNewLead(
       payload,
@@ -181,8 +200,10 @@ export class WebhooksService {
     this.logger.log(
       `[${correlationId}] Routing message to clinic: ${clinicName}`,
     );
+    // Log identifiers + a length hint only — the raw message body is
+    // patient-supplied free text and must not be persisted to logs.
     this.logger.log(
-      `[${correlationId}] Message details — contactId: ${contactId ?? "N/A"}, conversationId: ${conversationId ?? "N/A"}, content: ${messageBody ?? "N/A"}`,
+      `[${correlationId}] Message metadata — contactId=${contactId ?? "N/A"} conversationId=${conversationId ?? "N/A"} hasContent=${!!messageBody} contentLength=${messageBody?.length ?? 0}`,
     );
     await this.orchestratorService.handleInboundMessage(
       payload,

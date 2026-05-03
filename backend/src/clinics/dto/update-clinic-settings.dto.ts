@@ -16,8 +16,11 @@ import {
   Min,
   Max,
   Matches,
+  MaxLength,
   ValidateNested,
 } from "class-validator";
+import { IsUkPhone } from "../../common/validation/is-uk-phone.validator";
+import { SanitisedString } from "../../common/validation/sanitised-string.decorator";
 
 const VALID_DURATIONS = [15, 20, 30, 45, 60, 75, 90, 105, 120];
 
@@ -40,8 +43,7 @@ export class UpdateBusinessHoursDto {
 
 /** Shape of a single service entry inside the request body. */
 export class UpdateServiceDto {
-  @IsString()
-  @IsNotEmpty()
+  @SanitisedString({ max: 200 })
   name: string;
 
   @IsNumber()
@@ -52,8 +54,8 @@ export class UpdateServiceDto {
   @IsOptional()
   price?: number;
 
-  @IsString()
   @IsOptional()
+  @SanitisedString({ max: 1000 })
   description?: string;
 }
 
@@ -66,40 +68,40 @@ export class UpdateServiceAreaDto {
   })
   postcodePrefix: string;
 
-  @IsString()
   @IsOptional()
+  @SanitisedString({ max: 500 })
   description?: string;
 }
 
 /** Request body accepted by PATCH /clinics/:id/settings. */
 export class UpdateClinicSettingsDto {
   @IsOptional()
-  @IsString()
-  @IsNotEmpty({ message: "Clinic name must not be empty" })
+  @SanitisedString({ max: 200, min: 2 })
   name?: string;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty({ message: "Address must not be empty" })
+  @SanitisedString({ max: 500 })
   address?: string;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty({ message: "Phone number must not be empty" })
-  @Matches(/^(\+44\s?|0)\d[\d\s]{8,12}$/, {
-    message:
-      "Enter a valid UK phone number (e.g. 029 2034 5678 or +44 29 2034 5678)",
-  })
+  @IsUkPhone()
   phone?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      "GHL Location ID must be alphanumeric (underscore and hyphen allowed)",
+  })
   ghlLocationId?: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: "GHL Calendar ID must be alphanumeric",
+  @MaxLength(100)
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      "GHL Calendar ID must be alphanumeric (underscore and hyphen allowed)",
   })
   ghlCalendarId?: string;
 

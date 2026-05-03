@@ -189,6 +189,40 @@ describe("ClinicsService", () => {
       );
     });
 
+    it("should escape regex metacharacters in the search term to block NoSQL/ReDoS injection", async () => {
+      model.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+        }),
+      });
+
+      // Attacker tries to dump the entire collection with `.*` and to
+      // trigger catastrophic backtracking with `(a+)+`.
+      await service.findAll(".*");
+      expect(model.find).toHaveBeenCalledWith({
+        name: { $regex: "\\.\\*", $options: "i" },
+      });
+
+      await service.findAll("(a+)+");
+      expect(model.find).toHaveBeenCalledWith({
+        name: { $regex: "\\(a\\+\\)\\+", $options: "i" },
+      });
+    });
+
+    it("should treat an empty search string as no-filter rather than match-all", async () => {
+      model.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          lean: jest
+            .fn()
+            .mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+        }),
+      });
+      await service.findAll("");
+      expect(model.find).toHaveBeenCalledWith({});
+    });
+
     it("should return an empty array when no clinics exist", async () => {
       model.find.mockReturnValue({
         sort: jest.fn().mockReturnValue({
@@ -226,6 +260,14 @@ describe("ClinicsService", () => {
       await expect(service.findById("undefined")).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it("should reject uppercase-hex ObjectIds (case-sensitive guard)", async () => {
+      // 24-char hex but uppercase — would pass the old /i regex and then
+      // throw a Mongoose CastError at query time. Now caught at the boundary.
+      await expect(
+        service.findById("AABBCCDDEEFF001122334455"),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it("should throw NotFoundException when clinic does not exist", async () => {

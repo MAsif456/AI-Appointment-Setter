@@ -13,6 +13,9 @@ import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from "./app.module";
 import { buildHelmetOptions } from "./security-headers/security-headers.config";
+import { PrototypePollutionInterceptor } from "./common/security/prototype-pollution.interceptor";
+import { MongoOperatorSanitiserInterceptor } from "./common/security/mongo-operator-sanitiser.interceptor";
+import { ValidationExceptionFilter } from "./common/filters/validation-exception.filter";
 
 async function bootstrap() {
   /**
@@ -42,7 +45,23 @@ async function bootstrap() {
    * Must be registered BEFORE any route handlers that read cookies.
    */
   app.use(cookieParser());
-  
+
+  /*
+   * Strip Mongo operator keys ($-prefix, dotted nested paths) from
+   * req.body / req.query / req.params, plus prototype-pollution keys
+   * (__proto__, constructor, prototype). Together these close the
+   * "operator-key" and "prototype-poisoning" NoSQL injection vectors
+   * at the HTTP boundary regardless of which controller is hit.
+   *
+   * Implemented as Nest interceptors (rather than the unmaintained
+   * express-mongo-sanitize package) so they are compatible with
+   * Express 5's getter-only req.query and benefit from DI / unit tests.
+   */
+  app.useGlobalInterceptors(
+    new MongoOperatorSanitiserInterceptor(),
+    new PrototypePollutionInterceptor(),
+  );
+
   // Enable global validation so DTOs are automatically validated
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
@@ -51,6 +70,16 @@ async function bootstrap() {
     allowedHeaders: ["Content-Type", "Authorization"],
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+
+  /*
+   * Catch BadRequestExceptions raised by the ValidationPipe so the
+   * outgoing response carries a stable, user-friendly shape (no stack
+   * traces, no internal field paths) and the failure is recorded in
+   * the audit log with timestamp / IP / route / sanitised summary.
+   * Implements the validation-error response and logging acceptance
+   * criteria for issue #38.
+   */
+  app.useGlobalFilters(new ValidationExceptionFilter());
 
   /**
    * Swagger (OpenAPI) — interactive API docs served at /api.

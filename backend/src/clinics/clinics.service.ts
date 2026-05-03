@@ -20,8 +20,12 @@ import { CreateClinicDto } from "./dto/create-clinic.dto";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 import { EncryptionService } from '../common/encryption/encryption.service';
 import { GhlApiService } from '../ghl/ghl-api.service';
+import { escapeRegex } from "../common/security/escape-regex";
 
-const VALID_OBJECT_ID = /^[a-f0-9]{24}$/i;
+// MongoDB ObjectIds are always lowercase hex — keeping the regex case-
+// sensitive prevents an uppercase `AABB...` slipping past the guard
+// only to throw a Mongoose CastError at query time.
+const VALID_OBJECT_ID = /^[a-f0-9]{24}$/;
 
 function assertValidObjectId(id: string): void {
   if (
@@ -74,7 +78,15 @@ export class ClinicsService {
    * @param search - partial clinic name to filter by (optional)
    */
   async findAll(search?: string): Promise<any[]> {
-    const filter = search ? { name: { $regex: search, $options: "i" } } : {};
+    // Escape every regex metacharacter in the user-supplied search term so a
+    // caller cannot inject `.*` / `(a+)+` / etc. into the Mongo query and
+    // either dump the entire collection or trigger a ReDoS. The bare
+    // search field is otherwise passed straight through `$regex`, which
+    // is the documented NoSQL injection vector for full-text search.
+    const filter =
+      typeof search === "string" && search.length > 0
+        ? { name: { $regex: escapeRegex(search), $options: "i" } }
+        : {};
     const clinics = await this.clinicModel.find(filter).sort({ name: 1 }).lean().exec();
 
     // Compute live "last 7 days" lead and booking counts per clinic so
