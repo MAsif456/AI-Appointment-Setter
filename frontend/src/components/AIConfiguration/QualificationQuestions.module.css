@@ -1,0 +1,52 @@
+/* Qualification questions checkbox list */
+
+.section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.question {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.label {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.required {
+  color: var(--text-muted);
+  font-size: 13px;
+}

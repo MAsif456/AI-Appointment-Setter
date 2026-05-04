@@ -1,0 +1,553 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  background: var(--bg-input);
+  border-radius: 12px;
+  border: 1px dashed var(--border-default);
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.cardResolved {
+  opacity: 0.85;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.field {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.value {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.badgePending,
+.badgeApproved,
+.badgeRejected {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.cardActions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.approveBtn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #065f46;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.approveBtn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.approveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rejectBtn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-card);
+  color: #991b1b;
+  transition: background 0.15s;
+}
+
+.rejectBtn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.rejectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rejectForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rejectInput {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 48px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.rejectInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.15);
+}
+
+.rejectButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rejectConfirmBtn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #991b1b;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.rejectConfirmBtn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.rejectConfirmBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  transition: background 0.15s;
+}
+
+.cancelBtn:hover {
+  background: var(--bg-hover);
+}
+
+/* ── Resolved section: summary chips + compact table ── */
+
+.resolvedSummary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.summaryChip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  font-size: 0.85rem;
+}
+
+.summaryCount {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summaryLabel {
+  color: var(--text-muted);
+}
+
+.resolvedTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+}
+
+.resolvedTable thead {
+  background: var(--bg-input);
+}
+
+.resolvedTable th {
+  text-align: left;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.resolvedTable td {
+  padding: 0.6rem 1rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-default);
+  vertical-align: middle;
+}
+
+.resolvedTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.resolvedTable tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.dateCell {
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.reasonCell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Dark mode: 4-colour overrides ── */
+:global([data-theme="dark"]) .badgePending,
+:global([data-theme="dark"]) .badgeApproved,
+:global([data-theme="dark"]) .badgeRejected {
+  background: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+}
+
+:global([data-theme="dark"]) .approveBtn {
+  background: #f472b6;
+  color: #0c0c10;
+}
+
+:global([data-theme="dark"]) .approveBtn:hover:not(:disabled) {
+  background: #ec4899;
+}
+
+:global([data-theme="dark"]) .rejectBtn {
+  border-color: #3a3a4a;
+  color: #f4f4f7;
+}
+
+:global([data-theme="dark"]) .rejectBtn:hover:not(:disabled) {
+  background: #2a2a38;
+}
+
+:global([data-theme="dark"]) .rejectConfirmBtn {
+  background: #f472b6;
+  color: #0c0c10;
+}
+
+:global([data-theme="dark"]) .rejectConfirmBtn:hover:not(:disabled) {
+  background: #ec4899;
+}
+
+/* ── Approval confirmation form (mirrors reject form) ── */
+.approveForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.approveConfirmText {
+  font-size: 0.85rem;
+  color: #065f46;
+  line-height: 1.4;
+}
+
+:global([data-theme="dark"]) .approveConfirmText {
+  color: #f472b6;
+}
+
+.approveButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.approveConfirmBtn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #065f46;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.approveConfirmBtn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.approveConfirmBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:global([data-theme="dark"]) .approveConfirmBtn {
+  background: #f472b6;
+  color: #0c0c10;
+}
+
+:global([data-theme="dark"]) .approveConfirmBtn:hover:not(:disabled) {
+  background: #ec4899;
+}
+
+/* ── Centered confirmation modal ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modalTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.modalDesc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.modalInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.modalInfoRow {
+  display: flex;
+  gap: 12px;
+}
+
+.modalInfoLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.modalInfoValue {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.modal .rejectInput {
+  margin-bottom: 20px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modalCancelBtn {
+  padding: 10px 20px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+
+.modalCancelBtn:hover {
+  background: var(--bg-hover);
+}
+
+.modalApproveBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #065f46;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.modalApproveBtn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.modalApproveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modalRejectBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #991b1b;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.modalRejectBtn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.modalRejectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:global([data-theme="dark"]) .modalApproveBtn {
+  background: #f472b6;
+  color: #0c0c10;
+}
+
+:global([data-theme="dark"]) .modalApproveBtn:hover:not(:disabled) {
+  background: #ec4899;
+}
+
+:global([data-theme="dark"]) .modalRejectBtn {
+  background: #f472b6;
+  color: #0c0c10;
+}
+
+:global([data-theme="dark"]) .modalRejectBtn:hover:not(:disabled) {
+  background: #ec4899;
+}

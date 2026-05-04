@@ -1,0 +1,159 @@
+stages:
+  - test
+  - build
+  - deploy
+  - pages
+
+default:
+  image: node:20
+  tags:
+    - comsc-ci
+
+variables:
+  COVERAGE_THRESHOLD: '{"global":{"branches":75,"functions":75,"lines":75,"statements":75}}'
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .npm/
+
+# --- Backend tests ---
+test:backend:
+  stage: test
+  services:
+    - mongo:7
+  variables:
+    MONGODB_URI: "mongodb://mongo:27017/test_db"
+    FRONTEND_URL: "http://localhost:3000"
+    JEST_JUNIT_OUTPUT_DIR: "./reports"
+  before_script:
+    - cd backend
+    - npm ci
+  script:
+    - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
+  artifacts:
+    when: always
+    reports:
+      junit: backend/reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/coverage/cobertura-coverage.xml
+
+# --- Frontend tests ---
+test:frontend:
+  stage: test
+  variables:
+    JEST_JUNIT_OUTPUT_DIR: "./reports"
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npx jest --coverage --coverageReporters=text --coverageReporters=cobertura --coverageThreshold="$COVERAGE_THRESHOLD" --passWithNoTests --forceExit --reporters=default --reporters=jest-junit
+  artifacts:
+    when: always
+    reports:
+      junit: frontend/reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+
+# --- Build backend ---
+build:backend:
+  stage: build
+  before_script:
+    - cd backend
+    - npm ci
+  script:
+    - npm run build
+
+# --- Build frontend ---
+build:frontend:
+  stage: build
+  before_script:
+    - cd frontend
+    - rm -rf node_modules
+    - npm install
+  script:
+    - npm run build
+
+# --- Deploy to Vercel (Frontend) ---
+deploy:vercel:
+  stage: deploy
+  retry: 2
+  rules:
+    - if: $CI_COMMIT_BRANCH == "development"
+  script:
+    - npm install --global vercel
+    - export VERCEL_GIT_COMMIT_AUTHOR_LOGIN=$VERCEL_GIT_COMMIT_AUTHOR_LOGIN
+    - export VERCEL_GIT_COMMIT_AUTHOR_NAME=$VERCEL_GIT_COMMIT_AUTHOR_NAME
+    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+    - vercel build --prod --token=$VERCEL_TOKEN
+    - vercel deploy --prebuilt --prod --force --token=$VERCEL_TOKEN
+
+# --- Deploy to Render (Backend) ---
+deploy:render:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "development"
+  script:
+    - |
+      if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+        echo "Error: RENDER_DEPLOY_HOOK_URL not found in CI/CD Variables."
+        exit 1
+      fi
+    - curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+# Generating docs to GitLab Pages
+pages:
+  stage: pages
+  rules:
+    # Run on the development branch
+    - if: $CI_COMMIT_BRANCH == "development"
+    # Run on any branch that has an active Merge Request
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  before_script:
+    - cd backend && npm ci && cd ..
+    - cd frontend && npm ci && cd ..
+  script:
+    - cd backend
+    - npx compodoc -p tsconfig.json --output ../public/backend --theme stripe --silent
+    - cd ..
+    - cd frontend
+    - npx typedoc --options typedoc.json --out ../public/frontend
+    - cd ..
+    - mkdir -p public
+    - |
+      cat > public/index.html <<'EOF'
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Lunax Documentation</title>
+        <style>
+          body { font-family: system-ui, sans-serif; max-width: 600px; margin: 80px auto; padding: 0 24px; }
+          h1 { font-size: 1.8rem; margin-bottom: 8px; }
+          p  { color: #555; margin-bottom: 32px; }
+          a  { display: block; padding: 16px 20px; margin-bottom: 12px; border: 1px solid #ddd;
+               border-radius: 8px; text-decoration: none; color: #111; font-weight: 500; }
+          a:hover { background: #f5f5f5; }
+          small { display: block; font-weight: 400; color: #777; margin-top: 4px; }
+        </style>
+      </head>
+      <body>
+        <h1>Lunax Documentation</h1>
+        <p>Generated API and component reference for the Lunax platform.</p>
+        <a href="backend/">
+          Backend (Compodoc)
+          <small>NestJS modules, controllers, services, and DTOs</small>
+        </a>
+        <a href="frontend/">
+          Frontend (TypeDoc)
+          <small>Next.js components, hooks, and utilities</small>
+        </a>
+      </body>
+      </html>
+      EOF
+  artifacts:
+    paths:
+      - public

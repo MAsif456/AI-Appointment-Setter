@@ -1,0 +1,31 @@
+/* Main analytics dashboard page layout */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.statCards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.loading {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 40px 0;
+}

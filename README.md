@@ -1,93 +1,392 @@
-# Large Team Project Team 22b- Lunax Digital
+# AppointHealth AI - User Guide
 
+AppointHealth AI is an intelligent appointment booking platform. It uses AI to automatically qualify leads, book appointments, send follow-up messages, and escalate conversations to human staff when needed - all through email, and live chat.
 
+---
 
-## Getting started
+## Table of Contents
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+1. [Logging In](#1-logging-in)
+2. [Dashboard](#2-dashboard)
+3. [Managing Clinics](#3-managing-clinics)
+4. [Connecting GoHighLevel (GHL)](#4-connecting-gohighlevel-ghl)
+5. [Configuring the AI](#5-configuring-the-ai)
+6. [Managing Users (Admin only)](#6-managing-users-admin-only)
+7. [Conversations](#7-conversations)
+8. [Escalations](#8-escalations)
+9. [Analytics](#9-analytics)
+10. [Notifications & Inbox](#10-notifications--inbox)
+11. [Data Protection & GDPR](#11-data-protection--gdpr)
+12. [Settings & Account](#12-settings--account)
+13. [Roles: Admin vs Staff](#13-roles-admin-vs-staff)
+14. [How the AI Booking Flow Works](#14-how-the-ai-booking-flow-works)
+15. [Automated Follow-Ups](#15-automated-follow-ups)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## 1. Logging In
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Go to the application URL and log in with your email and password.
 
+- If you have forgotten your password, click **Forgot password** and follow the link sent to your email.
+- New accounts require email verification before you can log in. Check your inbox for a verification email after signing up.
+
+**Default admin login (development seed data):**
+- Email: `admin@lunaxdigital.com`
+- Password: `admin123`
+
+---
+
+## 2. Dashboard
+
+The dashboard gives you an at-a-glance overview of the platform:
+
+- **Total leads** - how many leads have come in
+- **Bookings** - how many appointments have been booked
+- **Active conversations** - conversations currently in progress
+- **Escalations** - conversations flagged for human attention
+- **Recent conversations** - a quick list of the latest activity
+- **Clinic performance table** - per-clinic breakdown of key metrics
+
+---
+
+## 3. Managing Clinics
+
+Clinics are the core unit of the platform. Each clinic has its own AI configuration, GHL integration, and team.
+
+### Adding a new clinic (Admin only)
+
+1. Click **Clinics** in the sidebar
+2. Click **Add Clinic**
+3. Fill in:
+   - **Clinic name**
+   - **Address**
+   - **Phone number**
+   - **GHL Location ID** - from your GoHighLevel sub-account (see Section 4)
+   - **GHL Calendar ID** - the calendar where appointments will be booked
+   - **Services offered** - list the treatments or services available
+   - **Service areas** - postcodes or regions the clinic covers
+   - **Business hours** - days and times the clinic operates
+4. Click **Save**
+
+### Editing a clinic
+
+1. Click **Clinics** in the sidebar
+2. Click on a clinic name to open it
+3. Use the tabs - **Overview**, **AI Configuration**, **Integrations** - to manage different aspects
+4. Click **Edit** to update details, then **Save**
+
+### Activating / Deactivating a clinic
+
+From the clinic detail page, use the **Activate** or **Deactivate** button. Deactivated clinics will not receive or process new leads.
+
+---
+
+## 4. Connecting GoHighLevel (GHL)
+
+AppointHealth AI uses GoHighLevel (GHL) to send messages and book appointments. Each clinic must be connected to a GHL sub-account.
+
+### What you need from GHL
+
+| Field | Where to find it in GHL |
+|---|---|
+| **GHL Location ID** | Settings → Business Info → Location ID |
+| **GHL Calendar ID** | Calendars → click your calendar → Settings → Calendar ID |
+| **GHL Private Integration Token** | Settings → Integrations → Private Integrations → create one and copy the token |
+
+### Connecting a clinic to GHL
+
+1. Open the clinic → **Integrations** tab
+2. Enter the **Location ID**, **Calendar ID**, and **Private Integration Token**
+3. Click **Test Connection** to verify it works
+4. Click **Save**
+
+Once connected, the AI can send messages to leads and create calendar appointments directly in GHL.
+
+---
+
+## 5. Configuring the AI
+
+Each clinic has its own AI configuration that controls how the bot talks to leads.
+
+1. Open the clinic → **AI Configuration** tab
+2. Configure:
+   - **Greeting message** - the first message the AI sends when a lead starts a conversation
+   - **AI tone** - choose between Professional, Friendly, or Empathetic
+   - **Qualification questions** - questions the AI asks to qualify the lead (e.g. location, issue type, urgency)
+   - **Services & locations** - what services and areas the AI should know about
+   - **Custom instructions** - any specific rules or information the AI should follow
+3. Click **Save**
+
+The AI uses this configuration to qualify leads, answer questions, and guide them towards booking an appointment.
+
+---
+
+## 6. Managing Users (Admin only)
+
+Admins can create and manage staff accounts from the Settings page.
+
+### Creating a staff account
+
+1. Go to **Settings** → **User Management**
+2. Click **Add User**
+3. Enter:
+   - **First name** and **Last name**
+   - **Email address**
+   - **Role** - Staff or Admin
+   - **Clinic** - which clinic they belong to (staff are tied to one clinic; admins see all)
+4. Click **Save**
+
+The new user will receive a verification email. They must verify their email before they can log in.
+
+### Roles
+
+| Role | What they can do |
+|---|---|
+| **Admin** | Full access - manage all clinics, all conversations, all users, analytics, data protection |
+| **Staff** | Access to their assigned clinic's conversations, escalations, and notifications |
+
+### Editing or removing a user
+
+From **Settings → User Management**, click the menu icon next to a user to edit their details or delete their account.
+
+---
+
+## 7. Conversations
+
+The Conversations page shows all AI-managed conversations with leads.
+
+### Conversation phases
+
+| Phase | Meaning |
+|---|---|
+| **Greeting** | AI has just started talking to the lead |
+| **Qualifying** | AI is asking qualification questions |
+| **Booking** | AI is in the process of booking an appointment |
+| **Confirmed** | Appointment successfully booked |
+| **Declined** | Lead is outside service area or not suitable |
+| **Closed** | Conversation ended (no response, cancelled, or complete) |
+
+### Viewing a conversation
+
+Click any conversation to open the full chat history, lead details, and appointment information.
+
+### Live chat
+
+Click **Live** in the sidebar under Conversations to see conversations happening in real time via the website chat widget.
+
+### High priority
+
+Conversations marked as high priority are flagged in the list. These are leads that the AI has identified as urgent.
+
+---
+
+## 8. Escalations
+
+When the AI cannot handle a conversation (e.g. the lead is frustrated, has an unusual request, or asks something the AI cannot answer), it escalates it to a human.
+
+1. Click **Escalations** in the sidebar
+2. You will see all conversations waiting for human attention
+3. Click an escalation to open the conversation and take over
+4. Once resolved, click **Resolve** to close the escalation
+5. The AI will resume or the conversation can be handled manually
+
+Staff members are notified in real time when a new escalation comes in.
+
+---
+
+## 9. Analytics
+
+The Analytics page gives a detailed breakdown of performance.
+
+- **Overview stats** - total leads, bookings, conversion rate, response time
+- **Bookings chart** - bookings over time
+- **Funnel chart** - how many leads pass through each phase
+- **Lead sources** - where leads are coming from (Facebook, Google Ads, website, referral)
+- **Phase distribution** - breakdown of conversations by current phase
+- **Clinic comparison table** - side-by-side performance across clinics (Admin only)
+
+Use the **date range selector** to filter by last 7 days, last 30 days, or a custom range.
+
+---
+
+## 10. Notifications & Inbox
+
+The notification bell in the top bar shows real-time alerts. Click it to see recent activity.
+
+### Notification types
+
+| Type | Triggered by |
+|---|---|
+| **New lead** | A new lead starts a conversation |
+| **Escalation** | The AI escalates a conversation to staff |
+| **Appointment rescheduled** | A lead reschedules an existing appointment |
+| **Stalled conversation** | A lead has not responded for 24 hours |
+| **GDPR data deletion** | A data erasure request has been submitted |
+
+### Notification preferences
+
+Go to **Settings → Notifications** to choose which alerts you receive. Staff can toggle lead and appointment notifications. Admins have additional options for platform-wide alerts.
+
+---
+
+## 11. Data Protection & GDPR
+
+AppointHealth AI includes built-in GDPR tools to handle data erasure requests.
+
+1. Click **Data Protection** in the sidebar
+2. You will see any pending erasure requests submitted by leads
+3. Review the request details
+4. Click **Approve** to permanently delete the lead's data from the system
+5. The system logs the action for compliance purposes
+
+Only admins can action erasure requests.
+
+---
+
+## 12. Settings & Account
+
+Access **Settings** from the sidebar at the bottom.
+
+### Account settings
+- Update your name, email, and password
+- Change your profile details
+
+### Appearance
+- Toggle between **Light** and **Dark** mode
+
+### Notification preferences
+- Control which notifications you receive (see Section 10)
+
+### Integrations
+- View and manage your connected GHL integration
+
+### User Management (Admin only)
+- Add, edit, or remove staff and admin accounts (see Section 6)
+
+---
+
+## 13. Roles: Admin vs Staff
+
+| Feature | Admin | Staff |
+|---|---|---|
+| View all clinics | Yes | No (own clinic only) |
+| Add / edit clinics | Yes | No |
+| Manage users | Yes | No |
+| View all conversations | Yes | No (own clinic only) |
+| Handle escalations | Yes | Yes (own clinic only) |
+| View analytics | Yes | Limited |
+| Data protection / GDPR | Yes | No |
+| Notification preferences | All types | Lead & appointment types |
+
+---
+
+## 14. How the AI Booking Flow Works
+
+1. A lead sends a message via Email.
+2. GHL receives the message and forwards it to AppointHealth AI via a webhook
+3. The AI greets the lead and begins the qualification process
+4. The AI asks configured qualification questions (location, issue, urgency, etc.)
+5. If the lead qualifies, the AI checks available slots and proposes an appointment time
+6. The lead confirms and the AI books directly into the GHL calendar
+7. A confirmation message is sent to the lead
+8. If the lead does not respond, the **automated follow-up** system kicks in (see Section 15)
+9. If the AI cannot handle the conversation, it escalates to a human staff member
+
+---
+
+## 15. Automated Follow-Ups
+
+If a lead stops responding, AppointHealth AI automatically sends follow-up messages.
+
+| Trigger | Action |
+|---|---|
+| No response for **24 hours** | Sends: *"Hi [name], just checking in! Still interested in booking?"* |
+| No response for **48 hours** | Sends: *"Hey [name], I don't want to keep bothering you! Let me know if I can help."* |
+| No response for **7 days** | Conversation is closed, marked as `no_response`, and the lead is tagged as `unresponsive` in GHL |
+
+Follow-up messages are only sent during business hours (Monday–Friday, 9am–6pm UTC). Closing a conversation happens regardless of the time of day.
+
+---
+
+## Developer Setup
+
+For developers setting up the project locally, see the sections below.
+
+### Prerequisites
+
+| Tool | Purpose | Check |
+|---|---|---|
+| **Node.js v18+** | Runs frontend and backend | `node -v` |
+| **npm** | Installs dependencies | `npm -v` |
+| **MongoDB** | Database | Local or [Atlas](https://www.mongodb.com/cloud/atlas) |
+
+### Installation
+
+```bash
+# Install backend dependencies
+cd backend && npm install && cd ..
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 ```
-cd existing_repo
-git remote add origin https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital.git
-git branch -M main
-git push -uf origin main
+
+### Backend environment variables (`backend/.env`)
+
+```env
+PORT=3001
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/databaseName
+FRONTEND_URL=http://localhost:3000
+JWT_SECRET=your-secret-key
+GHL_API_BASE_URL=https://services.leadconnectorhq.com/
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+EMAIL_FROM=noreply@appointhealth.com
+FIELD_ENCRYPTION_KEY=your-32-byte-hex-key
+ENCRYPTION_KEY=your-encryption-key
 ```
 
-## Integrate with your tools
+### Running locally
 
-- [ ] [Set up project integrations](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/settings/integrations)
+```bash
+# Terminal 1 - backend
+cd backend && npm run dev
 
-## Collaborate with your team
+# Terminal 2 - frontend
+cd frontend && npm run dev
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Frontend: http://localhost:3000
+Backend: http://localhost:3001
 
-## Test and Deploy
+### Seeding the database (development only)
 
-Use the built-in continuous integration in GitLab.
+```bash
+cd backend && npm run seed
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+This clears the database and creates sample clinics, leads, conversations, and a default admin account (`admin@lunaxdigital.com` / `admin123`).
 
-***
+> **Warning:** Running `npm run seed` wipes all existing data. Never run this against your production database.
 
-# Editing this README
+### Useful commands
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+| Command | Run from | What it does |
+|---|---|---|
+| `npm run dev` | `frontend/` or `backend/` | Start dev server |
+| `npm run build` | `frontend/` or `backend/` | Build for production |
+| `npm run seed` | `backend/` | Reset and seed the database |
+| `npm test` | `backend/` | Run backend tests |
 
-## Suggestions for a good README
+### Deployment
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+| Service | Platform |
+|---|---|
+| Backend API | Render |
+| Frontend | Vercel |
 
-## Name
-Choose a self-explaining name for your project.
+Pushes to the `development` branch auto-deploy via the GitLab → GitHub mirror. Render and Vercel detect the push and redeploy automatically.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+> Render's free tier spins down after 15 minutes of inactivity. The first request after sleep may take up to 30 seconds.

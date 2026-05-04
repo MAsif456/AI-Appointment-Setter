@@ -1,0 +1,153 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-page);
+  padding: 1rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 480px;
+  padding: 3rem 2.5rem;
+}
+
+.header { text-align: center; margin-bottom: 2.5rem; }
+.title { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.75rem; }
+.titleHighlight { color: var(--color-primary); }
+.subtitle { font-size: 1.125rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.description { font-size: 0.875rem; color: var(--text-muted); }
+
+.error {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.success {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 0.5rem;
+  color: #16a34a;
+  font-size: 0.875rem;
+}
+
+:global([data-theme="dark"]) .success { background-color: rgba(244, 114, 182, 0.12); border-color: rgba(244, 114, 182, 0.2); color: #f472b6; }
+
+.fieldError { color: #e53935; font-size: 13px; margin-top: 6px; }
+
+.form { display: flex; flex-direction: column; gap: 1.5rem; }
+.formGroup { display: flex; flex-direction: column; }
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  color: var(--text-primary);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.input::placeholder { color: var(--text-muted); }
+
+.input:focus {
+  background-color: var(--bg-card);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
+}
+
+/* Red border on both inputs when a login attempt fails — matches Add Clinic form style */
+.inputError {
+  border-color: #dc2626;
+  background-color: var(--bg-card);
+}
+
+.inputError:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.submitButton {
+  width: 100%;
+  padding: 0.875rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-on-primary);
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.3);
+}
+
+.submitButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.forgotPassword { text-align: center; margin-top: 1.5rem; }
+
+.forgotPasswordLink {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.forgotPasswordLink:hover { color: var(--color-primary-hover); text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .card { padding: 2rem 1.5rem; }
+  .title { font-size: 1.75rem; }
+  .subtitle { font-size: 1rem; }
+}
+
+.passwordWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.eyeButton {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hide Edge/IE native password reveal icon to avoid duplicate with our custom button */
+input::-ms-reveal,
+input::-ms-clear { display: none; }

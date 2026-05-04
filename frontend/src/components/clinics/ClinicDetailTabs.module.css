@@ -1,0 +1,139 @@
+.tabBar {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid var(--border-default);
+  margin-top: 20px;
+}
+
+.tab {
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text-secondary);
+}
+
+.tabActive {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tabContent {
+  margin-top: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.editFormWrapper {
+  margin-top: 24px;
+}
+
+.formFooterActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-default);
+}
+
+.formCancelButton {
+  padding: 10px 20px;
+  border: 1.5px solid var(--border-default);
+  border-radius: 8px;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.formCancelButton:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.formSaveButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.formSaveButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.placeholder {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.saveBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.saveButton {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.saveButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.successBanner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background-color: #ecfdf3;
+  color: #166534;
+  font-size: 13px;
+  border: 1px solid #bbf7d0;
+  margin-bottom: 16px;
+}
+
+.errorText {
+  font-size: 13px;
+  color: #b91c1c;
+  margin-bottom: 16px;
+}
+
+:global([data-theme="dark"]) .successBanner {
+  background-color: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+  border-color: rgba(244, 114, 182, 0.2);
+}
+
+:global([data-theme="dark"]) .errorText {
+  color: #f472b6;
+}

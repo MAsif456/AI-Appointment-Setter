@@ -1,0 +1,447 @@
+.pageActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.primaryButton {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+
+.statusBadgeActive,
+.statusBadgeInactive {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusBadgeActive {
+  background-color: #ecfdf3;
+  color: #15803d;
+}
+
+.statusBadgeInactive {
+  background-color: var(--bg-input);
+  color: var(--text-secondary);
+}
+
+.viewDetailsLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.viewDetailsLink:hover {
+  text-decoration: underline;
+}
+
+.detailPage {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.detailTitle {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.detailMeta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.tabButton {
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tabButtonActive {
+  color: var(--text-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tabPanel {
+  padding-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settingsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.textInput {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  font-size: 14px;
+}
+
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background-color: #eff6ff;
+  color: var(--color-primary-hover);
+  font-size: 11px;
+}
+
+.chipRemove {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.hoursTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.hoursTable th,
+.hoursTable td {
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.hoursTable thead {
+  color: var(--text-muted);
+}
+
+.timeInput {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  font-size: 13px;
+}
+
+.checkbox {
+  width: 14px;
+  height: 14px;
+}
+
+.secondaryButton {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.secondaryButton:hover {
+  background-color: var(--bg-hover);
+}
+
+.successBanner {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: #ecfdf3;
+  color: #166534;
+  font-size: 13px;
+  border: 1px solid #bbf7d0;
+}
+
+.errorText {
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+:global([data-theme="dark"]) .successBanner { background-color: rgba(244, 114, 182, 0.12); color: #f472b6; border-color: rgba(244, 114, 182, 0.2); }
+:global([data-theme="dark"]) .errorText { color: #f472b6; }
+
+/* Pill row for read-only services & locations */
+.settingsPillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.settingsPill {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid var(--border-default);
+}
+
+:global([data-theme="dark"]) .settingsPill {
+  color: #f4f4f7;
+  background: #2a2a38;
+  border-color: #3a3a4a;
+}
+
+.settingsPillArea {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid var(--border-default);
+}
+
+:global([data-theme="dark"]) .settingsPillArea {
+  color: #f4f4f7;
+  background: #2a2a38;
+  border-color: #3a3a4a;
+}
+
+.settingsSubtle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Settings view (read-only) and header actions */
+.settingsCard {
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  padding: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+}
+
+.settingsCard:last-child {
+  margin-bottom: 0;
+}
+
+.settingsCardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 20px 0;
+  letter-spacing: -0.01em;
+}
+
+.readOnlyField {
+  margin-bottom: 16px;
+}
+
+.readOnlyField:last-child {
+  margin-bottom: 0;
+}
+
+.readOnlyLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.readOnlyValue {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  cursor: default;
+}
+
+/* Business hours: two boxes for open/close */
+.readOnlyHoursRow {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.readOnlyHoursRow:last-child {
+  margin-bottom: 0;
+}
+
+.readOnlyHoursLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  min-width: 90px;
+}
+
+.readOnlyHoursBoxes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.readOnlyHoursSingle {
+  flex: 1;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  box-sizing: border-box;
+  cursor: default;
+}
+
+.readOnlyHoursDivider {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.readOnlyHoursClosed {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 12px 0;
+  cursor: default;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.statusLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.statusMessage {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.editButton:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.editButton svg {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+

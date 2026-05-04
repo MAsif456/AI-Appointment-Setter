@@ -1,0 +1,95 @@
+/* Clinic information read-only panel on the Overview tab */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.heading {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 20px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+  margin-bottom: 24px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 6px 0;
+}
+
+.value {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 9999px;
+  font-size: 13px;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+:global([data-theme="dark"]) .pill { background: #2a2a38; color: #f4f4f7; }
+
+.subtle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.hoursWrapper {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.hoursGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 32px;
+  margin: 8px 0 0 0;
+}
+
+.hoursRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+}
+
+.dayName {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dayValue {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .grid, .hoursGrid {
+    grid-template-columns: 1fr;
+  }
+}
