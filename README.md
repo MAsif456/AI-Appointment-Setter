@@ -309,6 +309,84 @@ Follow-up messages are only sent during business hours (Monday–Friday, 9am–6
 
 ---
 
+## 🏷️ Version History
+
+AppointHealth AI follows **Semantic Versioning (SemVer 2.0.0)** to track releases and ensure predictable version increments.
+
+### Current Version
+**[v1.0.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v1.0.0)** - Production Release (May 6, 2026)
+
+### Release Timeline
+
+| Version | Date | Milestone | Key Features |
+|---------|------|-----------|--------------|
+| [v1.0.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v1.0.0) | May 6, 2026 | **Production Release** | Final delivery - all features complete, 85%+ test coverage |
+| [v0.9.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.9.0) | May 1, 2026 | Security Hardening | NoSQL injection prevention, validation filters, security pipeline |
+| [v0.8.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.8.0) | Apr 26, 2026 | Automation | Appointment reminders, automated follow-ups, cron jobs |
+| [v0.7.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.7.0) | Apr 19, 2026 | Enhanced Security | JWT refresh tokens, escalation system, SSE notifications |
+| [v0.6.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.6.0) | Apr 13, 2026 | GDPR Compliance | Consent management, encryption, data erasure workflows |
+| [v0.5.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.5.0) | Apr 7, 2026 | Multi-Channel | Email channel support, threading, auto-reply detection |
+| [v0.4.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.4.0) | Mar 28, 2026 | Analytics | Dashboard with metrics, funnel visualization, lead attribution |
+| [v0.3.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.3.0) | Mar 20, 2026 | Booking System | GHL calendar integration, webhook pipeline, appointment booking |
+| [v0.2.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.2.0) | Mar 12, 2026 | AI Integration | Conversation UI, AI greetings, GHL messaging |
+| [v0.1.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v0.1.0) | Mar 6, 2026 | Foundation | Database schemas, authentication, clinic management |
+
+*View all releases: [GitLab Releases](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases)*
+
+### Semantic Versioning Format
+
+**Format:** `vMAJOR.MINOR.PATCH`
+
+- **MAJOR** (v2.x.x): Breaking changes - incompatible API changes, database migrations
+- **MINOR** (v1.x.0): New features - backward-compatible functionality additions
+- **PATCH** (v1.0.x): Bug fixes - backward-compatible bug fixes and patches
+
+**Version Prefix Meaning:**
+- **v0.x.x** - Pre-release versions (development milestones)
+- **v1.0.0** - First stable production release
+- **v2.0.0+** - Future major versions with breaking changes
+
+### Version Naming Convention
+
+**Pre-Release Phase (v0.x.x):**
+During development (March - May 2026), we incremented MINOR versions for each feature milestone. PATCH versions were not used during v0.x.x as this phase represents unstable/development code where breaking changes are expected.
+
+**Stable Phase (v1.0.0+):**
+Post-v1.0.0, we follow strict SemVer rules:
+- **PATCH** for bug fixes (v1.0.1, v1.0.2...)
+- **MINOR** for new features (v1.1.0, v1.2.0...)
+- **MAJOR** for breaking changes (v2.0.0, v3.0.0...)
+
+### Creating Future Releases
+
+When creating future releases:
+
+1. **Bug fixes** → Increment PATCH (v1.0.1)
+   - Example: Fixed timezone conversion error
+2. **New features** → Increment MINOR (v1.1.0)
+   - Example: Added SMS channel support
+3. **Breaking changes** → Increment MAJOR (v2.0.0)
+   - Example: Migrated from MongoDB to PostgreSQL
+
+All releases follow our working agreement commitment to semantic versioning and are documented in [GitLab Releases](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases) with comprehensive changelogs.
+
+### Commit Message Standards
+
+We follow **[Conventional Commits](https://www.conventionalcommits.org/)** to maintain clear version history:
+
+**Format:** `<type>(<scope>): <short description>`
+
+**Examples:**
+```bash
+feat(appointments): add rescheduling flow with GHL calendar sync
+fix(chat): handle null response from AI to prevent crash
+chore(deps): update NestJS to v10.3.2
+```
+
+**Types:** `feat` (new feature), `fix` (bug fix), `chore` (maintenance), `refactor` (code restructuring), `docs` (documentation), `test` (testing), `style` (formatting)
+
+---
+
 ## Developer Setup
 
 For developers setting up the project locally, see the sections below.
