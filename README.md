@@ -309,7 +309,7 @@ Follow-up messages are only sent during business hours (Monday–Friday, 9am–6
 
 ---
 
-## 🏷️ Version History
+## Version History
 
 AppointHealth AI follows **Semantic Versioning (SemVer 2.0.0)** to track releases and ensure predictable version increments.
 
@@ -468,3 +468,28 @@ This clears the database and creates sample clinics, leads, conversations, and a
 Pushes to the `development` branch auto-deploy via the GitLab → GitHub mirror. Render and Vercel detect the push and redeploy automatically.
 
 > Render's free tier spins down after 15 minutes of inactivity. The first request after sleep may take up to 30 seconds.
+
+---
+
+## Project Status
+
+### Academic Context
+This project was developed as part of **CM6331 Large Team Project** at Cardiff University (2025-26).
+
+**Team:** Lunax Digital - Team 22b  
+**Development Period:** March 2026 - May 2026  
+**Current Version:** [v1.0.0](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v1.0.0)  
+**Status:** Production Release
+
+[![GitLab Release](https://img.shields.io/badge/release-v1.0.0-blue)](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases/v1.0.0)
+[![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital)
+[![License](https://img.shields.io/badge/license-Academic-orange)](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital)
+
+### License & Copyright
+
+**Proprietary** - Cardiff University CM6331 Academic Project  
+© 2026 Lunax Digital - Team 22b
+
+---
+
+**For any questions about setup or usage, refer to the sections above or contact the development team.**
