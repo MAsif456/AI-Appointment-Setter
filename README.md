@@ -333,58 +333,6 @@ AppointHealth AI follows **Semantic Versioning (SemVer 2.0.0)** to track release
 
 *View all releases: [GitLab Releases](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases)*
 
-### Semantic Versioning Format
-
-**Format:** `vMAJOR.MINOR.PATCH`
-
-- **MAJOR** (v2.x.x): Breaking changes - incompatible API changes, database migrations
-- **MINOR** (v1.x.0): New features - backward-compatible functionality additions
-- **PATCH** (v1.0.x): Bug fixes - backward-compatible bug fixes and patches
-
-**Version Prefix Meaning:**
-- **v0.x.x** - Pre-release versions (development milestones)
-- **v1.0.0** - First stable production release
-- **v2.0.0+** - Future major versions with breaking changes
-
-### Version Naming Convention
-
-**Pre-Release Phase (v0.x.x):**
-During development (March - May 2026), we incremented MINOR versions for each feature milestone. PATCH versions were not used during v0.x.x as this phase represents unstable/development code where breaking changes are expected.
-
-**Stable Phase (v1.0.0+):**
-Post-v1.0.0, we follow strict SemVer rules:
-- **PATCH** for bug fixes (v1.0.1, v1.0.2...)
-- **MINOR** for new features (v1.1.0, v1.2.0...)
-- **MAJOR** for breaking changes (v2.0.0, v3.0.0...)
-
-### Creating Future Releases
-
-When creating future releases:
-
-1. **Bug fixes** → Increment PATCH (v1.0.1)
-   - Example: Fixed timezone conversion error
-2. **New features** → Increment MINOR (v1.1.0)
-   - Example: Added SMS channel support
-3. **Breaking changes** → Increment MAJOR (v2.0.0)
-   - Example: Migrated from MongoDB to PostgreSQL
-
-All releases follow our working agreement commitment to semantic versioning and are documented in [GitLab Releases](https://git.cardiff.ac.uk/c23042139/large-team-project-team-22b-lunax-digital/-/releases) with comprehensive changelogs.
-
-### Commit Message Standards
-
-We follow **[Conventional Commits](https://www.conventionalcommits.org/)** to maintain clear version history:
-
-**Format:** `<type>(<scope>): <short description>`
-
-**Examples:**
-```bash
-feat(appointments): add rescheduling flow with GHL calendar sync
-fix(chat): handle null response from AI to prevent crash
-chore(deps): update NestJS to v10.3.2
-```
-
-**Types:** `feat` (new feature), `fix` (bug fix), `chore` (maintenance), `refactor` (code restructuring), `docs` (documentation), `test` (testing), `style` (formatting)
-
 ---
 
 ## Developer Setup
