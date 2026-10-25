@@ -1,6 +1,63 @@
 # AppointHealth AI - User Guide
 
-AppointHealth AI is an intelligent appointment booking platform. It uses AI to automatically qualify leads, book appointments, send follow-up messages, and escalate conversations to human staff when needed - all through email, and live chat.
+An AI chatbot that lets patients book clinic appointments through
+natural conversation instead of phone calls and long waits, built for
+Lunax Digital. It handles different conversation styles, escalates
+unresolved conversations to human staff, and includes a staff
+dashboard for monitoring clinics and conversations.
+
+*Commits in this project appear under my former university username,
+MASAsif.*
+
+**Team:** 5 | **Tech:** Next.js, NestJS, MongoDB, deployed on Vercel
+(frontend) and Render (backend)
+
+## My contribution
+
+This was a team project. My work spanned project leadership, design,
+DevOps and backend features.
+
+### Planning and agile leadership
+- Wrote the initial product backlog of 30+ user stories and prioritised
+  them using MoSCoW (must/should/could); later refined by the team.
+- Led the retrospectives for sprints 1 to 6 and the planning meetings
+  for sprints 3 and 5, prioritising stories and defining tasks.
+- Booked meeting spaces for sprint planning to support in-person
+  collaboration.
+
+### Design and client communication
+- Created system workflow diagrams to present the intended behaviour to
+  the client and gather feedback in meetings.
+- Designed the appointment booking flow, message processing flow and
+  conversation phases state diagram, which guided the team's
+  implementation.
+- Designed and maintained the Figma prototype used for client feedback
+  and as the team's implementation reference.
+- Unified the UI across pages built by different teammates so the whole
+  application looked consistent, and added a dark mode with colours
+  matched to the client's branding.
+
+### DevOps and engineering practice
+- Created and maintained the CI/CD pipeline (testing, builds,
+  deployments, and documentation hosting via GitLab Pages).
+- Deployed the frontend on Vercel and the backend on Render.
+- Wrote a wiki documenting and justifying the team's Git workflow and
+  branching strategy.
+- Reviewed teammates' merge requests (short, detailed and
+  over-the-shoulder reviews) against our working agreement.
+- Set up automatic documentation with Compodoc (backend), Swagger (API)
+  and TypeDoc (frontend).
+
+### Features I implemented
+- Slot selection: the system works out which appointment slot a lead
+  chose from their reply, so the correct booking is made.
+- Escalation: complex or unresolved conversations are handed to human
+  staff, who are notified to take over.
+- Dashboard analytics API endpoints for performance metrics.
+- Staff dashboard: overview, clinic list and conversation list.
+- Webhook handling: receiving GHL webhooks and routing them to the
+  correct clinic.
+- Input validation and sanitisation to prevent NoSQL injection.
 
 ---
 
