@@ -9,8 +9,8 @@ dashboard for monitoring clinics and conversations.
 *Commits in this project appear under my former university username,
 MASAsif.*
 
-**Team:** 5 | **Tech:** Next.js, NestJS, MongoDB, deployed on Vercel
-(frontend) and Render (backend)
+**Team:** 5 | **Tech:** Next.js, NestJS, MongoDB, Llama 3.3 70B via the
+Groq API, deployed on Vercel (frontend) and Render (backend)
 
 ## My contribution
 
